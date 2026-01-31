@@ -3,7 +3,7 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, CartesianGrid } f
 import { 
   TrendingUp, Users, Wallet, AlertCircle, Plus, Check, X, Trash2, 
   Banknote, ShieldCheck, History as HistoryIcon, Zap, HeartPulse, 
-  Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2
+  Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame
 } from 'lucide-react';
 import { supabase } from './supabase';
 
@@ -58,7 +58,6 @@ export default function NexusUltimateCloud() {
       setReimbursements(data.reimbursements || []);
       setExceptionalPaid(data.exceptional_paid || []);
     } else if (!data && !error) {
-      // Données par défaut pour un nouvel utilisateur
       const defaults = {
         user_id: userId,
         fixed_expenses: [
@@ -94,7 +93,6 @@ export default function NexusUltimateCloud() {
     await supabase.from('nexus_data').upsert({ user_id: session.user.id, ...updates });
   };
 
-  // Sauvegarde auto à chaque changement
   useEffect(() => { 
     if (!loading && session) saveData(); 
   }, [fixedExpenses, annualExpenses, pending, history, reimbursements, exceptionalPaid]);
@@ -117,23 +115,37 @@ export default function NexusUltimateCloud() {
     setFixedExpenses([]); setAnnualExpenses([]); setPending([]); 
   };
 
-  // --- 3. LOGIQUE MÉTIER & CALCULS ---
+  // --- 3. LOGIQUE MÉTIER (FIXÉE AVEC TEMPS + ABSORBER) ---
   const totals = useMemo(() => {
     const totalFixed = fixedExpenses.reduce((acc, c) => acc + c.amount, 0);
     const totalAnnual = annualExpenses.reduce((acc, c) => acc + c.amount, 0);
     const creche = fixedExpenses.find(e => e.name.toLowerCase().includes('crèche'))?.amount || 0;
+    
+    // Provision Mensuelle
     const provision = Math.round(totalAnnual / 12);
+    // Virement nécessaire
     const virement = Math.ceil((totalFixed - creche + provision) / 2);
     
+    // Totaux annexes
     const totalPending = pending.reduce((acc, c) => acc + c.amount, 0);
     const totalReimbursed = reimbursements.reduce((acc, c) => acc + c.amount, 0);
     const totalPaid = exceptionalPaid.reduce((acc, c) => acc + c.amount, 0);
 
-    const realCash = 1429 + totalReimbursed - totalPaid - totalPending;
+    // --- LOGIQUE TEMPORELLE RESTAURÉE ---
+    const startCash = 1429; // Socle départ (Janvier)
+    const currentMonthIndex = new Date().getMonth(); // 0 = Janvier, 1 = Février...
+    
+    // Cash Réel = Socle + (Provisions x mois écoulés) + Recettes - Paiements - Dettes
+    const realCash = startCash 
+                     + (provision * currentMonthIndex) 
+                     + totalReimbursed - totalPaid - totalPending;
+
+    // Base pour la projection (sans les mois écoulés, pour que la courbe parte de Janvier)
+    const baseForProjection = startCash + totalReimbursed - totalPaid - totalPending;
     
     const projection = Array.from({ length: 12 }, (_, i) => ({
       name: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][i],
-      solde: Math.round(realCash + (provision * i))
+      solde: Math.round(baseForProjection + (provision * i))
     }));
 
     return { virement, realCash, projection, provision, totalFixed, totalAnnual };
@@ -149,6 +161,20 @@ export default function NexusUltimateCloud() {
     if (n.includes('charges') || n.includes('engie') || n.includes('eau')) return <Zap size={18}/>;
     if (n.includes('crèche') || n.includes('santé')) return <HeartPulse size={18}/>;
     return <Receipt size={18}/>;
+  };
+
+  // --- NOUVELLE FONCTION : ABSORBER (Trésorerie) ---
+  const handleAbsorb = () => {
+    const debt = modal.data;
+    // 1. On retire de la dette (Pending)
+    setPending(pending.filter(p => p.id !== debt.id));
+    // 2. On ajoute aux paiements exceptionnels (L'argent est "dépensé" de la trésorerie)
+    setExceptionalPaid([...exceptionalPaid, { id: Date.now(), label: debt.label, amount: debt.amount }]);
+    // 3. Log
+    addLog(`Absorbé: ${debt.label}`, debt.amount, 'payment');
+    // 4. Fermeture
+    setModal({ open: false, type: '', data: null });
+    setForm({ label: '', amount: '', cat: 'fixed' });
   };
 
   const handleForm = (e) => {
@@ -170,6 +196,7 @@ export default function NexusUltimateCloud() {
       if(form.cat === 'fixed') setFixedExpenses([...fixedExpenses, item]);
       else setAnnualExpenses([...annualExpenses, item]);
     } else if (modal.type === 'repay_partial') {
+      // LOGIQUE REMBOURSEMENT CLASSIQUE (L'argent rentre)
       const debt = modal.data;
       if (val >= debt.amount) {
         setPending(pending.filter(p => p.id !== debt.id));
@@ -183,7 +210,7 @@ export default function NexusUltimateCloud() {
     setForm({ label: '', amount: '', cat: 'fixed' });
   };
 
-  // --- 4. RENDU VISUEL ---
+  // --- 4. RENDER ---
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-indigo-500"><Loader2 className="animate-spin" size={48} /></div>;
 
   if (!session) return (
@@ -265,7 +292,7 @@ export default function NexusUltimateCloud() {
                </button>
             </div>
 
-            {/* DETTES ACTIVES & REMBOURSEMENT PARTIEL */}
+            {/* DETTES ACTIVES */}
             <section className="space-y-5">
               <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] px-4 italic">Dettes & Flux</h3>
               <div className="space-y-4">
@@ -275,7 +302,7 @@ export default function NexusUltimateCloud() {
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
                     <div className="flex items-center gap-5">
                        <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500"><Coins size={22} /></div>
-                       <div><p className="text-sm font-black italic uppercase text-left">{p.label}</p><p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Cliquer pour rembourser</p></div>
+                       <div><p className="text-sm font-black italic uppercase text-left">{p.label}</p><p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Cliquer pour gérer</p></div>
                     </div>
                     <span className="font-mono font-black text-amber-500 text-2xl">{p.amount}€</span>
                   </button>
@@ -293,7 +320,6 @@ export default function NexusUltimateCloud() {
              </div>
              
              <section className="space-y-8">
-                {/* MENSUEL - INDIGO */}
                 <div className="space-y-4">
                   <div className="flex justify-between px-4 items-end">
                     <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
@@ -309,7 +335,6 @@ export default function NexusUltimateCloud() {
                   </div>
                 </div>
 
-                {/* ANNUEL - EMERALD */}
                 <div className="space-y-4">
                    <div className="flex justify-between px-4 items-end">
                       <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic leading-none">Provisions Annuelles</p>
@@ -354,7 +379,6 @@ export default function NexusUltimateCloud() {
         )}
       </div>
 
-      {/* --- MODAL UNIFIÉE --- */}
       {modal.open && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[200] flex items-end p-6">
           <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl">
@@ -365,7 +389,6 @@ export default function NexusUltimateCloud() {
               <button onClick={() => setModal({open:false, type:'', data:null})} className="text-zinc-600"><X size={28}/></button>
             </div>
             
-            {/* SÉLECTEUR DE CATÉGORIE (Seulement pour 'expense') */}
             {modal.type === 'expense' && (
               <div className="flex gap-2 p-1 bg-black rounded-2xl mb-8 border border-white/5">
                 <button onClick={() => setForm({...form, cat: 'fixed'})} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-600'}`}>Mensuelle</button>
@@ -374,12 +397,12 @@ export default function NexusUltimateCloud() {
             )}
 
             <form onSubmit={handleForm} className="space-y-8">
-               {/* INPUT LIBELLÉ (Masqué pour remboursement partiel) */}
+               {/* INPUT LIBELLÉ (Masqué pour gestion dette) */}
                {modal.type !== 'repay_partial' && (
                  <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 font-bold text-lg text-white" placeholder="Libellé" value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
                )}
 
-               {/* INFO DETTE RESTANTE (Seulement pour remboursement partiel) */}
+               {/* INFO DETTE RESTANTE */}
                {modal.type === 'repay_partial' && (
                  <div className="text-center p-6 bg-amber-500/10 rounded-3xl mb-4 border border-amber-500/20">
                     <p className="text-[10px] font-black uppercase text-amber-500 mb-1 italic">Dette: {modal.data?.label}</p>
@@ -395,13 +418,25 @@ export default function NexusUltimateCloud() {
                   )}
                </div>
                
-               <button type="submit" className={`w-full py-8 rounded-[2.5rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'reimbursement' || modal.type === 'repay_partial' ? 'bg-emerald-600' : modal.type === 'exceptional' ? 'bg-red-600' : 'bg-indigo-600'}`}>Confirmer</button>
+               {/* BOUTONS D'ACTION UNIFIÉS */}
+               <div className="flex flex-col gap-3">
+                 <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'reimbursement' || modal.type === 'repay_partial' ? 'bg-emerald-600' : modal.type === 'exceptional' ? 'bg-red-600' : 'bg-indigo-600'}`}>
+                    {modal.type === 'repay_partial' ? 'Remboursement (Recette)' : 'Confirmer'}
+                 </button>
+                 
+                 {/* BOUTON ABSORBER (Uniquement pour les dettes) */}
+                 {modal.type === 'repay_partial' && (
+                    <button type="button" onClick={handleAbsorb} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-amber-500 border border-amber-500/30 hover:bg-amber-500/10 flex items-center justify-center gap-2">
+                       <Flame size={16} /> Absorber (Utiliser Trésorerie)
+                    </button>
+                 )}
+               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* NAVIGATION BAR */}
+      {/* NAV */}
       <nav className="fixed bottom-12 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/60 backdrop-blur-3xl border border-white/10 px-10 py-7 rounded-[3rem] flex justify-between items-center z-50 shadow-2xl">
         <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-indigo-400 scale-150 transition-all' : 'text-zinc-700 transition-all'}><TrendingUp size={28} strokeWidth={3} /></button>
         <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-indigo-400 scale-150 transition-all' : 'text-zinc-700 transition-all'}><Users size={28} strokeWidth={3} /></button>
