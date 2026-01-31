@@ -1,281 +1,222 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { 
-  TrendingUp, Users, Wallet, AlertCircle, Plus, Check, X, Trash2, 
-  Banknote, ShieldCheck, History as HistoryIcon, Zap, HeartPulse, 
-  Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins
+  TrendingUp, Users, Plus, X, Trash2, ShieldCheck, History as HistoryIcon, 
+  Zap, HeartPulse, Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, 
+  Coins, LogOut, Loader2
 } from 'lucide-react';
+import { supabase } from './supabase';
 
-export default function NexusEliteV9() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [modal, setModal] = useState({ open: false, type: '', data: null }); 
-  
-  const [fixedExpenses, setFixedExpenses] = useState([
-    { id: 1, name: 'Crédit Immo', amount: 1250, icon: <Home size={18}/> },
-    { id: 2, name: 'Charges Copro', amount: 260, icon: <Zap size={18}/> },
-    { id: 4, name: 'Crèche', amount: 1281.83, icon: <HeartPulse size={18}/> },
-  ]);
+export default function NexusCloud() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [authMode, setAuthMode] = useState('login'); 
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState(null);
 
-  const [annualExpenses, setAnnualExpenses] = useState([
-    { id: 101, name: 'Taxe Foncière', amount: 2700 },
-    { id: 102, name: 'Assurances/Divers', amount: 1848 },
-  ]);
-
-  const [pending, setPending] = useState([{ id: 1, label: 'Dépenses 2025', amount: 155 }]);
+  // --- DONNÉES BUDGET ---
+  const [fixedExpenses, setFixedExpenses] = useState([]);
+  const [annualExpenses, setAnnualExpenses] = useState([]);
+  const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
-  const [reimbursements, setReimbursements] = useState([]); 
-  const [exceptionalPaid, setExceptionalPaid] = useState([]); 
+  const [reimbursements, setReimbursements] = useState([]);
+  const [exceptionalPaid, setExceptionalPaid] = useState([]);
 
+  // UI
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [modal, setModal] = useState({ open: false, type: '', data: null });
   const [form, setForm] = useState({ label: '', amount: '', cat: 'fixed' });
 
-  const totals = useMemo(() => {
-    const totalFixed = fixedExpenses.reduce((acc, c) => acc + c.amount, 0);
-    const totalAnnual = annualExpenses.reduce((acc, c) => acc + c.amount, 0);
-    const creche = fixedExpenses.find(e => e.name.toLowerCase().includes('crèche'))?.amount || 0;
-    const provision = Math.round(totalAnnual / 12);
-    const virement = Math.ceil((totalFixed - creche + provision) / 2);
-    const totalPending = pending.reduce((acc, c) => acc + c.amount, 0);
-    const totalReimbursed = reimbursements.reduce((acc, c) => acc + c.amount, 0);
-    const totalPaid = exceptionalPaid.reduce((acc, c) => acc + c.amount, 0);
+  // --- AUTH & SYNC ---
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchData(session.user.id);
+      else setLoading(false);
+    });
 
-    const realCash = 1429 + totalReimbursed - totalPaid - totalPending;
-    const projection = Array.from({ length: 12 }, (_, i) => ({
-      name: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][i],
-      solde: Math.round(realCash + (provision * i))
-    }));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) fetchData(session.user.id);
+      else setLoading(false);
+    });
 
-    return { virement, realCash, projection, provision, totalFixed, totalAnnual };
-  }, [fixedExpenses, annualExpenses, reimbursements, exceptionalPaid, pending]);
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const addLog = (label, amount, type) => {
-    setHistory([{ id: Date.now(), label, amount, type, date: new Date().toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}) }, ...history]);
+  const fetchData = async (userId) => {
+    setLoading(true);
+    const { data, error } = await supabase.from('nexus_data').select('*').eq('user_id', userId).single();
+    
+    if (data) {
+      setFixedExpenses(data.fixed_expenses || []);
+      setAnnualExpenses(data.annual_expenses || []);
+      setPending(data.pending || []);
+      setHistory(data.history || []);
+      setReimbursements(data.reimbursements || []);
+      setExceptionalPaid(data.exceptional_paid || []);
+    }
+    setLoading(false);
+  };
+
+  const saveData = async () => {
+    if (!session || loading) return;
+    const updates = {
+      user_id: session.user.id,
+      fixed_expenses: fixedExpenses,
+      annual_expenses: annualExpenses,
+      pending: pending,
+      history: history,
+      reimbursements: reimbursements,
+      exceptional_paid: exceptionalPaid
+    };
+    await supabase.from('nexus_data').upsert(updates);
+  };
+
+  useEffect(() => { saveData(); }, [fixedExpenses, annualExpenses, pending, history, reimbursements, exceptionalPaid]);
+
+  // --- ACTIONS ---
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setAuthError(null);
+    const { error } = authMode === 'signup' 
+      ? await supabase.auth.signUp({ email, password })
+      : await supabase.auth.signInWithPassword({ email, password });
+    if (error) setAuthError(error.message);
+    setLoading(false);
   };
 
   const handleForm = (e) => {
     e.preventDefault();
     const val = parseFloat(form.amount);
-    if (isNaN(val) || val <= 0) return; // Sécurité montant
+    if (isNaN(val) || val <= 0) return;
 
-    // Correction de la validation : On ignore le libellé pour les remboursements partiels
-    if (modal.type !== 'repay_partial' && !form.label) return;
-
-    if (modal.type === 'pending') {
-      setPending([{ id: Date.now(), label: form.label, amount: val }, ...pending]);
-    } else if (modal.type === 'exceptional') {
-      setExceptionalPaid([{ id: Date.now(), label: form.label, amount: val }, ...exceptionalPaid]);
-      addLog(form.label, val, 'payment');
-    } else if (modal.type === 'reimbursement') {
-      setReimbursements([{ id: Date.now(), label: form.label, amount: val }, ...reimbursements]);
-      addLog(form.label, val, 'reimb');
-    } else if (modal.type === 'expense') {
+    if (modal.type === 'pending') setPending([{ id: Date.now(), label: form.label, amount: val }, ...pending]);
+    else if (modal.type === 'exceptional') setExceptionalPaid([{ id: Date.now(), label: form.label, amount: val }, ...exceptionalPaid]);
+    else if (modal.type === 'reimbursement') setReimbursements([{ id: Date.now(), label: form.label, amount: val }, ...reimbursements]);
+    else if (modal.type === 'expense') {
       const item = { id: Date.now(), name: form.label, amount: val };
-      if(form.cat === 'fixed') setFixedExpenses([...fixedExpenses, item]);
-      else setAnnualExpenses([...annualExpenses, item]);
-    } else if (modal.type === 'repay_partial') {
-      const debt = modal.data;
-      if (val >= debt.amount) {
-        setPending(pending.filter(p => p.id !== debt.id));
-        addLog(`Remboursé: ${debt.label}`, debt.amount, 'reimb');
-      } else {
-        setPending(pending.map(p => p.id === debt.id ? { ...p, amount: p.amount - val } : p));
-        addLog(`Partiel: ${debt.label}`, val, 'reimb');
-      }
+      form.cat === 'fixed' ? setFixedExpenses([...fixedExpenses, item]) : setAnnualExpenses([...annualExpenses, item]);
     }
+
     setModal({ open: false, type: '', data: null });
     setForm({ label: '', amount: '', cat: 'fixed' });
   };
 
+  // --- CALCULS ---
+  const totals = useMemo(() => {
+    const totalFixed = fixedExpenses.reduce((acc, c) => acc + c.amount, 0);
+    const totalAnnual = annualExpenses.reduce((acc, c) => acc + c.amount, 0);
+    const provision = Math.round(totalAnnual / 12);
+    const realCash = 1429 + reimbursements.reduce((acc, c) => acc + c.amount, 0) 
+                          - exceptionalPaid.reduce((acc, c) => acc + c.amount, 0) 
+                          - pending.reduce((acc, c) => acc + c.amount, 0);
+    
+    return { realCash, virement: Math.ceil((totalFixed + provision) / 2), totalFixed, totalAnnual };
+  }, [fixedExpenses, annualExpenses, reimbursements, exceptionalPaid, pending]);
+
+  const getIcon = (name) => {
+    const n = name.toLowerCase();
+    if (n.includes('crédit')) return <Home size={18}/>;
+    if (n.includes('charges')) return <Zap size={18}/>;
+    return <Receipt size={18}/>;
+  };
+
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-indigo-500"><Loader2 className="animate-spin" size={48} /></div>;
+
+  if (!session) return (
+    <div className="min-h-screen bg-[#020202] text-white flex items-center justify-center p-6">
+      <div className="w-full max-w-sm space-y-8">
+        <h1 className="text-5xl font-black italic text-center uppercase">NEXUS<span className="text-indigo-500">.</span></h1>
+        <div className="bg-zinc-900/50 border border-white/10 rounded-[2.5rem] p-8 space-y-6">
+           <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
+              <button onClick={() => setAuthMode('login')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase ${authMode === 'login' ? 'bg-indigo-600' : 'text-zinc-600'}`}>Connexion</button>
+              <button onClick={() => setAuthMode('signup')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase ${authMode === 'signup' ? 'bg-indigo-600' : 'text-zinc-600'}`}>S'inscrire</button>
+           </div>
+           {authError && <p className="text-red-400 text-[10px] text-center font-bold uppercase">{authError}</p>}
+           <form onSubmit={handleAuth} className="space-y-4">
+              <input type="email" placeholder="Email" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none focus:border-indigo-500" value={email} onChange={e => setEmail(e.target.value)} />
+              <input type="password" placeholder="Pass" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none focus:border-indigo-500" value={password} onChange={e => setPassword(e.target.value)} />
+              <button type="submit" className="w-full bg-white text-black py-5 rounded-[2rem] font-black uppercase">Entrer</button>
+           </form>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-44 px-6 pt-14 selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[#020202] text-white pb-44 px-6 pt-14">
       <div className="max-w-md mx-auto space-y-10">
-        
-        <header className="flex justify-between items-center px-2">
-          <div className="relative">
-            <h1 className="text-4xl font-black italic tracking-tighter uppercase leading-none">NEXUS<span className="text-indigo-500">.</span></h1>
-            <div className="absolute -bottom-2 left-0 w-12 h-1 bg-indigo-500 rounded-full blur-[2px]" />
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-indigo-500 shadow-2xl shadow-indigo-500/10"><ShieldCheck size={24} /></div>
+        <header className="flex justify-between items-center">
+          <h1 className="text-4xl font-black italic uppercase">NEXUS<span className="text-indigo-500">.</span></h1>
+          <button onClick={() => supabase.auth.signOut()} className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500"><LogOut size={20} /></button>
         </header>
 
         {activeTab === 'dashboard' && (
-          <div className="space-y-10 animate-in fade-in duration-700">
-            <div className="bg-zinc-900/40 border border-white/10 rounded-[3rem] p-9 relative overflow-hidden backdrop-blur-xl shadow-2xl">
-              <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/10 blur-[100px]" />
-              <div className="flex justify-between items-start mb-8 relative z-10">
-                <div>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic mb-1">Cash Réel</p>
-                  <h2 className="text-6xl font-black tracking-tighter italic">{totals.realCash.toLocaleString()}€</h2>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-indigo-400 uppercase italic leading-none mb-1">Virement / P</p>
-                  <p className="text-3xl font-black italic text-indigo-400 leading-none">{totals.virement}€</p>
-                </div>
-              </div>
-              <div className="h-44 w-full opacity-70 relative z-10">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={totals.projection}>
-                    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/><stop offset="95%" stopColor="#6366f1" stopOpacity={0}/></linearGradient></defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
-                    <XAxis dataKey="name" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: '#09090b', border: 'none', borderRadius: '20px' }} itemStyle={{color:'#818cf8'}} />
-                    <Area type="monotone" dataKey="solde" stroke="#6366f1" fill="url(#g)" strokeWidth={4} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+          <div className="space-y-10">
+            <div className="bg-zinc-900/40 border border-white/10 rounded-[3rem] p-9 backdrop-blur-xl">
+              <p className="text-zinc-500 text-[10px] font-black uppercase italic mb-1">Cash Réel</p>
+              <h2 className="text-6xl font-black tracking-tighter italic">{totals.realCash.toLocaleString()}€</h2>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-               <button onClick={() => setModal({open:true, type:'exceptional'})} className="bg-zinc-900/50 border border-white/5 p-5 rounded-[2rem] flex flex-col items-center active:scale-95 transition-all">
-                  <ArrowUpRight size={22} className="mb-2 text-red-500" /><span className="text-[8px] font-black uppercase text-zinc-500 text-center tracking-tighter leading-tight">Payer</span>
-               </button>
-               <button onClick={() => setModal({open:true, type:'reimbursement'})} className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-[2rem] flex flex-col items-center active:scale-95 transition-all">
-                  <ArrowDownLeft size={22} className="mb-2 text-emerald-500" /><span className="text-[8px] font-black uppercase text-emerald-400 text-center tracking-tighter leading-tight text-emerald-400">Recette</span>
-               </button>
-               <button onClick={() => setModal({open:true, type:'pending'})} className="bg-white text-black p-5 rounded-[2rem] flex flex-col items-center active:scale-95 transition-all">
-                  <Plus size={22} className="mb-2" /><span className="text-[8px] font-black uppercase text-center tracking-tighter leading-tight">Emprunt</span>
-               </button>
+               <button onClick={() => setModal({open:true, type:'exceptional'})} className="bg-zinc-900/50 p-5 rounded-[2rem] flex flex-col items-center"><ArrowUpRight size={22} className="text-red-500" /><span className="text-[8px] font-black uppercase mt-2">Payer</span></button>
+               <button onClick={() => setModal({open:true, type:'reimbursement'})} className="bg-emerald-500/10 p-5 rounded-[2rem] flex flex-col items-center"><ArrowDownLeft size={22} className="text-emerald-500" /><span className="text-[8px] font-black uppercase mt-2">Recette</span></button>
+               <button onClick={() => setModal({open:true, type:'pending'})} className="bg-white text-black p-5 rounded-[2rem] flex flex-col items-center"><Plus size={22}/><span className="text-[8px] font-black uppercase mt-2">Emprunt</span></button>
             </div>
 
-            <section className="space-y-5">
-              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] px-4 italic">Dettes & Flux Actifs</h3>
-              <div className="space-y-4 px-1">
-                {pending.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Toutes les dettes sont soldées.</p> : 
-                pending.map(p => (
-                  <button key={p.id} onClick={() => setModal({open:true, type:'repay_partial', data:p})} className="w-full text-left bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center group relative overflow-hidden active:scale-[0.98] transition-all">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
-                    <div className="flex items-center gap-5">
-                       <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500"><Coins size={22} /></div>
-                       <div><p className="text-sm font-black italic uppercase">{p.label}</p><p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Cliquer pour rembourser</p></div>
-                    </div>
-                    <span className="font-mono font-black text-amber-500 text-2xl">{p.amount}€</span>
-                  </button>
-                ))}
-              </div>
+            <section className="space-y-4">
+              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-4">Dettes</h3>
+              {pending.map(p => (
+                <div key={p.id} className="bg-zinc-900/30 p-6 rounded-[2.5rem] flex justify-between items-center border border-white/5">
+                  <span className="text-sm font-black uppercase italic">{p.label}</span>
+                  <span className="text-amber-500 font-black text-xl">{p.amount}€</span>
+                </div>
+              ))}
             </section>
           </div>
         )}
 
         {activeTab === 'expenses' && (
-          <div className="space-y-10 animate-in slide-in-from-right-10 duration-500 pb-20 text-white">
-             <div className="flex justify-between items-center px-4">
-                <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Architecture<br/><span className="text-indigo-500 text-sm tracking-widest uppercase not-italic font-bold">des charges</span></h2>
-                <button onClick={() => setModal({open:true, type:'expense'})} className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl active:scale-90 transition-all"><Plus size={28}/></button>
-             </div>
-
-             <section className="space-y-8">
-                <div className="space-y-4">
-                  <div className="flex justify-between px-4 items-end">
-                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
-                    <p className="text-xl font-black italic text-indigo-500 leading-none">{totals.totalFixed}€</p>
-                  </div>
-                  <div className="bg-zinc-900/20 border border-indigo-500/20 rounded-[3rem] p-2 space-y-2">
-                    {fixedExpenses.map(e => (
-                      <div key={e.id} className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center">
-                          <div className="flex items-center gap-4 text-indigo-400">
-                            {e.icon || <Receipt size={18}/>}
-                            <span className="text-sm font-bold text-zinc-200">{e.name}</span>
-                          </div>
-                          <div className="flex items-center gap-5 font-black text-indigo-400 text-lg italic">
-                             {e.amount}€
-                             <Trash2 size={18} className="text-zinc-800 hover:text-red-500 cursor-pointer transition-colors" onClick={() => setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id))} />
-                          </div>
-                      </div>
-                    ))}
-                  </div>
+          <div className="space-y-8">
+            <div className="flex justify-between items-center">
+              <h2 className="text-3xl font-black italic uppercase">Frais</h2>
+              <button onClick={() => setModal({open:true, type:'expense'})} className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center"><Plus/></button>
+            </div>
+            <div className="space-y-2">
+              {fixedExpenses.map(e => (
+                <div key={e.id} className="bg-zinc-900/60 p-6 rounded-[2rem] flex justify-between items-center border border-white/5">
+                  <div className="flex items-center gap-3 text-indigo-400">{getIcon(e.name)}<span className="text-zinc-200 font-bold">{e.name}</span></div>
+                  <div className="flex items-center gap-4 font-black">{e.amount}€ <Trash2 size={16} className="text-zinc-700" onClick={() => setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id))} /></div>
                 </div>
-
-                <div className="space-y-4">
-                   <div className="flex justify-between px-4 items-end">
-                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic leading-none">Provisions Annuelles</p>
-                      <p className="text-xl font-black italic text-emerald-500 leading-none">{totals.totalAnnual}€</p>
-                   </div>
-                  <div className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
-                    {annualExpenses.map(e => (
-                      <div key={e.id} className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center">
-                          <div className="flex items-center gap-4 text-emerald-500">
-                            <Calendar size={18}/>
-                            <span className="text-sm font-bold text-zinc-200">{e.name}</span>
-                          </div>
-                          <div className="flex items-center gap-5 font-black text-emerald-500 text-lg italic">
-                             {e.amount}€
-                             <Trash2 size={18} className="text-zinc-800 hover:text-red-500 cursor-pointer transition-colors" onClick={() => setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id))} />
-                          </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-             </section>
-          </div>
-        )}
-
-        {activeTab === 'history' && (
-          <div className="space-y-8 animate-in slide-in-from-left-10 duration-500 pb-20">
-             <div className="bg-gradient-to-br from-zinc-900 to-indigo-900 rounded-[3.5rem] p-10 shadow-2xl relative overflow-hidden border border-white/5">
-                <p className="text-indigo-200 text-[10px] font-black uppercase tracking-widest mb-1 italic">Journal des Flux</p>
-                <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.length}</h2>
-             </div>
-             <div className="space-y-4">
-                {history.map(h => (
-                  <div key={h.id} className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center">
-                     <div className="flex items-center gap-5">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-indigo-500/10 text-indigo-500'}`}>
-                           {h.type === 'payment' ? <ArrowUpRight size={20}/> : <ArrowDownLeft size={20}/>}
-                        </div>
-                        <div><p className="text-sm font-black italic uppercase tracking-tighter">{h.label}</p><p className="text-[8px] text-zinc-600 font-bold uppercase">{h.date}</p></div>
-                     </div>
-                     <span className={`font-black italic text-xl ${h.type === 'payment' ? 'text-red-500' : h.type === 'reimb' ? 'text-emerald-500' : 'text-indigo-400'}`}>
-                        {h.type === 'payment' ? '-' : '+'}{h.amount}€
-                     </span>
-                  </div>
-                ))}
-             </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
       {modal.open && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[200] flex items-end p-6">
-          <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl">
-            <div className="flex justify-between items-center mb-10">
-              <h2 className={`text-2xl font-black italic uppercase tracking-tighter ${modal.type === 'reimbursement' ? 'text-emerald-400' : modal.type === 'exceptional' ? 'text-red-400' : 'text-white'}`}>
-                {modal.type === 'repay_partial' ? 'Remboursement' : modal.type === 'pending' ? 'Nouvel Emprunt' : modal.type === 'exceptional' ? 'Paiement Réel' : modal.type === 'reimbursement' ? 'Recette' : 'Nouvelle Charge'}
-              </h2>
-              <button onClick={() => setModal({open:false, type:'', data:null})} className="text-zinc-600"><X size={28}/></button>
+        <div className="fixed inset-0 bg-black/95 z-[200] flex items-end p-6 backdrop-blur-xl">
+          <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3rem] p-10">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-xl font-black uppercase italic">Ajouter</h2>
+              <button onClick={() => setModal({open:false})}><X/></button>
             </div>
-
-            {modal.type === 'expense' && (
-              <div className="flex gap-2 p-1 bg-black rounded-2xl mb-8 border border-white/5">
-                <button onClick={() => setForm({...form, cat: 'fixed'})} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-600'}`}>Mensuelle</button>
-                <button onClick={() => setForm({...form, cat: 'annual'})} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-emerald-600 text-white shadow-lg' : 'text-zinc-600'}`}>Annuelle</button>
-              </div>
-            )}
-
-            <form onSubmit={handleForm} className="space-y-8">
-               {modal.type !== 'repay_partial' && (
-                 <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 font-bold text-lg text-white" placeholder="Libellé" value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
-               )}
-               {modal.type === 'repay_partial' && (
-                 <div className="text-center p-6 bg-amber-500/10 rounded-3xl mb-4 border border-amber-500/20">
-                    <p className="text-[10px] font-black uppercase text-amber-500 mb-1 tracking-widest italic">Dette: {modal.data?.label}</p>
-                    <p className="text-4xl font-black text-amber-500 italic">{modal.data?.amount}€</p>
-                 </div>
-               )}
-               <div className="relative">
-                  <input autoFocus={modal.type === 'repay_partial'} type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
-                  {modal.type === 'repay_partial' && (
-                    <button type="button" onClick={() => setForm({...form, amount: modal.data?.amount})} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 px-3 py-1 rounded-full text-[10px] font-black uppercase">Max</button>
-                  )}
-               </div>
-               <button type="submit" className={`w-full py-8 rounded-[2.5rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'reimbursement' || modal.type === 'repay_partial' ? 'bg-emerald-600 shadow-emerald-600/20' : modal.type === 'exceptional' ? 'bg-red-600 shadow-red-600/20' : 'bg-indigo-600 shadow-indigo-600/20'}`}>Confirmer</button>
+            <form onSubmit={handleForm} className="space-y-6">
+              <input autoFocus placeholder="Nom" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none font-bold" value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
+              <input type="number" placeholder="0.00" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none text-4xl font-black text-center" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
+              <button type="submit" className="w-full py-6 rounded-[2rem] bg-indigo-600 font-black uppercase">Confirmer</button>
             </form>
           </div>
         </div>
       )}
 
-      <nav className="fixed bottom-12 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/60 backdrop-blur-3xl border border-white/10 px-10 py-7 rounded-[3rem] flex justify-between items-center z-50 shadow-2xl">
-        <button onClick={() => setActiveTab('dashboard')} className={`transition-all ${activeTab === 'dashboard' ? 'text-indigo-400 scale-150' : 'text-zinc-700'}`}><TrendingUp size={28} strokeWidth={3} /></button>
-        <button onClick={() => setActiveTab('expenses')} className={`transition-all ${activeTab === 'expenses' ? 'text-indigo-400 scale-150' : 'text-zinc-700'}`}><Users size={28} strokeWidth={3} /></button>
-        <button onClick={() => setActiveTab('history')} className={`transition-all ${activeTab === 'history' ? 'text-indigo-400 scale-150' : 'text-zinc-700'}`}><HistoryIcon size={28} strokeWidth={3} /></button>
+      <nav className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[85%] bg-zinc-900/80 border border-white/10 p-6 rounded-[2.5rem] flex justify-around backdrop-blur-2xl">
+        <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-indigo-400' : 'text-zinc-600'}><TrendingUp size={24}/></button>
+        <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-indigo-400' : 'text-zinc-600'}><Users size={24}/></button>
+        <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-indigo-400' : 'text-zinc-600'}><HistoryIcon size={24}/></button>
       </nav>
     </div>
   );
