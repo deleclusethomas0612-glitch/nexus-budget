@@ -3,7 +3,8 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer, CartesianGrid } f
 import { 
   TrendingUp, Users, Wallet, AlertCircle, Plus, Check, X, Trash2, Pencil,
   Banknote, ShieldCheck, History as HistoryIcon, Zap, HeartPulse, 
-  Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame
+  Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame,
+  PiggyBank, CheckSquare, MessageSquare, Save
 } from 'lucide-react';
 import { supabase } from './supabase';
 
@@ -16,7 +17,7 @@ export default function NexusUltimateCloud() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState(null);
 
-  // --- DATA STATE ---
+  // --- DATA STATE (MAIN) ---
   const [fixedExpenses, setFixedExpenses] = useState([]);
   const [annualExpenses, setAnnualExpenses] = useState([]);
   const [pending, setPending] = useState([]);
@@ -24,10 +25,15 @@ export default function NexusUltimateCloud() {
   const [reimbursements, setReimbursements] = useState([]);
   const [exceptionalPaid, setExceptionalPaid] = useState([]);
 
+  // --- DATA STATE (MODULES INDÉPENDANTS) ---
+  const [savingsAccounts, setSavingsAccounts] = useState([]); // [{id, name, balance}]
+  const [savingsPending, setSavingsPending] = useState([]); // [{id, label, amount, targetAccountId}]
+  const [personalExpenses, setPersonalExpenses] = useState([]); // [{id, label, amount, isPaid, comment}]
+
   // --- UI STATE ---
   const [activeTab, setActiveTab] = useState('dashboard');
   const [modal, setModal] = useState({ open: false, type: '', data: null });
-  const [form, setForm] = useState({ label: '', amount: '', cat: 'fixed' });
+  const [form, setForm] = useState({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
 
   // --- 1. INITIALISATION CLOUD ---
   useEffect(() => {
@@ -57,25 +63,19 @@ export default function NexusUltimateCloud() {
       setHistory(data.history || []);
       setReimbursements(data.reimbursements || []);
       setExceptionalPaid(data.exceptional_paid || []);
+      // Nouveaux champs V14
+      setSavingsAccounts(data.savings_accounts || []);
+      setSavingsPending(data.savings_pending || []);
+      setPersonalExpenses(data.personal_expenses || []);
     } else if (!data && !error) {
+      // Initialisation par défaut
       const defaults = {
         user_id: userId,
-        fixed_expenses: [
-          { id: 1, name: 'Crédit Immo', amount: 1250 },
-          { id: 2, name: 'Charges Copro', amount: 260 },
-          { id: 4, name: 'Crèche', amount: 1281.83 },
-        ],
-        annual_expenses: [
-          { id: 101, name: 'Taxe Foncière', amount: 2700 },
-          { id: 102, name: 'Assurances/Divers', amount: 1848 },
-        ],
-        pending: [{ id: 1, label: 'Dépenses 2025', amount: 155 }],
-        history: [], reimbursements: [], exceptional_paid: []
+        fixed_expenses: [], annual_expenses: [], pending: [], history: [], reimbursements: [], exceptional_paid: [],
+        savings_accounts: [], savings_pending: [], personal_expenses: []
       };
       await supabase.from('nexus_data').insert(defaults);
-      setFixedExpenses(defaults.fixed_expenses);
-      setAnnualExpenses(defaults.annual_expenses);
-      setPending(defaults.pending);
+      // Set local states (empty)
     }
     setLoading(false);
   };
@@ -88,14 +88,18 @@ export default function NexusUltimateCloud() {
       pending: pending,
       history: history,
       reimbursements: reimbursements,
-      exceptional_paid: exceptionalPaid
+      exceptional_paid: exceptionalPaid,
+      // Sauvegarde V14
+      savings_accounts: savingsAccounts,
+      savings_pending: savingsPending,
+      personal_expenses: personalExpenses
     };
     await supabase.from('nexus_data').upsert({ user_id: session.user.id, ...updates });
   };
 
   useEffect(() => { 
     if (!loading && session) saveData(); 
-  }, [fixedExpenses, annualExpenses, pending, history, reimbursements, exceptionalPaid]);
+  }, [fixedExpenses, annualExpenses, pending, history, reimbursements, exceptionalPaid, savingsAccounts, savingsPending, personalExpenses]);
 
   // --- 2. AUTHENTIFICATION ---
   const handleAuth = async (e) => {
@@ -115,7 +119,7 @@ export default function NexusUltimateCloud() {
     setFixedExpenses([]); setAnnualExpenses([]); setPending([]); 
   };
 
-  // --- 3. LOGIQUE MÉTIER ---
+  // --- 3. LOGIQUE MÉTIER PRINCIPALE ---
   const totals = useMemo(() => {
     const totalFixed = fixedExpenses.reduce((acc, c) => acc + c.amount, 0);
     const totalAnnual = annualExpenses.reduce((acc, c) => acc + c.amount, 0);
@@ -128,7 +132,6 @@ export default function NexusUltimateCloud() {
     const totalReimbursed = reimbursements.reduce((acc, c) => acc + c.amount, 0);
     const totalPaid = exceptionalPaid.reduce((acc, c) => acc + c.amount, 0);
 
-    // Calcul Temporel
     const startCash = 1429;
     const currentMonthIndex = new Date().getMonth(); 
     
@@ -146,13 +149,58 @@ export default function NexusUltimateCloud() {
     return { virement, realCash, projection, provision, totalFixed, totalAnnual };
   }, [fixedExpenses, annualExpenses, reimbursements, exceptionalPaid, pending]);
 
-  // Fonction utilitaire pour synchroniser l'historique et les données
+  // --- 4. LOGIQUE ÉPARGNE (Totalement Indépendante) ---
+  const savingsTotal = useMemo(() => {
+    return savingsAccounts.reduce((acc, c) => acc + c.balance, 0);
+  }, [savingsAccounts]);
+
+  const handleSavingsTransaction = (isIncome) => {
+    const val = parseFloat(form.amount);
+    if (!form.targetAccount || isNaN(val)) return;
+    
+    setSavingsAccounts(savingsAccounts.map(acc => {
+      if (acc.id === form.targetAccount) {
+        return { ...acc, balance: isIncome ? acc.balance + val : acc.balance - val };
+      }
+      return acc;
+    }));
+    setModal({ open: false, type: '', data: null });
+    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
+  };
+
+  const handleSavingsAdvance = () => {
+     const val = parseFloat(form.amount);
+     if (!form.targetAccount || isNaN(val) || !form.label) return;
+     // Créer la dette liée à un compte spécifique
+     setSavingsPending([...savingsPending, { id: Date.now(), label: form.label, amount: val, targetAccountId: form.targetAccount }]);
+     setModal({ open: false, type: '', data: null });
+     setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
+  };
+
+  const handleReimburseSavings = (debt) => {
+    // 1. Supprimer la dette
+    setSavingsPending(savingsPending.filter(p => p.id !== debt.id));
+    // 2. Créditer le compte épargne associé
+    setSavingsAccounts(savingsAccounts.map(acc => {
+        if(acc.id === debt.targetAccountId) return { ...acc, balance: acc.balance + debt.amount };
+        return acc;
+    }));
+    setModal({ open: false, type: '', data: null });
+  };
+
+  // --- 5. LOGIQUE PERSO (Pointage) ---
+  const togglePersonalPaid = (id) => {
+    setPersonalExpenses(personalExpenses.map(p => p.id === id ? { ...p, isPaid: !p.isPaid } : p));
+  };
+  
+  const updatePersonalComment = (id, comment) => {
+    setPersonalExpenses(personalExpenses.map(p => p.id === id ? { ...p, comment } : p));
+  };
+
+  // --- HELPER LOG ---
   const addEntry = (id, label, amount, type) => {
     const newLog = { 
-        id: id, // ID partagé crucial pour la suppression
-        label, 
-        amount, 
-        type, 
+        id: id, label, amount, type, 
         date: new Date().toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}) 
     };
     setHistory([newLog, ...history]);
@@ -166,6 +214,7 @@ export default function NexusUltimateCloud() {
     return <Receipt size={18}/>;
   };
 
+  // --- GESTION FORMULAIRES GENERAUX ---
   const handleAbsorb = () => {
     const debt = modal.data;
     const sharedId = Date.now();
@@ -176,19 +225,11 @@ export default function NexusUltimateCloud() {
     setForm({ label: '', amount: '', cat: 'fixed' });
   };
 
-  // --- GESTION HISTORIQUE (Suppression & Modif) ---
   const handleDeleteHistory = (item) => {
     if(!window.confirm("Supprimer cette écriture et mettre à jour le solde ?")) return;
-    
-    // 1. Supprimer de l'historique visuel
     setHistory(history.filter(h => h.id !== item.id));
-
-    // 2. Supprimer l'impact financier réel (si trouvé)
-    if (item.type === 'payment') {
-        setExceptionalPaid(exceptionalPaid.filter(p => p.id !== item.id));
-    } else if (item.type === 'reimb') {
-        setReimbursements(reimbursements.filter(r => r.id !== item.id));
-    }
+    if (item.type === 'payment') setExceptionalPaid(exceptionalPaid.filter(p => p.id !== item.id));
+    else if (item.type === 'reimb') setReimbursements(reimbursements.filter(r => r.id !== item.id));
   };
 
   const handleEditHistory = (item) => {
@@ -200,19 +241,20 @@ export default function NexusUltimateCloud() {
     e.preventDefault();
     const val = parseFloat(form.amount);
     if (isNaN(val) || val <= 0) return;
-    const sharedId = Date.now(); // ID Unique pour lier Log et Donnée
+    const sharedId = Date.now();
 
-    if (modal.type === 'edit_history') {
+    // ROUTING SELON TYPE MODAL
+    if (modal.type === 'create_savings_account') {
+        setSavingsAccounts([...savingsAccounts, { id: Date.now().toString(), name: form.label, balance: val }]);
+    }
+    else if (modal.type === 'create_personal_expense') {
+        setPersonalExpenses([...personalExpenses, { id: Date.now(), label: form.label, amount: val, isPaid: false, comment: '' }]);
+    }
+    else if (modal.type === 'edit_history') {
         const oldItem = modal.data;
-        // Mise à jour de l'historique
         setHistory(history.map(h => h.id === oldItem.id ? { ...h, label: form.label, amount: val } : h));
-        
-        // Mise à jour des données financières
-        if (oldItem.type === 'payment') {
-            setExceptionalPaid(exceptionalPaid.map(p => p.id === oldItem.id ? { ...p, label: form.label, amount: val } : p));
-        } else if (oldItem.type === 'reimb') {
-            setReimbursements(reimbursements.map(r => r.id === oldItem.id ? { ...r, label: form.label, amount: val } : r));
-        }
+        if (oldItem.type === 'payment') setExceptionalPaid(exceptionalPaid.map(p => p.id === oldItem.id ? { ...p, label: form.label, amount: val } : p));
+        else if (oldItem.type === 'reimb') setReimbursements(reimbursements.map(r => r.id === oldItem.id ? { ...r, label: form.label, amount: val } : r));
     } 
     else if (modal.type === 'pending') {
       setPending([{ id: sharedId, label: form.label, amount: val }, ...pending]);
@@ -241,10 +283,10 @@ export default function NexusUltimateCloud() {
       }
     }
     setModal({ open: false, type: '', data: null });
-    setForm({ label: '', amount: '', cat: 'fixed' });
+    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
   };
 
-  // --- 4. RENDER ---
+  // --- 6. RENDER ---
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-indigo-500"><Loader2 className="animate-spin" size={48} /></div>;
 
   if (!session) return (
@@ -287,7 +329,7 @@ export default function NexusUltimateCloud() {
 
         {activeTab === 'dashboard' && (
           <div className="space-y-10 animate-in fade-in duration-700">
-            {/* CARTE SOLDE (RENOMMÉE CASH DISPO) */}
+            {/* CARTE CASH DISPO */}
             <div className="bg-zinc-900/40 border border-white/10 rounded-[3rem] p-9 relative overflow-hidden backdrop-blur-xl shadow-2xl">
               <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/10 blur-[100px]" />
               <div className="flex justify-between items-start mb-8 relative z-10">
@@ -305,15 +347,8 @@ export default function NexusUltimateCloud() {
                   <AreaChart data={totals.projection}>
                     <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/><stop offset="95%" stopColor="#6366f1" stopOpacity={0}/></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
-                    {/* XAxis Corrigé : Interval 0 pour forcer affichage, padding pour les bords */}
                     <XAxis 
-                        dataKey="name" 
-                        stroke="#3f3f46" 
-                        fontSize={10} 
-                        tickLine={false} 
-                        axisLine={false} 
-                        interval={0} 
-                        padding={{ left: 10, right: 10 }}
+                        dataKey="name" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} interval={0} padding={{ left: 10, right: 10 }}
                     />
                     <Tooltip contentStyle={{ backgroundColor: '#09090b', border: 'none', borderRadius: '20px' }} itemStyle={{color:'#818cf8'}} />
                     <Area type="monotone" dataKey="solde" stroke="#6366f1" fill="url(#g)" strokeWidth={4} />
@@ -322,7 +357,7 @@ export default function NexusUltimateCloud() {
               </div>
             </div>
 
-            {/* QUICK ACTIONS (RENOMMÉES) */}
+            {/* QUICK ACTIONS */}
             <div className="grid grid-cols-3 gap-4">
                <button onClick={() => setModal({open:true, type:'exceptional'})} className="bg-zinc-900/50 border border-white/5 p-5 rounded-[2rem] flex flex-col items-center active:scale-95 transition-all">
                   <ArrowUpRight size={22} className="mb-2 text-red-500" /><span className="text-[8px] font-black uppercase text-zinc-500 text-center tracking-tighter leading-tight text-red-400">Dépenses</span>
@@ -335,7 +370,7 @@ export default function NexusUltimateCloud() {
                </button>
             </div>
 
-            {/* FLUX (RENOMMÉ) */}
+            {/* FLUX */}
             <section className="space-y-5">
               <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] px-4 italic">Flux</h3>
               <div className="space-y-4">
@@ -355,13 +390,116 @@ export default function NexusUltimateCloud() {
           </div>
         )}
 
+        {/* --- PAGE EPARGNE (INDEPENDANTE) --- */}
+        {activeTab === 'savings' && (
+           <div className="space-y-10 animate-in slide-in-from-right-10 duration-500">
+                <div className="bg-gradient-to-br from-yellow-900/40 to-amber-600/10 border border-amber-500/20 rounded-[3rem] p-9 relative overflow-hidden">
+                   <div className="flex justify-between items-center relative z-10">
+                      <div>
+                        <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest italic mb-1">Épargne Totale</p>
+                        <h2 className="text-5xl font-black tracking-tighter italic text-amber-100">{savingsTotal.toLocaleString()}€</h2>
+                      </div>
+                      <div className="w-14 h-14 bg-amber-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-amber-500/20"><PiggyBank size={28}/></div>
+                   </div>
+                </div>
+
+                {/* ACTIONS EPARGNE */}
+                <div className="grid grid-cols-3 gap-3">
+                   <button onClick={() => setModal({open:true, type:'create_savings_account'})} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-white transition-colors">Nouveau Compte</button>
+                   <button onClick={() => setModal({open:true, type:'savings_transaction'})} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-emerald-400 transition-colors">Mouvement</button>
+                   <button onClick={() => setModal({open:true, type:'savings_advance'})} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-amber-500 transition-colors">Avance Épargne</button>
+                </div>
+
+                {/* LISTE COMPTES */}
+                <div className="space-y-4">
+                   {savingsAccounts.map(acc => (
+                      <div key={acc.id} className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center group relative overflow-hidden">
+                          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-black via-transparent to-transparent opacity-50" />
+                          <div className="flex flex-col">
+                             <span className="text-sm font-bold text-zinc-200 uppercase">{acc.name}</span>
+                             <span className="text-[10px] text-zinc-600 font-black uppercase">Disponible</span>
+                          </div>
+                          <div className="flex items-center gap-4 z-10">
+                             <span className="text-2xl font-black italic text-amber-500">{acc.balance}€</span>
+                             <button onClick={() => {if(window.confirm('Supprimer ce compte épargne ?')) setSavingsAccounts(savingsAccounts.filter(a => a.id !== acc.id))}} className="text-zinc-700 hover:text-red-500"><Trash2 size={16} /></button>
+                          </div>
+                      </div>
+                   ))}
+                </div>
+
+                {/* DETTES EPARGNE */}
+                {savingsPending.length > 0 && (
+                  <section className="space-y-4 pt-4 border-t border-white/5">
+                     <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest px-2">Dettes sur Épargne</h3>
+                     {savingsPending.map(p => {
+                        const targetName = savingsAccounts.find(a => a.id === p.targetAccountId)?.name || 'Compte supprimé';
+                        return (
+                          <div key={p.id} onClick={() => { if(window.confirm(`Rembourser ${p.amount}€ sur ${targetName} ?`)) handleReimburseSavings(p) }} className="bg-amber-900/10 border border-amber-900/30 p-5 rounded-[2rem] flex justify-between items-center cursor-pointer hover:bg-amber-900/20 transition-all">
+                             <div>
+                                <p className="text-xs font-bold text-amber-500 uppercase">{p.label}</p>
+                                <p className="text-[8px] text-zinc-500 font-bold uppercase">Vers: {targetName}</p>
+                             </div>
+                             <span className="text-xl font-black text-amber-600">{p.amount}€</span>
+                          </div>
+                        )
+                     })}
+                  </section>
+                )}
+           </div>
+        )}
+
+        {/* --- PAGE PERSO (INDEPENDANTE) --- */}
+        {activeTab === 'personal' && (
+           <div className="space-y-8 animate-in slide-in-from-right-10 duration-500">
+               <div className="flex justify-between items-center px-4">
+                  <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Dépenses Fixes Perso</h2>
+                  <button onClick={() => setModal({open:true, type:'create_personal_expense'})} className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus size={28}/></button>
+               </div>
+               
+               <div className="space-y-3">
+                  {personalExpenses.map(item => (
+                     <div key={item.id} className={`p-6 rounded-[2.5rem] border transition-all ${item.isPaid ? 'bg-emerald-900/10 border-emerald-500/20 opacity-60' : 'bg-zinc-900/60 border-white/5'}`}>
+                        <div className="flex justify-between items-start mb-3">
+                           <div className="flex items-center gap-4">
+                              <button onClick={() => togglePersonalPaid(item.id)} className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all ${item.isPaid ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-zinc-700 text-transparent hover:border-emerald-500'}`}>
+                                 <Check size={16} strokeWidth={4} />
+                              </button>
+                              <div>
+                                 <p className={`text-sm font-black uppercase ${item.isPaid ? 'text-emerald-500 line-through' : 'text-zinc-200'}`}>{item.label}</p>
+                                 <p className="text-lg font-black italic text-indigo-400">{item.amount}€</p>
+                              </div>
+                           </div>
+                           <div className="flex gap-3">
+                              <button onClick={() => { setForm({label: item.label, amount: item.amount}); setModal({open:true, type:'create_personal_expense'}); setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={16}/></button>
+                              <button onClick={() => { if(window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16}/></button>
+                           </div>
+                        </div>
+                        {/* LOGIQUE ESSENCE COMMENTAIRE */}
+                        {item.label.toLowerCase().includes('essence') && (
+                           <div className="flex items-center gap-2 mt-2 bg-black/30 p-2 rounded-xl border border-white/5">
+                              <MessageSquare size={14} className="text-zinc-500" />
+                              <input 
+                                type="text" 
+                                placeholder="Km / Trajet..." 
+                                className="bg-transparent w-full text-xs font-bold text-zinc-300 outline-none placeholder:text-zinc-700"
+                                value={item.comment || ''}
+                                onChange={(e) => updatePersonalComment(item.id, e.target.value)}
+                              />
+                           </div>
+                        )}
+                     </div>
+                  ))}
+               </div>
+           </div>
+        )}
+
+        {/* --- PAGE CHARGES FIXES --- */}
         {activeTab === 'expenses' && (
           <div className="space-y-10 pb-20 text-white animate-in slide-in-from-right-10 duration-500">
              <div className="flex justify-between items-center px-4">
                 <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges Fixes</h2>
                 <button onClick={() => setModal({open:true, type:'expense'})} className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus size={28}/></button>
              </div>
-             
              <section className="space-y-8">
                 <div className="space-y-4">
                   <div className="flex justify-between px-4 items-end">
@@ -377,7 +515,6 @@ export default function NexusUltimateCloud() {
                     ))}
                   </div>
                 </div>
-
                 <div className="space-y-4">
                    <div className="flex justify-between px-4 items-end">
                       <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic leading-none">Provisions Annuelles</p>
@@ -396,6 +533,7 @@ export default function NexusUltimateCloud() {
           </div>
         )}
 
+        {/* --- HISTORIQUE --- */}
         {activeTab === 'history' && (
           <div className="space-y-8 pb-20 animate-in slide-in-from-left-10 duration-500">
              <div className="bg-gradient-to-br from-zinc-900 to-indigo-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl">
@@ -403,15 +541,12 @@ export default function NexusUltimateCloud() {
                 <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.length}</h2>
              </div>
              <div className="space-y-4">
-                {history.length === 0 && <p className="text-center text-zinc-700 italic text-sm">Aucun historique récent.</p>}
                 {history.map(h => (
                   <div key={h.id} className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group">
-                     {/* BOUTONS ACTIONS (Cachés par défaut, visibles au besoin ou toujours) */}
                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-3 pl-4 bg-zinc-900/90 py-2 rounded-xl">
                         <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-indigo-400"><Pencil size={16} /></button>
                         <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
                      </div>
-
                      <div className="flex items-center gap-5">
                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-indigo-500/10 text-indigo-500'}`}>
                            {h.type === 'payment' ? <ArrowUpRight size={20}/> : h.type === 'reimb' ? <ArrowDownLeft size={20}/> : <HistoryIcon size={20}/>}
@@ -428,68 +563,68 @@ export default function NexusUltimateCloud() {
         )}
       </div>
 
+      {/* --- MODAL UNIFIÉE --- */}
       {modal.open && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[200] flex items-end p-6">
           <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl">
             <div className="flex justify-between items-center mb-10">
-              <h2 className={`text-2xl font-black italic uppercase ${modal.type === 'reimbursement' ? 'text-emerald-400' : modal.type === 'exceptional' ? 'text-red-400' : 'text-white'}`}>
-                {modal.type === 'repay_partial' ? 'Rembourser' : modal.type === 'pending' ? 'Avance' : modal.type === 'exceptional' ? 'Dépense' : modal.type === 'edit_history' ? 'Modifier' : modal.type === 'reimbursement' ? 'Recette' : 'Charge'}
+              <h2 className="text-2xl font-black italic uppercase text-white">
+                {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Dette Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : 'Opération'}
               </h2>
-              <button onClick={() => setModal({open:false, type:'', data:null})} className="text-zinc-600"><X size={28}/></button>
+              <button onClick={() => {setModal({open:false, type:'', data:null}); setForm({label:'', amount:'', cat:'fixed', targetAccount:''})}} className="text-zinc-600"><X size={28}/></button>
             </div>
             
-            {modal.type === 'expense' && (
-              <div className="flex gap-2 p-1 bg-black rounded-2xl mb-8 border border-white/5">
-                <button onClick={() => setForm({...form, cat: 'fixed'})} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-600'}`}>Mensuelle</button>
-                <button onClick={() => setForm({...form, cat: 'annual'})} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-emerald-600 text-white shadow-lg' : 'text-zinc-600'}`}>Annuelle</button>
-              </div>
-            )}
-
             <form onSubmit={handleForm} className="space-y-8">
-               {/* INPUT LIBELLÉ (Masqué pour gestion dette) */}
-               {modal.type !== 'repay_partial' && (
-                 <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 font-bold text-lg text-white" placeholder="Libellé" value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
+               {/* INPUT LIBELLÉ */}
+               {modal.type !== 'repay_partial' && modal.type !== 'savings_transaction' && (
+                 <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
                )}
 
-               {/* INFO DETTE RESTANTE */}
-               {modal.type === 'repay_partial' && (
-                 <div className="text-center p-6 bg-amber-500/10 rounded-3xl mb-4 border border-amber-500/20">
-                    <p className="text-[10px] font-black uppercase text-amber-500 mb-1 italic">Reste dû: {modal.data?.label}</p>
-                    <p className="text-4xl font-black text-amber-500 italic">{modal.data?.amount}€</p>
-                 </div>
+               {/* SELECT COMPTE EPARGNE (Si transaction ou avance épargne) */}
+               {(modal.type === 'savings_transaction' || modal.type === 'savings_advance') && (
+                  <div className="space-y-2">
+                     <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">Compte Cible</p>
+                     <div className="flex flex-wrap gap-2">
+                        {savingsAccounts.map(acc => (
+                           <button type="button" key={acc.id} onClick={() => setForm({...form, targetAccount: acc.id})} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase border ${form.targetAccount === acc.id ? 'bg-amber-500 border-amber-500 text-black' : 'border-zinc-800 text-zinc-500'}`}>{acc.name}</button>
+                        ))}
+                     </div>
+                  </div>
                )}
 
-               {/* INPUT MONTANT + BOUTON MAX */}
+               {/* INPUT MONTANT */}
                <div className="relative">
-                  <input autoFocus={modal.type === 'repay_partial'} type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
-                  {modal.type === 'repay_partial' && (
-                    <button type="button" onClick={() => setForm({...form, amount: modal.data?.amount})} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 px-3 py-1 rounded-full text-[10px] font-black uppercase hover:bg-white/20">Max</button>
-                  )}
+                  <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
                </div>
                
-               {/* BOUTONS D'ACTION UNIFIÉS */}
-               <div className="flex flex-col gap-3">
-                 <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'reimbursement' || modal.type === 'repay_partial' ? 'bg-emerald-600' : modal.type === 'exceptional' ? 'bg-red-600' : 'bg-indigo-600'}`}>
-                    {modal.type === 'repay_partial' ? 'Remboursement (Recette)' : 'Confirmer'}
-                 </button>
-                 
-                 {/* BOUTON ABSORBER (Uniquement pour les dettes) */}
-                 {modal.type === 'repay_partial' && (
-                    <button type="button" onClick={handleAbsorb} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-amber-500 border border-amber-500/30 hover:bg-amber-500/10 flex items-center justify-center gap-2">
-                       <Flame size={16} /> Absorber (Utiliser Trésorerie)
-                    </button>
-                 )}
-               </div>
+               {/* BOUTONS ACTIONS */}
+               {modal.type === 'savings_transaction' ? (
+                  <div className="flex gap-4">
+                     <button type="button" onClick={() => handleSavingsTransaction(true)} className="flex-1 py-6 rounded-[2rem] bg-emerald-600 font-black text-xl uppercase shadow-xl">Dépot</button>
+                     <button type="button" onClick={() => handleSavingsTransaction(false)} className="flex-1 py-6 rounded-[2rem] bg-red-600 font-black text-xl uppercase shadow-xl">Retrait</button>
+                  </div>
+               ) : modal.type === 'savings_advance' ? (
+                  <button type="button" onClick={handleSavingsAdvance} className="w-full py-6 rounded-[2rem] bg-amber-600 font-black text-xl uppercase shadow-xl">Créer Dette</button>
+               ) : (
+                 <div className="flex flex-col gap-3">
+                    <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all bg-indigo-600`}>Confirmer</button>
+                    {modal.type === 'repay_partial' && (
+                        <button type="button" onClick={handleAbsorb} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-amber-500 border border-amber-500/30 hover:bg-amber-500/10 flex items-center justify-center gap-2"><Flame size={16} /> Absorbé</button>
+                    )}
+                 </div>
+               )}
             </form>
           </div>
         </div>
       )}
 
-      {/* NAV */}
-      <nav className="fixed bottom-12 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/60 backdrop-blur-3xl border border-white/10 px-10 py-7 rounded-[3rem] flex justify-between items-center z-50 shadow-2xl">
-        <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-indigo-400 scale-150 transition-all' : 'text-zinc-700 transition-all'}><TrendingUp size={28} strokeWidth={3} /></button>
-        <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-indigo-400 scale-150 transition-all' : 'text-zinc-700 transition-all'}><Users size={28} strokeWidth={3} /></button>
-        <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-indigo-400 scale-150 transition-all' : 'text-zinc-700 transition-all'}><HistoryIcon size={28} strokeWidth={3} /></button>
+      {/* NAV BAR V14 */}
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 px-6 py-5 rounded-[2.5rem] flex justify-between items-center z-50 shadow-2xl">
+        <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
+        <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
+        <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-amber-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
+        <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
+        <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
       </nav>
     </div>
   );
