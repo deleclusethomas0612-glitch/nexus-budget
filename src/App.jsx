@@ -26,9 +26,9 @@ export default function NexusUltimateCloud() {
   const [exceptionalPaid, setExceptionalPaid] = useState([]);
 
   // --- DATA STATE (MODULES INDÉPENDANTS) ---
-  const [savingsAccounts, setSavingsAccounts] = useState([]); // [{id, name, balance}]
-  const [savingsPending, setSavingsPending] = useState([]); // [{id, label, amount, targetAccountId}]
-  const [personalExpenses, setPersonalExpenses] = useState([]); // [{id, label, amount, isPaid, comment}]
+  const [savingsAccounts, setSavingsAccounts] = useState([]); 
+  const [savingsPending, setSavingsPending] = useState([]); 
+  const [personalExpenses, setPersonalExpenses] = useState([]); 
 
   // --- UI STATE ---
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -63,19 +63,17 @@ export default function NexusUltimateCloud() {
       setHistory(data.history || []);
       setReimbursements(data.reimbursements || []);
       setExceptionalPaid(data.exceptional_paid || []);
-      // Nouveaux champs V14
+      // Chargement V16
       setSavingsAccounts(data.savings_accounts || []);
       setSavingsPending(data.savings_pending || []);
       setPersonalExpenses(data.personal_expenses || []);
     } else if (!data && !error) {
-      // Initialisation par défaut
       const defaults = {
         user_id: userId,
         fixed_expenses: [], annual_expenses: [], pending: [], history: [], reimbursements: [], exceptional_paid: [],
         savings_accounts: [], savings_pending: [], personal_expenses: []
       };
       await supabase.from('nexus_data').insert(defaults);
-      // Set local states (empty)
     }
     setLoading(false);
   };
@@ -89,7 +87,7 @@ export default function NexusUltimateCloud() {
       history: history,
       reimbursements: reimbursements,
       exceptional_paid: exceptionalPaid,
-      // Sauvegarde V14
+      // Sauvegarde des modules
       savings_accounts: savingsAccounts,
       savings_pending: savingsPending,
       personal_expenses: personalExpenses
@@ -97,6 +95,7 @@ export default function NexusUltimateCloud() {
     await supabase.from('nexus_data').upsert({ user_id: session.user.id, ...updates });
   };
 
+  // Trigger sauvegarde auto
   useEffect(() => { 
     if (!loading && session) saveData(); 
   }, [fixedExpenses, annualExpenses, pending, history, reimbursements, exceptionalPaid, savingsAccounts, savingsPending, personalExpenses]);
@@ -119,7 +118,7 @@ export default function NexusUltimateCloud() {
     setFixedExpenses([]); setAnnualExpenses([]); setPending([]); 
   };
 
-  // --- 3. LOGIQUE MÉTIER PRINCIPALE ---
+  // --- 3. LOGIQUE MÉTIER ---
   const totals = useMemo(() => {
     const totalFixed = fixedExpenses.reduce((acc, c) => acc + c.amount, 0);
     const totalAnnual = annualExpenses.reduce((acc, c) => acc + c.amount, 0);
@@ -149,10 +148,14 @@ export default function NexusUltimateCloud() {
     return { virement, realCash, projection, provision, totalFixed, totalAnnual };
   }, [fixedExpenses, annualExpenses, reimbursements, exceptionalPaid, pending]);
 
-  // --- 4. LOGIQUE ÉPARGNE (Totalement Indépendante) ---
+  // --- 4. LOGIQUES INDÉPENDANTES ---
   const savingsTotal = useMemo(() => {
     return savingsAccounts.reduce((acc, c) => acc + c.balance, 0);
   }, [savingsAccounts]);
+
+  const personalTotal = useMemo(() => {
+    return personalExpenses.reduce((acc, c) => acc + c.amount, 0);
+  }, [personalExpenses]);
 
   const handleSavingsTransaction = (isIncome) => {
     const val = parseFloat(form.amount);
@@ -171,24 +174,19 @@ export default function NexusUltimateCloud() {
   const handleSavingsAdvance = () => {
      const val = parseFloat(form.amount);
      if (!form.targetAccount || isNaN(val) || !form.label) return;
-     // Créer la dette liée à un compte spécifique
      setSavingsPending([...savingsPending, { id: Date.now(), label: form.label, amount: val, targetAccountId: form.targetAccount }]);
      setModal({ open: false, type: '', data: null });
      setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
   };
 
   const handleReimburseSavings = (debt) => {
-    // 1. Supprimer la dette
     setSavingsPending(savingsPending.filter(p => p.id !== debt.id));
-    // 2. Créditer le compte épargne associé
     setSavingsAccounts(savingsAccounts.map(acc => {
         if(acc.id === debt.targetAccountId) return { ...acc, balance: acc.balance + debt.amount };
         return acc;
     }));
-    setModal({ open: false, type: '', data: null });
   };
 
-  // --- 5. LOGIQUE PERSO (Pointage) ---
   const togglePersonalPaid = (id) => {
     setPersonalExpenses(personalExpenses.map(p => p.id === id ? { ...p, isPaid: !p.isPaid } : p));
   };
@@ -214,7 +212,7 @@ export default function NexusUltimateCloud() {
     return <Receipt size={18}/>;
   };
 
-  // --- GESTION FORMULAIRES GENERAUX ---
+  // --- GESTION FORMULAIRES ---
   const handleAbsorb = () => {
     const debt = modal.data;
     const sharedId = Date.now();
@@ -243,7 +241,6 @@ export default function NexusUltimateCloud() {
     if (isNaN(val) || val <= 0) return;
     const sharedId = Date.now();
 
-    // ROUTING SELON TYPE MODAL
     if (modal.type === 'create_savings_account') {
         setSavingsAccounts([...savingsAccounts, { id: Date.now().toString(), name: form.label, balance: val }]);
     }
@@ -286,7 +283,7 @@ export default function NexusUltimateCloud() {
     setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
   };
 
-  // --- 6. RENDER ---
+  // --- RENDER ---
   if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-indigo-500"><Loader2 className="animate-spin" size={48} /></div>;
 
   if (!session) return (
@@ -347,9 +344,7 @@ export default function NexusUltimateCloud() {
                   <AreaChart data={totals.projection}>
                     <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/><stop offset="95%" stopColor="#6366f1" stopOpacity={0}/></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
-                    <XAxis 
-                        dataKey="name" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} interval={0} padding={{ left: 10, right: 10 }}
-                    />
+                    <XAxis dataKey="name" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} interval={0} padding={{ left: 10, right: 10 }} />
                     <Tooltip contentStyle={{ backgroundColor: '#09090b', border: 'none', borderRadius: '20px' }} itemStyle={{color:'#818cf8'}} />
                     <Area type="monotone" dataKey="solde" stroke="#6366f1" fill="url(#g)" strokeWidth={4} />
                   </AreaChart>
@@ -390,24 +385,25 @@ export default function NexusUltimateCloud() {
           </div>
         )}
 
-        {/* --- PAGE EPARGNE (INDEPENDANTE) --- */}
+        {/* --- PAGE EPARGNE (MODIFIÉE CYAN + CORRECTIONS TEXTE) --- */}
         {activeTab === 'savings' && (
            <div className="space-y-10 animate-in slide-in-from-right-10 duration-500">
-                <div className="bg-gradient-to-br from-yellow-900/40 to-amber-600/10 border border-amber-500/20 rounded-[3rem] p-9 relative overflow-hidden">
+                {/* CARTE CYAN */}
+                <div className="bg-gradient-to-br from-cyan-900/40 to-blue-600/10 border border-cyan-500/20 rounded-[3rem] p-9 relative overflow-hidden">
                    <div className="flex justify-between items-center relative z-10">
                       <div>
-                        <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest italic mb-1">Épargne Totale</p>
-                        <h2 className="text-5xl font-black tracking-tighter italic text-amber-100">{savingsTotal.toLocaleString()}€</h2>
+                        <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Épargne Totale</p>
+                        <h2 className="text-5xl font-black tracking-tighter italic text-cyan-100">{savingsTotal.toLocaleString()}€</h2>
                       </div>
-                      <div className="w-14 h-14 bg-amber-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-amber-500/20"><PiggyBank size={28}/></div>
+                      <div className="w-14 h-14 bg-cyan-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-cyan-500/20"><PiggyBank size={28}/></div>
                    </div>
                 </div>
 
-                {/* ACTIONS EPARGNE */}
+                {/* ACTIONS */}
                 <div className="grid grid-cols-3 gap-3">
                    <button onClick={() => setModal({open:true, type:'create_savings_account'})} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-white transition-colors">Nouveau Compte</button>
                    <button onClick={() => setModal({open:true, type:'savings_transaction'})} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-emerald-400 transition-colors">Mouvement</button>
-                   <button onClick={() => setModal({open:true, type:'savings_advance'})} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-amber-500 transition-colors">Avance Épargne</button>
+                   <button onClick={() => setModal({open:true, type:'savings_advance'})} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-amber-500 transition-colors">Créer Avance</button>
                 </div>
 
                 {/* LISTE COMPTES */}
@@ -420,17 +416,17 @@ export default function NexusUltimateCloud() {
                              <span className="text-[10px] text-zinc-600 font-black uppercase">Disponible</span>
                           </div>
                           <div className="flex items-center gap-4 z-10">
-                             <span className="text-2xl font-black italic text-amber-500">{acc.balance}€</span>
+                             <span className="text-2xl font-black italic text-cyan-500">{acc.balance}€</span>
                              <button onClick={() => {if(window.confirm('Supprimer ce compte épargne ?')) setSavingsAccounts(savingsAccounts.filter(a => a.id !== acc.id))}} className="text-zinc-700 hover:text-red-500"><Trash2 size={16} /></button>
                           </div>
                       </div>
                    ))}
                 </div>
 
-                {/* DETTES EPARGNE */}
+                {/* AVANCE SUR EPARGNE (RENOMMÉ) */}
                 {savingsPending.length > 0 && (
                   <section className="space-y-4 pt-4 border-t border-white/5">
-                     <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest px-2">Dettes sur Épargne</h3>
+                     <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest px-2">Avance sur Épargne</h3>
                      {savingsPending.map(p => {
                         const targetName = savingsAccounts.find(a => a.id === p.targetAccountId)?.name || 'Compte supprimé';
                         return (
@@ -448,12 +444,21 @@ export default function NexusUltimateCloud() {
            </div>
         )}
 
-        {/* --- PAGE PERSO (INDEPENDANTE) --- */}
+        {/* --- PAGE PERSO (AVEC TOTAL MENSUEL AJOUTÉ) --- */}
         {activeTab === 'personal' && (
            <div className="space-y-8 animate-in slide-in-from-right-10 duration-500">
-               <div className="flex justify-between items-center px-4">
-                  <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Dépenses Fixes Perso</h2>
-                  <button onClick={() => setModal({open:true, type:'create_personal_expense'})} className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus size={28}/></button>
+               {/* TOTAL FIXE MENSUEL */}
+               <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/20 blur-xl"></div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">Total Mensuel Fixe</p>
+                        <p className="text-3xl font-black italic text-white">{personalTotal.toLocaleString()}€</p>
+                    </div>
+               </div>
+
+               <div className="flex justify-between items-center px-4 pt-4">
+                  <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Détails Dépenses</h2>
+                  <button onClick={() => setModal({open:true, type:'create_personal_expense'})} className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus size={24}/></button>
                </div>
                
                <div className="space-y-3">
@@ -474,7 +479,6 @@ export default function NexusUltimateCloud() {
                               <button onClick={() => { if(window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16}/></button>
                            </div>
                         </div>
-                        {/* LOGIQUE ESSENCE COMMENTAIRE */}
                         {item.label.toLowerCase().includes('essence') && (
                            <div className="flex items-center gap-2 mt-2 bg-black/30 p-2 rounded-xl border border-white/5">
                               <MessageSquare size={14} className="text-zinc-500" />
@@ -563,24 +567,22 @@ export default function NexusUltimateCloud() {
         )}
       </div>
 
-      {/* --- MODAL UNIFIÉE --- */}
+      {/* --- MODAL --- */}
       {modal.open && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[200] flex items-end p-6">
           <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl">
             <div className="flex justify-between items-center mb-10">
               <h2 className="text-2xl font-black italic uppercase text-white">
-                {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Dette Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : 'Opération'}
+                {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : 'Opération'}
               </h2>
               <button onClick={() => {setModal({open:false, type:'', data:null}); setForm({label:'', amount:'', cat:'fixed', targetAccount:''})}} className="text-zinc-600"><X size={28}/></button>
             </div>
             
             <form onSubmit={handleForm} className="space-y-8">
-               {/* INPUT LIBELLÉ */}
                {modal.type !== 'repay_partial' && modal.type !== 'savings_transaction' && (
                  <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
                )}
 
-               {/* SELECT COMPTE EPARGNE (Si transaction ou avance épargne) */}
                {(modal.type === 'savings_transaction' || modal.type === 'savings_advance') && (
                   <div className="space-y-2">
                      <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">Compte Cible</p>
@@ -592,19 +594,18 @@ export default function NexusUltimateCloud() {
                   </div>
                )}
 
-               {/* INPUT MONTANT */}
                <div className="relative">
                   <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
                </div>
                
-               {/* BOUTONS ACTIONS */}
                {modal.type === 'savings_transaction' ? (
                   <div className="flex gap-4">
                      <button type="button" onClick={() => handleSavingsTransaction(true)} className="flex-1 py-6 rounded-[2rem] bg-emerald-600 font-black text-xl uppercase shadow-xl">Dépot</button>
                      <button type="button" onClick={() => handleSavingsTransaction(false)} className="flex-1 py-6 rounded-[2rem] bg-red-600 font-black text-xl uppercase shadow-xl">Retrait</button>
                   </div>
                ) : modal.type === 'savings_advance' ? (
-                  <button type="button" onClick={handleSavingsAdvance} className="w-full py-6 rounded-[2rem] bg-amber-600 font-black text-xl uppercase shadow-xl">Créer Dette</button>
+                  /* CORRECTION BOUTON "CRÉER AVANCE" */
+                  <button type="button" onClick={handleSavingsAdvance} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">Créer Avance</button>
                ) : (
                  <div className="flex flex-col gap-3">
                     <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all bg-indigo-600`}>Confirmer</button>
@@ -618,11 +619,11 @@ export default function NexusUltimateCloud() {
         </div>
       )}
 
-      {/* NAV BAR V14 */}
+      {/* NAV BAR (Avec icones couleurs corrigées) */}
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 px-6 py-5 rounded-[2.5rem] flex justify-between items-center z-50 shadow-2xl">
         <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
         <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
-        <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-amber-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
+        <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
         <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
         <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
       </nav>
