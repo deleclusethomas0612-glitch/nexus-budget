@@ -586,13 +586,13 @@ export default function NexusUltimateCloud() {
             <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => { setPersonalExpenses(newList); saveToCloud('personal_expenses', newList); }} className="space-y-3 pb-4">
               {personalExpenses.map(item => (
                 <DraggableItem key={item.id} value={item}>
-                  <div className={`p-4 rounded-[2.8rem] border transition-all active:scale-95 flex justify-between items-center group relative overflow-hidden ${item.isPaid ? 'bg-zinc-900/20 border-emerald-500/20' : 'bg-zinc-900/30 border-white/5'}`}>
+                  <div className={`p-4 rounded-[2.8rem] border transition-all active:scale-95 flex justify-between items-center group relative overflow-hidden ${item.isPaid ? 'bg-zinc-900/20 border-white/5 opacity-50' : 'bg-zinc-900/30 border-white/5'}`}>
                     <div className="flex items-center gap-4">
-                      <button onClick={() => togglePersonalPaid(item.id)} className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${item.isPaid ? 'bg-emerald-500/20 border-emerald-500 text-emerald-500' : 'border-zinc-700 text-transparent hover:border-emerald-500'}`}>
+                      <button onClick={() => togglePersonalPaid(item.id)} className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${item.isPaid ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'border-zinc-700 text-transparent hover:border-emerald-500'}`}>
                         <Check size={14} strokeWidth={4} />
                       </button>
                       <div className="flex flex-col">
-                        <p className={`text-sm font-black uppercase text-left ${item.isPaid ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>{item.label}</p>
+                        <p className={`text-sm font-black uppercase text-left ${item.isPaid ? 'text-zinc-500' : 'text-zinc-200'}`}>{item.label}</p>
                         {item.label.toLowerCase().includes('essence') ? (
                           <div className="flex items-center gap-2 mt-1 bg-black/30 px-2 py-1 rounded-lg border border-white/5">
                             <MessageSquare size={10} className="text-zinc-500" />
@@ -611,7 +611,7 @@ export default function NexusUltimateCloud() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col items-end">
-                        <span className={`text-xl font-black italic ${item.isPaid ? 'text-emerald-500/50' : 'text-indigo-400'}`}>{item.amount}€</span>
+                        <span className={`text-xl font-black italic ${item.isPaid ? 'text-zinc-500' : 'text-indigo-400'}`}>{item.amount}€</span>
                         <div className="flex gap-2">
                           <button onClick={() => { setForm({ label: item.label, amount: item.amount }); setModal({ open: true, type: 'create_personal_expense' }); setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                           <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
