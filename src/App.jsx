@@ -4,7 +4,7 @@ import {
   TrendingUp, Users, Wallet, AlertCircle, Plus, Check, X, Trash2, Pencil,
   Banknote, ShieldCheck, History as HistoryIcon, Zap, HeartPulse,
   Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame,
-  PiggyBank, CheckSquare, MessageSquare, Save
+  PiggyBank, CheckSquare, MessageSquare, Save, Archive
 } from 'lucide-react';
 import { supabase } from './supabase';
 
@@ -34,6 +34,7 @@ export default function NexusUltimateCloud() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [modal, setModal] = useState({ open: false, type: '', data: null });
   const [form, setForm] = useState({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
+  const [showArchives, setShowArchives] = useState(false);
 
   // --- 1. INITIALISATION CLOUD ---
   useEffect(() => {
@@ -248,6 +249,10 @@ export default function NexusUltimateCloud() {
     setModal({ open: true, type: 'edit_history', data: item });
   };
 
+  const handleArchiveHistory = (item) => {
+    setHistory(history.map(h => h.id === item.id ? { ...h, isArchived: !h.isArchived } : h));
+  };
+
   const handleForm = (e) => {
     e.preventDefault();
     const val = parseFloat(form.amount);
@@ -358,12 +363,12 @@ export default function NexusUltimateCloud() {
         {activeTab === 'dashboard' && (
           <div className="space-y-10 animate-in fade-in duration-700">
             {/* CARTE CASH DISPO */}
-            <div className="bg-zinc-900/40 border border-white/10 rounded-[3rem] p-9 relative overflow-hidden backdrop-blur-xl shadow-2xl">
+            <div className="bg-zinc-900/40 border border-white/10 rounded-[2.5rem] p-6 relative overflow-hidden backdrop-blur-xl shadow-2xl">
               <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/10 blur-[100px]" />
-              <div className="flex justify-between items-start mb-8 relative z-10">
+              <div className="flex justify-between items-start mb-4 relative z-10">
                 <div>
                   <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic mb-1">Cash Dispo</p>
-                  <h2 className="text-6xl font-black tracking-tighter italic">{totals.realCash.toLocaleString()}€</h2>
+                  <h2 className="text-5xl font-black tracking-tighter italic">{totals.realCash.toLocaleString()}€</h2>
                 </div>
                 {/* Virement déplacé sur Charges Fixes */}
               </div>
@@ -573,9 +578,15 @@ export default function NexusUltimateCloud() {
                 </div>
                 <div className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
                   {annualExpenses.map(e => (
-                    <div key={e.id} className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center group">
-                      <div className="flex items-center gap-4 text-emerald-500"><Calendar size={18} /><span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
-                      <div className="flex items-center gap-5 text-emerald-500 font-black italic">{e.amount}€<Trash2 size={18} className="text-zinc-800 hover:text-red-500 cursor-pointer" onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} /></div>
+                    <div key={e.id} className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between group">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-4 text-emerald-500"><Calendar size={18} /><span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
+                        <div className="flex items-center gap-5 text-emerald-500 font-black italic">{e.amount}€</div>
+                      </div>
+                      <div className="flex gap-3 justify-end mt-4">
+                        <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual' }); setModal({ open: true, type: 'expense' }); setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id)); }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
+                        <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -587,15 +598,20 @@ export default function NexusUltimateCloud() {
         {/* --- HISTORIQUE --- */}
         {activeTab === 'history' && (
           <div className="space-y-8 pb-20 animate-in slide-in-from-left-10 duration-500">
-            <div className="bg-gradient-to-br from-zinc-900 to-indigo-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl">
+            <div className="bg-gradient-to-br from-zinc-900 to-indigo-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative">
               <p className="text-indigo-200 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
-              <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.length}</h2>
+              <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length}</h2>
+              <button onClick={() => setShowArchives(!showArchives)} className="absolute top-8 right-8 bg-black/20 p-3 rounded-2xl text-indigo-200 hover:bg-black/40 transition-all flex items-center gap-2">
+                <Archive size={18} />
+                <span className="text-[10px] font-bold uppercase">{showArchives ? "Actifs" : "Archives"}</span>
+              </button>
             </div>
             <div className="space-y-4">
-              {history.map(h => (
-                <div key={h.id} className="bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group">
+              {history.filter(h => showArchives ? h.isArchived : !h.isArchived).map(h => (
+                <div key={h.id} className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group transition-all ${h.isArchived ? 'opacity-50' : ''}`}>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-3 pl-4 bg-zinc-900/90 py-2 rounded-xl">
-                    <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-indigo-400"><Pencil size={16} /></button>
+                    <button onClick={() => handleArchiveHistory(h)} className="text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
+                    {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-indigo-400"><Pencil size={16} /></button>}
                     <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
                   </div>
                   <div className="flex items-center gap-5">
@@ -615,7 +631,7 @@ export default function NexusUltimateCloud() {
         {/* --- MODAL --- */}
         {modal.open && (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[200] flex items-end p-6">
-            <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl">
+            <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 fade-in">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">
                   {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : 'Opération'}
