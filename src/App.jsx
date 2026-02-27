@@ -35,6 +35,21 @@ export default function NexusUltimateCloud() {
   const [modal, setModal] = useState({ open: false, type: '', data: null });
   const [form, setForm] = useState({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
   const [showArchives, setShowArchives] = useState(false);
+  const [touchStart, setTouchStart] = useState(null);
+
+  const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'history'];
+
+  const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
+  const handleTouchEnd = (e) => {
+    if (!touchStart) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+    const currentIndex = tabs.indexOf(activeTab);
+
+    if (diff > 50 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]);
+    if (diff < -50 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]);
+    setTouchStart(null);
+  };
 
   // --- 1. INITIALISATION CLOUD ---
   useEffect(() => {
@@ -347,13 +362,15 @@ export default function NexusUltimateCloud() {
   );
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-44 px-6 pt-6 selection:bg-indigo-500/30">
+    <div
+      className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-44 px-6 pt-6 selection:bg-indigo-500/30 overflow-x-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="max-w-md mx-auto space-y-6">
 
-        {/* HEADER */}
-        <header className="flex justify-end items-center px-2">
-          <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-red-500 transition-colors shadow-2xl"><LogOut size={20} /></button>
-        </header>
+        {/* HEADER REMOVED REPLACEMENT LOGIC */}
+
 
         {activeTab === 'dashboard' && (
           <div className="space-y-10 page-transition">
@@ -417,7 +434,7 @@ export default function NexusUltimateCloud() {
         {activeTab === 'savings' && (
           <div className="space-y-10 page-transition">
             {/* CARTE CYAN */}
-            <div className="bg-gradient-to-br from-cyan-900/40 to-blue-600/10 border border-cyan-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse">
+            <div className="bg-gradient-to-br from-cyan-900/40 to-blue-600/10 border border-cyan-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-cyan">
               <div className="flex justify-between items-center relative z-10">
                 <div>
                   <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Épargne Totale</p>
@@ -636,7 +653,15 @@ export default function NexusUltimateCloud() {
 
               <form onSubmit={handleForm} className="space-y-8">
                 {modal.type !== 'repay_partial' && modal.type !== 'repay_savings_advance' && modal.type !== 'savings_transaction' && (
-                  <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
+                  <div className="space-y-6">
+                    {modal.type === 'expense' && (
+                      <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
+                        <button type="button" onClick={() => setForm({ ...form, cat: 'fixed' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-indigo-600 text-white' : 'text-zinc-600'}`}>Mensuel</button>
+                        <button type="button" onClick={() => setForm({ ...form, cat: 'annual' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-indigo-600 text-white' : 'text-zinc-600'}`}>Annuel</button>
+                      </div>
+                    )}
+                    <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
+                  </div>
                 )}
 
                 {(modal.type === 'savings_transaction' || modal.type === 'savings_advance') && (
@@ -684,6 +709,8 @@ export default function NexusUltimateCloud() {
           <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
+          <div className="w-px h-8 bg-white/10 mx-1" />
+          <button onClick={handleLogout} className="text-zinc-600 hover:text-red-500 transition-colors"><LogOut size={22} /></button>
         </nav>
       </div>
     </div>
