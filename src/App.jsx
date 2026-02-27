@@ -326,7 +326,6 @@ export default function NexusUltimateCloud() {
     <div className="min-h-screen bg-[#020202] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <h1 className="text-5xl font-black italic tracking-tighter uppercase mb-2">NEXUS<span className="text-indigo-500">.</span></h1>
           <p className="text-zinc-500 text-xs font-bold uppercase tracking-[0.3em]">Cloud Access</p>
         </div>
         <div className="bg-zinc-900/50 border border-white/10 rounded-[2.5rem] p-8 space-y-6 backdrop-blur-xl">
@@ -348,22 +347,18 @@ export default function NexusUltimateCloud() {
   );
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-44 px-6 pt-14 selection:bg-indigo-500/30">
-      <div className="max-w-md mx-auto space-y-10">
+    <div className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-44 px-6 pt-6 selection:bg-indigo-500/30">
+      <div className="max-w-md mx-auto space-y-6">
 
         {/* HEADER */}
-        <header className="flex justify-between items-center px-2">
-          <div className="relative">
-            <h1 className="text-4xl font-black italic tracking-tighter uppercase leading-none">NEXUS<span className="text-indigo-500">.</span></h1>
-            <div className="absolute -bottom-2 left-0 w-12 h-1 bg-indigo-500 rounded-full blur-[2px]" />
-          </div>
+        <header className="flex justify-end items-center px-2">
           <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-red-500 transition-colors shadow-2xl"><LogOut size={20} /></button>
         </header>
 
         {activeTab === 'dashboard' && (
           <div className="space-y-10 page-transition">
             {/* CARTE CASH DISPO */}
-            <div className="bg-zinc-900/40 border border-white/10 rounded-[2.5rem] p-6 relative overflow-hidden backdrop-blur-xl shadow-2xl">
+            <div className="bg-zinc-900/40 border border-white/10 rounded-[2.5rem] p-6 relative overflow-hidden backdrop-blur-xl shadow-2xl neon-pulse">
               <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/10 blur-[100px]" />
               <div className="flex justify-between items-start mb-4 relative z-10">
                 <div>
@@ -422,7 +417,7 @@ export default function NexusUltimateCloud() {
         {activeTab === 'savings' && (
           <div className="space-y-10 page-transition">
             {/* CARTE CYAN */}
-            <div className="bg-gradient-to-br from-cyan-900/40 to-blue-600/10 border border-cyan-500/20 rounded-[3rem] p-9 relative overflow-hidden">
+            <div className="bg-gradient-to-br from-cyan-900/40 to-blue-600/10 border border-cyan-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse">
               <div className="flex justify-between items-center relative z-10">
                 <div>
                   <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Épargne Totale</p>
@@ -481,7 +476,7 @@ export default function NexusUltimateCloud() {
         {activeTab === 'personal' && (
           <div className="space-y-8 page-transition">
             {/* TOTAL FIXE MENSUEL */}
-            <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden">
+            <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse">
               <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/20 blur-xl"></div>
               <div>
                 <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">Total Mensuel Fixe</p>
@@ -539,7 +534,7 @@ export default function NexusUltimateCloud() {
             </div>
 
             {/* TOTAL GLOBAL ET VIREMENT */}
-            <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden">
+            <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse">
               <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/20 blur-xl"></div>
               <div>
                 <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">Total Mensuel</p>
@@ -598,7 +593,7 @@ export default function NexusUltimateCloud() {
         {/* --- HISTORIQUE --- */}
         {activeTab === 'history' && (
           <div className="space-y-8 pb-20 page-transition">
-            <div className="bg-gradient-to-br from-zinc-900 to-indigo-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative">
+            <div className="bg-gradient-to-br from-zinc-900 to-indigo-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative neon-pulse">
               <p className="text-indigo-200 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
               <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length}</h2>
               <button onClick={() => setShowArchives(!showArchives)} className="absolute top-8 right-8 bg-black/20 p-3 rounded-2xl text-indigo-200 hover:bg-black/40 transition-all flex items-center gap-2">
