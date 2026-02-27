@@ -102,8 +102,21 @@ export default function NexusUltimateCloud() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const clearAllStates = () => {
+    setFixedExpenses([]);
+    setAnnualExpenses([]);
+    setPending([]);
+    setHistory([]);
+    setReimbursements([]);
+    setExceptionalPaid([]);
+    setSavingsAccounts([]);
+    setSavingsPending([]);
+    setPersonalExpenses([]);
+  };
+
   const fetchData = async (userId) => {
     setLoading(true);
+    clearAllStates(); // Reset avant de charger le nouveau compte
     const { data, error } = await supabase.from('nexus_data').select('*').eq('user_id', userId).single();
 
     if (data) {
@@ -113,17 +126,20 @@ export default function NexusUltimateCloud() {
       setHistory(data.history || []);
       setReimbursements(data.reimbursements || []);
       setExceptionalPaid(data.exceptional_paid || []);
-      // Chargement V16
       setSavingsAccounts(data.savings_accounts || []);
       setSavingsPending(data.savings_pending || []);
       setPersonalExpenses(data.personal_expenses || []);
-    } else if (!data && !error) {
-      const defaults = {
-        user_id: userId,
-        fixed_expenses: [], annual_expenses: [], pending: [], history: [], reimbursements: [], exceptional_paid: [],
-        savings_accounts: [], savings_pending: [], personal_expenses: []
-      };
-      await supabase.from('nexus_data').insert(defaults);
+    } else {
+      // Si pas de données, on s'assure d'insérer une ligne propre si besoin
+      const { data: check } = await supabase.from('nexus_data').select('user_id').eq('user_id', userId);
+      if (!check || check.length === 0) {
+        const defaults = {
+          user_id: userId,
+          fixed_expenses: [], annual_expenses: [], pending: [], history: [], reimbursements: [], exceptional_paid: [],
+          savings_accounts: [], savings_pending: [], personal_expenses: []
+        };
+        await supabase.from('nexus_data').insert(defaults);
+      }
     }
     setLoading(false);
   };
@@ -173,7 +189,7 @@ export default function NexusUltimateCloud() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setFixedExpenses([]); setAnnualExpenses([]); setPending([]);
+    clearAllStates();
   };
 
   // --- 3. LOGIQUE MÉTIER ---
