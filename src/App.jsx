@@ -189,7 +189,7 @@ export default function NexusUltimateCloud() {
     const totalReimbursed = reimbursements.reduce((acc, c) => acc + c.amount, 0);
     const totalPaid = exceptionalPaid.reduce((acc, c) => acc + c.amount, 0);
 
-    const startCash = 1429;
+    const startCash = 0;
     const currentMonthIndex = new Date().getMonth();
 
     const realCash = startCash
