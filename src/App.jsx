@@ -21,7 +21,7 @@ const DraggableItem = ({ children, value }) => {
         dragControls={dragControls}
         dragListener={false}
         whileDrag={{ scale: 1.05, zIndex: 100 }}
-        className="relative touch-none select-none"
+        className="relative"
       >
         {children}
       </Reorder.Item>
