@@ -12,30 +12,15 @@ import { motion, Reorder, useDragControls } from 'framer-motion';
 // --- COMPOSANT DE RÉORGANISATION AVEC LONG PRESS ---
 const DraggableItem = ({ children, value }) => {
   const dragControls = useDragControls();
-  const [isPressing, setIsPressing] = useState(false);
   let timer;
-  let startPos = { x: 0, y: 0 };
 
   const handlePointerDown = (e) => {
-    startPos = { x: e.clientX, y: e.clientY };
-    setIsPressing(true);
     timer = setTimeout(() => {
       dragControls.start(e);
-    }, 600); // 600ms pour saisie longue
-  };
-
-  const handlePointerMove = (e) => {
-    const threshold = 10;
-    const distance = Math.sqrt(
-      Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2)
-    );
-    if (distance > threshold) {
-      clearTimer(); // Annule si on bouge trop (scroll probable)
-    }
+    }, 1000); // Délai de 1 seconde pour confirmer la saisie
   };
 
   const clearTimer = () => {
-    setIsPressing(false);
     if (timer) clearTimeout(timer);
   };
 
@@ -45,11 +30,10 @@ const DraggableItem = ({ children, value }) => {
       dragControls={dragControls}
       dragListener={false}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
       onPointerUp={clearTimer}
       onPointerLeave={clearTimer}
-      whileDrag={{ scale: 1.05, zIndex: 100, rotate: 1 }}
-      className={`relative transition-transform ${isPressing ? 'scale-[0.98]' : ''}`}
+      whileDrag={{ scale: 1.05, zIndex: 100 }}
+      className="relative"
     >
       {children}
     </Reorder.Item>
@@ -419,7 +403,7 @@ export default function NexusUltimateCloud() {
 
   return (
     <div
-      className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-28 px-6 pt-6 selection:bg-indigo-500/30 overflow-x-hidden"
+      className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-32 px-6 pt-6 selection:bg-indigo-500/30 overflow-x-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
