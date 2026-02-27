@@ -9,40 +9,36 @@ import {
 import { supabase } from './supabase';
 import { motion, Reorder, useDragControls } from 'framer-motion';
 
-// --- COMPOSANT DE RÉORGANISATION AVEC LONG PRESS ---
+// --- CONTEXTE POUR LES CONTRÔLES DE DRAG ---
+const DragContext = React.createContext();
+
 const DraggableItem = ({ children, value }) => {
   const dragControls = useDragControls();
-  const [isPressing, setIsPressing] = useState(false);
-  let timer;
-
-  const handlePointerDown = (e) => {
-    setIsPressing(true);
-    timer = setTimeout(() => {
-      dragControls.start(e);
-      setIsPressing(false);
-    }, 1500); // 1.5 seconde de maintien pour éviter les saisies involontaires
-  };
-
-  const clearTimer = () => {
-    setIsPressing(false);
-    if (timer) clearTimeout(timer);
-  };
-
   return (
-    <Reorder.Item
-      value={value}
-      dragControls={dragControls}
-      dragListener={false}
-      onPointerDown={handlePointerDown}
-      onPointerUp={clearTimer}
-      onPointerLeave={clearTimer}
-      whileDrag={{ scale: 1.05, zIndex: 100 }}
-      className="relative touch-none select-none"
-    >
-      <div className={isPressing ? 'scale-95 transition-transform duration-200' : 'transition-transform duration-200'}>
+    <DragContext.Provider value={dragControls}>
+      <Reorder.Item
+        value={value}
+        dragControls={dragControls}
+        dragListener={false}
+        whileDrag={{ scale: 1.05, zIndex: 100 }}
+        className="relative touch-none select-none"
+      >
         {children}
-      </div>
-    </Reorder.Item>
+      </Reorder.Item>
+    </DragContext.Provider>
+  );
+};
+
+const DragHandle = ({ className }) => {
+  const dragControls = React.useContext(DragContext);
+  return (
+    <div
+      onPointerDown={(e) => dragControls.start(e)}
+      style={{ touchAction: 'none' }}
+      className={`cursor-grab active:cursor-grabbing p-4 -mr-4 flex items-center justify-center z-20 ${className}`}
+    >
+      <GripVertical size={24} className="text-zinc-500 hover:text-white transition-colors" />
+    </div>
   );
 };
 
@@ -473,7 +469,7 @@ export default function NexusUltimateCloud() {
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="font-mono font-black text-amber-500 text-2xl">{p.amount}€</span>
-                          <GripVertical size={16} className="text-zinc-500/30" />
+                          <DragHandle />
                         </div>
                       </button>
                     </DraggableItem>
@@ -517,7 +513,7 @@ export default function NexusUltimateCloud() {
                     <div className="flex items-center gap-4 z-10">
                       <span className="text-2xl font-black italic text-cyan-500">{acc.balance}€</span>
                       <button onClick={() => { if (window.confirm('Supprimer ce compte épargne ?')) setSavingsAccounts(savingsAccounts.filter(a => a.id !== acc.id)) }} className="text-zinc-700 hover:text-red-500"><Trash2 size={16} /></button>
-                      <GripVertical size={16} className="text-zinc-700" />
+                      <DragHandle />
                     </div>
                   </div>
                 </DraggableItem>
@@ -581,7 +577,7 @@ export default function NexusUltimateCloud() {
                           <button onClick={() => { setForm({ label: item.label, amount: item.amount }); setModal({ open: true, type: 'create_personal_expense' }); setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
                           <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
                         </div>
-                        <GripVertical size={16} className="text-zinc-700" />
+                        <DragHandle />
                       </div>
                     </div>
                     {item.label.toLowerCase().includes('essence') && (
@@ -640,7 +636,7 @@ export default function NexusUltimateCloud() {
                         <div className="flex gap-3 justify-end mt-4">
                           <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed' }); setModal({ open: true, type: 'expense' }); setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
                           <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
-                          <GripVertical size={16} className="text-zinc-700" />
+                          <DragHandle />
                         </div>
                       </div>
                     </DraggableItem>
@@ -663,7 +659,7 @@ export default function NexusUltimateCloud() {
                         <div className="flex gap-3 justify-end mt-4">
                           <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual' }); setModal({ open: true, type: 'expense' }); setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id)); }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
                           <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
-                          <GripVertical size={16} className="text-zinc-700" />
+                          <DragHandle />
                         </div>
                       </div>
                     </DraggableItem>
@@ -703,7 +699,7 @@ export default function NexusUltimateCloud() {
                         <button onClick={() => handleArchiveHistory(h)} className="text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
                         {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-indigo-400"><Pencil size={16} /></button>}
                         <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
-                        <GripVertical size={16} className="text-zinc-700" />
+                        <DragHandle />
                       </div>
                     </div>
                   </div>
@@ -714,7 +710,7 @@ export default function NexusUltimateCloud() {
         )}
         {/* --- MODAL --- */}
         {modal.open && (
-          <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[200] flex items-end p-6 animate-in fade-in duration-300">
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
             <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">

@@ -4,6 +4,11 @@
   outline: none !important;
 }
 
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* --- ANIMATIONS GLOBALES --- */
 
 button,
