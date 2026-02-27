@@ -3,3 +3,71 @@
 .recharts-wrapper *:focus {
   outline: none !important;
 }
+
+/* --- ANIMATIONS GLOBALES --- */
+
+/* Tout élément cliquable */
+button,
+[role="button"],
+.interactive {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  outline: none !important;
+}
+
+/* Effet au survol (Plus clair + légère montée) */
+button:hover,
+[role="button"]:hover {
+  filter: brightness(1.2);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -10px rgba(99, 102, 241, 0.4);
+}
+
+/* Effet au clic (Compression marquée + assombrissement) */
+button:active,
+[role="button"]:active {
+  transform: scale(0.88) translateY(2px);
+  filter: brightness(0.8);
+  box-shadow: 0 2px 5px -2px rgba(0, 0, 0, 0.5);
+  transition: all 0.1s ease-out;
+  /* Retour très rapide au clic */
+}
+
+/* Animation d'entrée pour les sections */
+.page-transition {
+  animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation "Ressort" pour les Modales */
+@keyframes springIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(100px);
+  }
+
+  70% {
+    transform: scale(1.05) translateY(-10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-spring-in {
+  animation: springIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}

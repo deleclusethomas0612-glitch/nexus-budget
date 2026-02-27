@@ -357,11 +357,11 @@ export default function NexusUltimateCloud() {
             <h1 className="text-4xl font-black italic tracking-tighter uppercase leading-none">NEXUS<span className="text-indigo-500">.</span></h1>
             <div className="absolute -bottom-2 left-0 w-12 h-1 bg-indigo-500 rounded-full blur-[2px]" />
           </div>
-          <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-red-500 transition-colors shadow-2xl active:scale-90"><LogOut size={20} /></button>
+          <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-red-500 transition-colors shadow-2xl"><LogOut size={20} /></button>
         </header>
 
         {activeTab === 'dashboard' && (
-          <div className="space-y-10 animate-in fade-in duration-700">
+          <div className="space-y-10 page-transition">
             {/* CARTE CASH DISPO */}
             <div className="bg-zinc-900/40 border border-white/10 rounded-[2.5rem] p-6 relative overflow-hidden backdrop-blur-xl shadow-2xl">
               <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/10 blur-[100px]" />
@@ -387,13 +387,13 @@ export default function NexusUltimateCloud() {
 
             {/* QUICK ACTIONS */}
             <div className="grid grid-cols-3 gap-4">
-              <button onClick={() => setModal({ open: true, type: 'exceptional' })} className="bg-zinc-900/50 border border-white/5 p-5 rounded-[2rem] flex flex-col items-center active:scale-95 transition-all">
+              <button onClick={() => setModal({ open: true, type: 'exceptional' })} className="bg-zinc-900/50 border border-white/5 p-5 rounded-[2rem] flex flex-col items-center transition-all">
                 <ArrowUpRight size={22} className="mb-2 text-red-500" /><span className="text-[8px] font-black uppercase text-zinc-500 text-center tracking-tighter leading-tight text-red-400">Dépenses</span>
               </button>
-              <button onClick={() => setModal({ open: true, type: 'reimbursement' })} className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-[2rem] flex flex-col items-center active:scale-95 transition-all">
+              <button onClick={() => setModal({ open: true, type: 'reimbursement' })} className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-[2rem] flex flex-col items-center transition-all">
                 <ArrowDownLeft size={22} className="mb-2 text-emerald-500" /><span className="text-[8px] font-black uppercase text-emerald-400 text-center tracking-tighter leading-tight text-emerald-400">Recette</span>
               </button>
-              <button onClick={() => setModal({ open: true, type: 'pending' })} className="bg-white text-black p-5 rounded-[2rem] flex flex-col items-center active:scale-95 transition-all">
+              <button onClick={() => setModal({ open: true, type: 'pending' })} className="bg-white text-black p-5 rounded-[2rem] flex flex-col items-center transition-all">
                 <Plus size={22} className="mb-2" /><span className="text-[8px] font-black uppercase text-center tracking-tighter leading-tight">Avance</span>
               </button>
             </div>
@@ -404,7 +404,7 @@ export default function NexusUltimateCloud() {
               <div className="space-y-4">
                 {pending.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Aucune avance active.</p> :
                   pending.map(p => (
-                    <button key={p.id} onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center active:scale-[0.98] transition-all group relative overflow-hidden">
+                    <button key={p.id} onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center transition-all group relative overflow-hidden">
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
                       <div className="flex items-center gap-5">
                         <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500"><Coins size={22} /></div>
@@ -420,7 +420,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- PAGE EPARGNE (MODIFIÉE CYAN + CORRECTIONS TEXTE) --- */}
         {activeTab === 'savings' && (
-          <div className="space-y-10 animate-in slide-in-from-right-10 duration-500">
+          <div className="space-y-10 page-transition">
             {/* CARTE CYAN */}
             <div className="bg-gradient-to-br from-cyan-900/40 to-blue-600/10 border border-cyan-500/20 rounded-[3rem] p-9 relative overflow-hidden">
               <div className="flex justify-between items-center relative z-10">
@@ -479,7 +479,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- PAGE PERSO (AVEC TOTAL MENSUEL AJOUTÉ) --- */}
         {activeTab === 'personal' && (
-          <div className="space-y-8 animate-in slide-in-from-right-10 duration-500">
+          <div className="space-y-8 page-transition">
             {/* TOTAL FIXE MENSUEL */}
             <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/20 blur-xl"></div>
@@ -491,7 +491,7 @@ export default function NexusUltimateCloud() {
 
             <div className="flex justify-between items-center px-4 pt-4">
               <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Mes Charges</h2>
-              <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus size={24} /></button>
+              <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
             </div>
 
             <div className="space-y-3">
@@ -532,10 +532,10 @@ export default function NexusUltimateCloud() {
 
         {/* --- PAGE CHARGES FIXES --- */}
         {activeTab === 'expenses' && (
-          <div className="space-y-10 pb-20 text-white animate-in slide-in-from-right-10 duration-500">
+          <div className="space-y-10 pb-20 text-white page-transition">
             <div className="flex justify-between items-center px-4">
               <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges communes</h2>
-              <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus size={28} /></button>
+              <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
             </div>
 
             {/* TOTAL GLOBAL ET VIREMENT */}
@@ -597,7 +597,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- HISTORIQUE --- */}
         {activeTab === 'history' && (
-          <div className="space-y-8 pb-20 animate-in slide-in-from-left-10 duration-500">
+          <div className="space-y-8 pb-20 page-transition">
             <div className="bg-gradient-to-br from-zinc-900 to-indigo-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative">
               <p className="text-indigo-200 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
               <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length}</h2>
@@ -630,8 +630,8 @@ export default function NexusUltimateCloud() {
         )}
         {/* --- MODAL --- */}
         {modal.open && (
-          <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[200] flex items-end p-6">
-            <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 fade-in">
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-3xl z-[200] flex items-end p-6 animate-in fade-in duration-300">
+            <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">
                   {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : 'Opération'}
