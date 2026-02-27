@@ -7,7 +7,54 @@ import {
   PiggyBank, CheckSquare, MessageSquare, Save, Archive, GripVertical
 } from 'lucide-react';
 import { supabase } from './supabase';
-import { motion, Reorder } from 'framer-motion';
+import { motion, Reorder, useDragControls } from 'framer-motion';
+
+// --- COMPOSANT DE RÉORGANISATION AVEC LONG PRESS ---
+const DraggableItem = ({ children, value }) => {
+  const dragControls = useDragControls();
+  const [isPressing, setIsPressing] = useState(false);
+  let timer;
+  let startPos = { x: 0, y: 0 };
+
+  const handlePointerDown = (e) => {
+    startPos = { x: e.clientX, y: e.clientY };
+    setIsPressing(true);
+    timer = setTimeout(() => {
+      dragControls.start(e);
+    }, 600); // 600ms pour saisie longue
+  };
+
+  const handlePointerMove = (e) => {
+    const threshold = 10;
+    const distance = Math.sqrt(
+      Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2)
+    );
+    if (distance > threshold) {
+      clearTimer(); // Annule si on bouge trop (scroll probable)
+    }
+  };
+
+  const clearTimer = () => {
+    setIsPressing(false);
+    if (timer) clearTimeout(timer);
+  };
+
+  return (
+    <Reorder.Item
+      value={value}
+      dragControls={dragControls}
+      dragListener={false}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={clearTimer}
+      onPointerLeave={clearTimer}
+      whileDrag={{ scale: 1.05, zIndex: 100, rotate: 1 }}
+      className={`relative transition-transform ${isPressing ? 'scale-[0.98]' : ''}`}
+    >
+      {children}
+    </Reorder.Item>
+  );
+};
 
 export default function NexusUltimateCloud() {
   // --- AUTH STATE ---
@@ -372,7 +419,7 @@ export default function NexusUltimateCloud() {
 
   return (
     <div
-      className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-44 px-6 pt-6 selection:bg-indigo-500/30 overflow-x-hidden"
+      className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-28 px-6 pt-6 selection:bg-indigo-500/30 overflow-x-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -427,11 +474,7 @@ export default function NexusUltimateCloud() {
               <Reorder.Group axis="y" values={pending} onReorder={(newList) => { setPending(newList); saveToCloud('pending', newList); }} className="space-y-4">
                 {pending.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Aucune avance active.</p> :
                   pending.map(p => (
-                    <Reorder.Item
-                      key={p.id}
-                      value={p}
-                      whileDrag={{ scale: 1.05, zIndex: 10 }}
-                    >
+                    <DraggableItem key={p.id} value={p}>
                       <button onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center transition-all group relative overflow-hidden active:scale-95">
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
                         <div className="flex items-center gap-5">
@@ -443,7 +486,7 @@ export default function NexusUltimateCloud() {
                           <GripVertical size={16} className="text-zinc-500/30" />
                         </div>
                       </button>
-                    </Reorder.Item>
+                    </DraggableItem>
                   ))}
               </Reorder.Group>
             </section>
@@ -474,7 +517,7 @@ export default function NexusUltimateCloud() {
             {/* LISTE COMPTES */}
             <Reorder.Group axis="y" values={savingsAccounts} onReorder={(newList) => { setSavingsAccounts(newList); saveToCloud('savings_accounts', newList); }} className="space-y-4">
               {savingsAccounts.map(acc => (
-                <Reorder.Item key={acc.id} value={acc} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                <DraggableItem key={acc.id} value={acc}>
                   <div className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center group relative overflow-hidden active:scale-95">
                     <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-black via-transparent to-transparent opacity-50" />
                     <div className="flex flex-col">
@@ -487,7 +530,7 @@ export default function NexusUltimateCloud() {
                       <GripVertical size={16} className="text-zinc-700" />
                     </div>
                   </div>
-                </Reorder.Item>
+                </DraggableItem>
               ))}
             </Reorder.Group>
 
@@ -529,9 +572,9 @@ export default function NexusUltimateCloud() {
               <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
             </div>
 
-            <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => { setPersonalExpenses(newList); saveToCloud('personal_expenses', newList); }} className="space-y-3">
+            <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => { setPersonalExpenses(newList); saveToCloud('personal_expenses', newList); }} className="space-y-3 pb-4">
               {personalExpenses.map(item => (
-                <Reorder.Item key={item.id} value={item} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                <DraggableItem key={item.id} value={item}>
                   <div className={`p-6 rounded-[2.5rem] border transition-all active:scale-95 ${item.isPaid ? 'bg-emerald-900/10 border-emerald-500/20 opacity-60' : 'bg-zinc-900/60 border-white/5'}`}>
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-4">
@@ -564,7 +607,7 @@ export default function NexusUltimateCloud() {
                       </div>
                     )}
                   </div>
-                </Reorder.Item>
+                </DraggableItem>
               ))}
             </Reorder.Group>
           </div>
@@ -572,7 +615,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- PAGE CHARGES FIXES --- */}
         {activeTab === 'expenses' && (
-          <div className="space-y-10 pb-20 text-white page-transition">
+          <div className="space-y-10 pb-4 text-white page-transition">
             <div className="flex justify-between items-center px-4">
               <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges communes</h2>
               <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
@@ -598,7 +641,7 @@ export default function NexusUltimateCloud() {
                 </div>
                 <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => { setFixedExpenses(newList); saveToCloud('fixed_expenses', newList); }} className="bg-zinc-900/20 border border-indigo-500/20 rounded-[3rem] p-2 space-y-2">
                   {fixedExpenses.map(e => (
-                    <Reorder.Item key={e.id} value={e} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                    <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between group active:scale-95">
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-4 text-indigo-400">{getIcon(e.name)}<span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
@@ -610,7 +653,7 @@ export default function NexusUltimateCloud() {
                           <GripVertical size={16} className="text-zinc-700" />
                         </div>
                       </div>
-                    </Reorder.Item>
+                    </DraggableItem>
                   ))}
                 </Reorder.Group>
               </div>
@@ -621,7 +664,7 @@ export default function NexusUltimateCloud() {
                 </div>
                 <Reorder.Group axis="y" values={annualExpenses} onReorder={(newList) => { setAnnualExpenses(newList); saveToCloud('annual_expenses', newList); }} className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
                   {annualExpenses.map(e => (
-                    <Reorder.Item key={e.id} value={e} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                    <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between group active:scale-95">
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-4 text-emerald-500"><Calendar size={18} /><span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
@@ -633,7 +676,7 @@ export default function NexusUltimateCloud() {
                           <GripVertical size={16} className="text-zinc-700" />
                         </div>
                       </div>
-                    </Reorder.Item>
+                    </DraggableItem>
                   ))}
                 </Reorder.Group>
               </div>
@@ -643,7 +686,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- HISTORIQUE --- */}
         {activeTab === 'history' && (
-          <div className="space-y-8 pb-20 page-transition">
+          <div className="space-y-8 pb-4 page-transition">
             <div className="bg-gradient-to-br from-zinc-900 to-indigo-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative neon-pulse">
               <p className="text-indigo-200 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
               <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length}</h2>
@@ -654,7 +697,7 @@ export default function NexusUltimateCloud() {
             </div>
             <Reorder.Group axis="y" values={history} onReorder={(newList) => { setHistory(newList); saveToCloud('history', newList); }} className="space-y-4">
               {history.filter(h => showArchives ? h.isArchived : !h.isArchived).map(h => (
-                <Reorder.Item key={h.id} value={h} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                <DraggableItem key={h.id} value={h}>
                   <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group transition-all active:scale-95 ${h.isArchived ? 'opacity-50' : ''}`}>
                     <div className="flex items-center gap-5">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-indigo-500/10 text-indigo-500'}`}>
@@ -674,7 +717,7 @@ export default function NexusUltimateCloud() {
                       </div>
                     </div>
                   </div>
-                </Reorder.Item>
+                </DraggableItem>
               ))}
             </Reorder.Group>
           </div>
