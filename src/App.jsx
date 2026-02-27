@@ -4,9 +4,10 @@ import {
   TrendingUp, Users, Wallet, AlertCircle, Plus, Check, X, Trash2, Pencil,
   Banknote, ShieldCheck, History as HistoryIcon, Zap, HeartPulse,
   Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame,
-  PiggyBank, CheckSquare, MessageSquare, Save, Archive
+  PiggyBank, CheckSquare, MessageSquare, Save, Archive, GripVertical
 } from 'lucide-react';
 import { supabase } from './supabase';
+import { motion, Reorder } from 'framer-motion';
 
 export default function NexusUltimateCloud() {
   // --- AUTH STATE ---
@@ -109,6 +110,11 @@ export default function NexusUltimateCloud() {
       personal_expenses: personalExpenses
     };
     await supabase.from('nexus_data').upsert({ user_id: session.user.id, ...updates });
+  };
+
+  const saveToCloud = async (column, data) => {
+    if (!session) return;
+    await supabase.from('nexus_data').update({ [column]: data }).eq('user_id', session.user.id);
   };
 
   // Trigger sauvegarde auto
@@ -415,20 +421,31 @@ export default function NexusUltimateCloud() {
 
             {/* FLUX */}
             <section className="space-y-5">
-              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] px-4 italic">Flux</h3>
-              <div className="space-y-4">
+              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] px-4 italic flex justify-between">
+                Flux <span>Hold to move</span>
+              </h3>
+              <Reorder.Group axis="y" values={pending} onReorder={(newList) => { setPending(newList); saveToCloud('pending', newList); }} className="space-y-4">
                 {pending.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Aucune avance active.</p> :
                   pending.map(p => (
-                    <button key={p.id} onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center transition-all group relative overflow-hidden">
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
-                      <div className="flex items-center gap-5">
-                        <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500"><Coins size={22} /></div>
-                        <div><p className="text-sm font-black italic uppercase text-left">{p.label}</p><p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Gérer l'avance</p></div>
-                      </div>
-                      <span className="font-mono font-black text-amber-500 text-2xl">{p.amount}€</span>
-                    </button>
+                    <Reorder.Item
+                      key={p.id}
+                      value={p}
+                      whileDrag={{ scale: 1.05, zIndex: 10 }}
+                    >
+                      <button onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center transition-all group relative overflow-hidden active:scale-95">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
+                        <div className="flex items-center gap-5">
+                          <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500"><Coins size={22} /></div>
+                          <div><p className="text-sm font-black italic uppercase text-left">{p.label}</p><p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Gérer l'avance</p></div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="font-mono font-black text-amber-500 text-2xl">{p.amount}€</span>
+                          <GripVertical size={16} className="text-zinc-500/30" />
+                        </div>
+                      </button>
+                    </Reorder.Item>
                   ))}
-              </div>
+              </Reorder.Group>
             </section>
           </div>
         )}
@@ -455,21 +472,24 @@ export default function NexusUltimateCloud() {
             </div>
 
             {/* LISTE COMPTES */}
-            <div className="space-y-4">
+            <Reorder.Group axis="y" values={savingsAccounts} onReorder={(newList) => { setSavingsAccounts(newList); saveToCloud('savings_accounts', newList); }} className="space-y-4">
               {savingsAccounts.map(acc => (
-                <div key={acc.id} className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center group relative overflow-hidden">
-                  <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-black via-transparent to-transparent opacity-50" />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-zinc-200 uppercase">{acc.name}</span>
-                    <span className="text-[10px] text-zinc-600 font-black uppercase">Disponible</span>
+                <Reorder.Item key={acc.id} value={acc} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                  <div className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center group relative overflow-hidden active:scale-95">
+                    <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-black via-transparent to-transparent opacity-50" />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-zinc-200 uppercase">{acc.name}</span>
+                      <span className="text-[10px] text-zinc-600 font-black uppercase">Disponible</span>
+                    </div>
+                    <div className="flex items-center gap-4 z-10">
+                      <span className="text-2xl font-black italic text-cyan-500">{acc.balance}€</span>
+                      <button onClick={() => { if (window.confirm('Supprimer ce compte épargne ?')) setSavingsAccounts(savingsAccounts.filter(a => a.id !== acc.id)) }} className="text-zinc-700 hover:text-red-500"><Trash2 size={16} /></button>
+                      <GripVertical size={16} className="text-zinc-700" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 z-10">
-                    <span className="text-2xl font-black italic text-cyan-500">{acc.balance}€</span>
-                    <button onClick={() => { if (window.confirm('Supprimer ce compte épargne ?')) setSavingsAccounts(savingsAccounts.filter(a => a.id !== acc.id)) }} className="text-zinc-700 hover:text-red-500"><Trash2 size={16} /></button>
-                  </div>
-                </div>
+                </Reorder.Item>
               ))}
-            </div>
+            </Reorder.Group>
 
             {/* AVANCE SUR EPARGNE (RENOMMÉ) */}
             {savingsPending.length > 0 && (
@@ -509,39 +529,44 @@ export default function NexusUltimateCloud() {
               <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
             </div>
 
-            <div className="space-y-3">
+            <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => { setPersonalExpenses(newList); saveToCloud('personal_expenses', newList); }} className="space-y-3">
               {personalExpenses.map(item => (
-                <div key={item.id} className={`p-6 rounded-[2.5rem] border transition-all ${item.isPaid ? 'bg-emerald-900/10 border-emerald-500/20 opacity-60' : 'bg-zinc-900/60 border-white/5'}`}>
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-4">
-                      <button onClick={() => togglePersonalPaid(item.id)} className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all ${item.isPaid ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-zinc-700 text-transparent hover:border-emerald-500'}`}>
-                        <Check size={16} strokeWidth={4} />
-                      </button>
-                      <div>
-                        <p className={`text-sm font-black uppercase ${item.isPaid ? 'text-emerald-500 line-through' : 'text-zinc-200'}`}>{item.label}</p>
-                        <p className="text-lg font-black italic text-indigo-400">{item.amount}€</p>
+                <Reorder.Item key={item.id} value={item} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                  <div className={`p-6 rounded-[2.5rem] border transition-all active:scale-95 ${item.isPaid ? 'bg-emerald-900/10 border-emerald-500/20 opacity-60' : 'bg-zinc-900/60 border-white/5'}`}>
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-4">
+                        <button onClick={() => togglePersonalPaid(item.id)} className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all ${item.isPaid ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-zinc-700 text-transparent hover:border-emerald-500'}`}>
+                          <Check size={16} strokeWidth={4} />
+                        </button>
+                        <div>
+                          <p className={`text-sm font-black uppercase ${item.isPaid ? 'text-emerald-500 line-through' : 'text-zinc-200'}`}>{item.label}</p>
+                          <p className="text-lg font-black italic text-indigo-400">{item.amount}€</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-4 items-center">
+                        <div className="flex gap-3">
+                          <button onClick={() => { setForm({ label: item.label, amount: item.amount }); setModal({ open: true, type: 'create_personal_expense' }); setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
+                          <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
+                        </div>
+                        <GripVertical size={16} className="text-zinc-700" />
                       </div>
                     </div>
-                    <div className="flex gap-3">
-                      <button onClick={() => { setForm({ label: item.label, amount: item.amount }); setModal({ open: true, type: 'create_personal_expense' }); setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
-                      <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
-                    </div>
+                    {item.label.toLowerCase().includes('essence') && (
+                      <div className="flex items-center gap-2 mt-2 bg-black/30 p-2 rounded-xl border border-white/5">
+                        <MessageSquare size={14} className="text-zinc-500" />
+                        <input
+                          type="text"
+                          placeholder="Km / Trajet..."
+                          className="bg-transparent w-full text-xs font-bold text-zinc-300 outline-none placeholder:text-zinc-700"
+                          value={item.comment || ''}
+                          onChange={(e) => updatePersonalComment(item.id, e.target.value)}
+                        />
+                      </div>
+                    )}
                   </div>
-                  {item.label.toLowerCase().includes('essence') && (
-                    <div className="flex items-center gap-2 mt-2 bg-black/30 p-2 rounded-xl border border-white/5">
-                      <MessageSquare size={14} className="text-zinc-500" />
-                      <input
-                        type="text"
-                        placeholder="Km / Trajet..."
-                        className="bg-transparent w-full text-xs font-bold text-zinc-300 outline-none placeholder:text-zinc-700"
-                        value={item.comment || ''}
-                        onChange={(e) => updatePersonalComment(item.id, e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
+                </Reorder.Item>
               ))}
-            </div>
+            </Reorder.Group>
           </div>
         )}
 
@@ -571,40 +596,46 @@ export default function NexusUltimateCloud() {
                   <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
                   <p className="text-xl font-black italic text-indigo-500 leading-none">{totals.totalFixed}€</p>
                 </div>
-                <div className="bg-zinc-900/20 border border-indigo-500/20 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => { setFixedExpenses(newList); saveToCloud('fixed_expenses', newList); }} className="bg-zinc-900/20 border border-indigo-500/20 rounded-[3rem] p-2 space-y-2">
                   {fixedExpenses.map(e => (
-                    <div key={e.id} className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between group">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-4 text-indigo-400">{getIcon(e.name)}<span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
-                        <div className="flex items-center gap-5 text-indigo-400 font-black italic">{e.amount}€</div>
+                    <Reorder.Item key={e.id} value={e} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                      <div className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between group active:scale-95">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-4 text-indigo-400">{getIcon(e.name)}<span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
+                          <div className="flex items-center gap-5 text-indigo-400 font-black italic">{e.amount}€</div>
+                        </div>
+                        <div className="flex gap-3 justify-end mt-4">
+                          <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed' }); setModal({ open: true, type: 'expense' }); setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
+                          <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
+                          <GripVertical size={16} className="text-zinc-700" />
+                        </div>
                       </div>
-                      <div className="flex gap-3 justify-end mt-4">
-                        <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed' }); setModal({ open: true, type: 'expense' }); setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
-                        <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
-                      </div>
-                    </div>
+                    </Reorder.Item>
                   ))}
-                </div>
+                </Reorder.Group>
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
                   <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic leading-none">Provisions Annuelles</p>
                   <p className="text-xl font-black italic text-emerald-500 leading-none">{totals.totalAnnual}€</p>
                 </div>
-                <div className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={annualExpenses} onReorder={(newList) => { setAnnualExpenses(newList); saveToCloud('annual_expenses', newList); }} className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
                   {annualExpenses.map(e => (
-                    <div key={e.id} className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between group">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-4 text-emerald-500"><Calendar size={18} /><span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
-                        <div className="flex items-center gap-5 text-emerald-500 font-black italic">{e.amount}€</div>
+                    <Reorder.Item key={e.id} value={e} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                      <div className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between group active:scale-95">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-4 text-emerald-500"><Calendar size={18} /><span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
+                          <div className="flex items-center gap-5 text-emerald-500 font-black italic">{e.amount}€</div>
+                        </div>
+                        <div className="flex gap-3 justify-end mt-4">
+                          <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual' }); setModal({ open: true, type: 'expense' }); setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id)); }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
+                          <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
+                          <GripVertical size={16} className="text-zinc-700" />
+                        </div>
                       </div>
-                      <div className="flex gap-3 justify-end mt-4">
-                        <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual' }); setModal({ open: true, type: 'expense' }); setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id)); }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
-                        <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
-                      </div>
-                    </div>
+                    </Reorder.Item>
                   ))}
-                </div>
+                </Reorder.Group>
               </div>
             </section>
           </div>
@@ -621,26 +652,31 @@ export default function NexusUltimateCloud() {
                 <span className="text-[10px] font-bold uppercase">{showArchives ? "Actifs" : "Archives"}</span>
               </button>
             </div>
-            <div className="space-y-4">
+            <Reorder.Group axis="y" values={history} onReorder={(newList) => { setHistory(newList); saveToCloud('history', newList); }} className="space-y-4">
               {history.filter(h => showArchives ? h.isArchived : !h.isArchived).map(h => (
-                <div key={h.id} className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group transition-all ${h.isArchived ? 'opacity-50' : ''}`}>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-3 pl-4 bg-zinc-900/90 py-2 rounded-xl">
-                    <button onClick={() => handleArchiveHistory(h)} className="text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
-                    {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-indigo-400"><Pencil size={16} /></button>}
-                    <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
-                  </div>
-                  <div className="flex items-center gap-5">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-indigo-500/10 text-indigo-500'}`}>
-                      {h.type === 'payment' ? <ArrowUpRight size={20} /> : h.type === 'reimb' ? <ArrowDownLeft size={20} /> : <HistoryIcon size={20} />}
+                <Reorder.Item key={h.id} value={h} whileDrag={{ scale: 1.05, zIndex: 10 }}>
+                  <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group transition-all active:scale-95 ${h.isArchived ? 'opacity-50' : ''}`}>
+                    <div className="flex items-center gap-5">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-indigo-500/10 text-indigo-500'}`}>
+                        {h.type === 'payment' ? <ArrowUpRight size={20} /> : h.type === 'reimb' ? <ArrowDownLeft size={20} /> : <HistoryIcon size={20} />}
+                      </div>
+                      <div className="pr-10"><p className="text-sm font-black italic uppercase truncate max-w-[120px]">{h.label}</p><p className="text-[8px] text-zinc-600 font-bold uppercase">{h.date}</p></div>
                     </div>
-                    <div className="pr-20"><p className="text-sm font-black italic uppercase truncate max-w-[120px]">{h.label}</p><p className="text-[8px] text-zinc-600 font-bold uppercase">{h.date}</p></div>
+                    <div className="flex items-center gap-4 relative z-10">
+                      <span className={`font-black italic text-xl ${h.type === 'payment' ? 'text-red-500' : h.type === 'reimb' ? 'text-emerald-500' : 'text-indigo-400'}`}>
+                        {h.type === 'payment' ? '-' : '+'}{h.amount}€
+                      </span>
+                      <div className="flex gap-2 items-center bg-black/20 p-2 rounded-xl border border-white/5">
+                        <button onClick={() => handleArchiveHistory(h)} className="text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
+                        {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-indigo-400"><Pencil size={16} /></button>}
+                        <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
+                        <GripVertical size={16} className="text-zinc-700" />
+                      </div>
+                    </div>
                   </div>
-                  <span className={`font-black italic text-xl absolute right-24 top-1/2 -translate-y-1/2 ${h.type === 'payment' ? 'text-red-500' : h.type === 'reimb' ? 'text-emerald-500' : 'text-indigo-400'}`}>
-                    {h.type === 'payment' ? '-' : '+'}{h.amount}€
-                  </span>
-                </div>
+                </Reorder.Item>
               ))}
-            </div>
+            </Reorder.Group>
           </div>
         )}
         {/* --- MODAL --- */}
