@@ -20,7 +20,7 @@ const DraggableItem = ({ children, value }) => {
     timer = setTimeout(() => {
       dragControls.start(e);
       setIsPressing(false);
-    }, 1000); // 1 seconde de maintien
+    }, 1500); // 1.5 seconde de maintien pour éviter les saisies involontaires
   };
 
   const clearTimer = () => {
