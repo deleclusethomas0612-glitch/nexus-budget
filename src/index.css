@@ -92,6 +92,12 @@ button:active,
   --neon-2: #22d3ee;
 }
 
+/* Version Verte pour la validation */
+.neon-pulse-green {
+  --neon-1: #10b981;
+  --neon-2: #34d399;
+}
+
 .neon-pulse::before {
   content: '';
   position: absolute;
