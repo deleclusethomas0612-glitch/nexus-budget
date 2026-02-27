@@ -485,7 +485,7 @@ export default function NexusUltimateCloud() {
             </div>
 
             <div className="flex justify-between items-center px-4 pt-4">
-              <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Détails Dépenses</h2>
+              <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Mes Charges</h2>
               <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus size={24} /></button>
             </div>
 
@@ -529,7 +529,7 @@ export default function NexusUltimateCloud() {
         {activeTab === 'expenses' && (
           <div className="space-y-10 pb-20 text-white animate-in slide-in-from-right-10 duration-500">
             <div className="flex justify-between items-center px-4">
-              <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges Fixes</h2>
+              <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges communes</h2>
               <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg active:scale-90 transition-all"><Plus size={28} /></button>
             </div>
 
@@ -670,8 +670,8 @@ export default function NexusUltimateCloud() {
         <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 px-6 py-5 rounded-[2.5rem] flex justify-between items-center z-50 shadow-2xl">
           <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
         </nav>
       </div>
