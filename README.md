@@ -1,16 +1,20 @@
-# React + Vite
+# Nexus Ultimate Cloud - Architecture des Soldes
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Système de Calcul du Solde (Cash Dispo)
 
-Currently, two official plugins are available:
+Le **Cash Dispo** visible sur le tableau de bord est un indicateur de trésorerie dynamique. Il ne s'agit pas d'un simple solde bancaire statique, mais d'une projection basée sur les flux suivants :
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. **Le Capital de Référence** : L'application initialise le calcul avec une base fixe (1429€), représentant le point de départ de la trésorerie.
+2. **La Puissance des Provisions** : Le système calcule automatiquement une **provision mensuelle** en divisant le total de vos "Provisions Annuelles" (saisies dans l'onglet Charges) par 12. Le solde disponible augmente chaque mois de ce montant (`provision * index_du_mois`), simulant l'accumulation des fonds destinés aux dépenses futures.
+3. **Flux de Trésorerie Actifs** : 
+   - **Recettes (+)** : S'ajoutent instantanément au solde.
+   - **Dépenses (-)** : Se soustraient instantanément.
+   - **Avances (Flux) (-)** : Sont déduites du solde dès leur création jusqu'à leur remboursement ou absorption.
 
-## React Compiler
+## Interconnexion des Modules
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **Tableau de Bord** : Centralise les flux exceptionnels et affiche la projection annuelle (Graphique).
+- **Charges Communes** : Pilote le montant de la provision mensuelle. C'est ici que se définit la "vitesse" à laquelle votre solde de provision croît.
+- **Mes Charges** : Module de gestion de budget personnel par pointage, indépendant du calcul de trésorerie globale.
+- **Épargne** : Gestion isolée des stocks de sécurité. Les mouvements d'épargne n'impactent pas le "Cash Dispo" sauf en cas d'avance spécifique sur compte d'épargne.
+- **Historique** : Registre centralisé. Toute modification ou suppression d'une transaction passée recalcule immédiatement le solde disponible sur l'accueil.
