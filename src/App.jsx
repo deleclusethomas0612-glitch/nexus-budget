@@ -561,37 +561,39 @@ export default function NexusUltimateCloud() {
             <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => { setPersonalExpenses(newList); saveToCloud('personal_expenses', newList); }} className="space-y-3 pb-4">
               {personalExpenses.map(item => (
                 <DraggableItem key={item.id} value={item}>
-                  <div className={`p-6 rounded-[2.5rem] border transition-all active:scale-95 ${item.isPaid ? 'bg-emerald-900/10 border-emerald-500/20 opacity-60' : 'bg-zinc-900/60 border-white/5'}`}>
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => togglePersonalPaid(item.id)} className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all ${item.isPaid ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-zinc-700 text-transparent hover:border-emerald-500'}`}>
-                          <Check size={16} strokeWidth={4} />
-                        </button>
-                        <div>
-                          <p className={`text-sm font-black uppercase ${item.isPaid ? 'text-emerald-500 line-through' : 'text-zinc-200'}`}>{item.label}</p>
-                          <p className="text-lg font-black italic text-indigo-400">{item.amount}€</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-4 items-center">
-                        <div className="flex gap-3">
-                          <button onClick={() => { setForm({ label: item.label, amount: item.amount }); setModal({ open: true, type: 'create_personal_expense' }); setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
-                          <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
-                        </div>
-                        <DragHandle />
+                  <div className={`p-4 rounded-[2.8rem] border transition-all active:scale-95 flex justify-between items-center group relative overflow-hidden ${item.isPaid ? 'bg-emerald-900/10 border-emerald-500/20 opacity-60' : 'bg-zinc-900/30 border-white/5'}`}>
+                    <div className="flex items-center gap-4">
+                      <button onClick={() => togglePersonalPaid(item.id)} className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-all ${item.isPaid ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-zinc-700 text-transparent hover:border-emerald-500'}`}>
+                        <Check size={16} strokeWidth={4} />
+                      </button>
+                      <div className="flex flex-col">
+                        <p className={`text-sm font-black uppercase text-left ${item.isPaid ? 'text-emerald-500 line-through' : 'text-zinc-200'}`}>{item.label}</p>
+                        {item.label.toLowerCase().includes('essence') ? (
+                          <div className="flex items-center gap-2 mt-1 bg-black/30 px-2 py-1 rounded-lg border border-white/5">
+                            <MessageSquare size={10} className="text-zinc-500" />
+                            <input
+                              type="text"
+                              placeholder="Km..."
+                              className="bg-transparent w-20 text-[10px] font-bold text-zinc-300 outline-none placeholder:text-zinc-700"
+                              value={item.comment || ''}
+                              onChange={(e) => updatePersonalComment(item.id, e.target.value)}
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Charge Perso</p>
+                        )}
                       </div>
                     </div>
-                    {item.label.toLowerCase().includes('essence') && (
-                      <div className="flex items-center gap-2 mt-2 bg-black/30 p-2 rounded-xl border border-white/5">
-                        <MessageSquare size={14} className="text-zinc-500" />
-                        <input
-                          type="text"
-                          placeholder="Km / Trajet..."
-                          className="bg-transparent w-full text-xs font-bold text-zinc-300 outline-none placeholder:text-zinc-700"
-                          value={item.comment || ''}
-                          onChange={(e) => updatePersonalComment(item.id, e.target.value)}
-                        />
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col items-end">
+                        <span className="text-xl font-black italic text-indigo-400">{item.amount}€</span>
+                        <div className="flex gap-2">
+                          <button onClick={() => { setForm({ label: item.label, amount: item.amount }); setModal({ open: true, type: 'create_personal_expense' }); setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
+                          <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                        </div>
                       </div>
-                    )}
+                      <DragHandle />
+                    </div>
                   </div>
                 </DraggableItem>
               ))}
@@ -628,14 +630,23 @@ export default function NexusUltimateCloud() {
                 <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => { setFixedExpenses(newList); saveToCloud('fixed_expenses', newList); }} className="bg-zinc-900/20 border border-indigo-500/20 rounded-[3rem] p-2 space-y-2">
                   {fixedExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
-                      <div className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between group active:scale-95">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-4 text-indigo-400">{getIcon(e.name)}<span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
-                          <div className="flex items-center gap-5 text-indigo-400 font-black italic">{e.amount}€</div>
+                      <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">{getIcon(e.name)}</div>
+                          <div>
+                            <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
+                            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Charge Fixe</p>
+                          </div>
                         </div>
-                        <div className="flex gap-3 justify-end mt-4">
-                          <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed' }); setModal({ open: true, type: 'expense' }); setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
-                          <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
+                        <div className="flex items-center gap-4">
+                          <div className="flex flex-col items-end">
+                            <span className="text-xl font-black italic text-indigo-400">{e.amount}€</span>
+                            <div className="flex gap-2">
+                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed' }); setModal({ open: true, type: 'expense' }); setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
+                              <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
                           <DragHandle />
                         </div>
                       </div>
@@ -651,14 +662,23 @@ export default function NexusUltimateCloud() {
                 <Reorder.Group axis="y" values={annualExpenses} onReorder={(newList) => { setAnnualExpenses(newList); saveToCloud('annual_expenses', newList); }} className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
                   {annualExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
-                      <div className="bg-zinc-900/60 border border-white/5 p-6 rounded-[2.5rem] flex flex-col justify-between group active:scale-95">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-4 text-emerald-500"><Calendar size={18} /><span className="text-sm font-bold text-zinc-200">{e.name}</span></div>
-                          <div className="flex items-center gap-5 text-emerald-500 font-black italic">{e.amount}€</div>
+                      <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500"><Calendar size={18} /></div>
+                          <div>
+                            <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
+                            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Provision</p>
+                          </div>
                         </div>
-                        <div className="flex gap-3 justify-end mt-4">
-                          <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual' }); setModal({ open: true, type: 'expense' }); setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id)); }} className="text-zinc-600 hover:text-white"><Pencil size={16} /></button>
-                          <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={16} /></button>
+                        <div className="flex items-center gap-4">
+                          <div className="flex flex-col items-end">
+                            <span className="text-xl font-black italic text-emerald-500">{e.amount}€</span>
+                            <div className="flex gap-2">
+                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual' }); setModal({ open: true, type: 'expense' }); setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id)); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
+                              <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
                           <DragHandle />
                         </div>
                       </div>
