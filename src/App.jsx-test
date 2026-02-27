@@ -1,0 +1,10 @@
+import React from 'react';
+
+export default function NexusUltimateCloud() {
+  console.log("DEBUG: Simple App Rendering");
+  return (
+    <div style={{ background: 'red', height: '100vh', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: 'white', fontSize: '3rem' }}>
+      HELLO NEXUS
+    </div>
+  );
+}
