@@ -12,15 +12,19 @@ import { motion, Reorder, useDragControls } from 'framer-motion';
 // --- COMPOSANT DE RÉORGANISATION AVEC LONG PRESS ---
 const DraggableItem = ({ children, value }) => {
   const dragControls = useDragControls();
+  const [isPressing, setIsPressing] = useState(false);
   let timer;
 
   const handlePointerDown = (e) => {
+    setIsPressing(true);
     timer = setTimeout(() => {
       dragControls.start(e);
-    }, 1000); // Délai de 1 seconde pour confirmer la saisie
+      setIsPressing(false);
+    }, 1000); // 1 seconde de maintien
   };
 
   const clearTimer = () => {
+    setIsPressing(false);
     if (timer) clearTimeout(timer);
   };
 
@@ -33,9 +37,11 @@ const DraggableItem = ({ children, value }) => {
       onPointerUp={clearTimer}
       onPointerLeave={clearTimer}
       whileDrag={{ scale: 1.05, zIndex: 100 }}
-      className="relative"
+      className="relative touch-none select-none"
     >
-      {children}
+      <div className={isPressing ? 'scale-95 transition-transform duration-200' : 'transition-transform duration-200'}>
+        {children}
+      </div>
     </Reorder.Item>
   );
 };
@@ -403,7 +409,7 @@ export default function NexusUltimateCloud() {
 
   return (
     <div
-      className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-32 px-6 pt-6 selection:bg-indigo-500/30 overflow-x-hidden"
+      className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-32 px-6 pt-6 selection:bg-indigo-500/30 overflow-x-hidden select-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -453,7 +459,7 @@ export default function NexusUltimateCloud() {
             {/* FLUX */}
             <section className="space-y-5">
               <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] px-4 italic flex justify-between">
-                Flux <span>Hold to move</span>
+                Flux
               </h3>
               <Reorder.Group axis="y" values={pending} onReorder={(newList) => { setPending(newList); saveToCloud('pending', newList); }} className="space-y-4">
                 {pending.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Aucune avance active.</p> :
