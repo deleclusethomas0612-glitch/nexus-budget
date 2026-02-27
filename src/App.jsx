@@ -124,7 +124,10 @@ export default function NexusUltimateCloud() {
     if (authMode === 'signup') result = await supabase.auth.signUp({ email, password });
     else result = await supabase.auth.signInWithPassword({ email, password });
 
-    if (result.error) setAuthError(result.error.message);
+    if (result.error) {
+      if (result.error.status === 429) setAuthError("Limite Supabase atteinte. Attendez un peu ou désactivez la confirmation d'email dans le dashboard.");
+      else setAuthError(result.error.message);
+    }
     else if (authMode === 'signup') setAuthError("Vérifiez vos emails pour confirmer !");
     setLoading(false);
   };
