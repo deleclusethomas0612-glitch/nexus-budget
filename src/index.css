@@ -4,14 +4,13 @@
   outline: none !important;
 }
 
-html,
 body {
   user-select: none;
   -webkit-user-select: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  overscroll-behavior: none;
-  overflow-x: hidden;
+  overscroll-behavior-y: auto;
+  overscroll-behavior-x: none;
 }
 
 *::-webkit-scrollbar {
