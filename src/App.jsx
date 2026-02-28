@@ -73,15 +73,23 @@ export default function NexusUltimateCloud() {
 
   const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'history'];
 
-  const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
+  const handleTouchStart = (e) => {
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
+
   const handleTouchEnd = (e) => {
     if (!touchStart) return;
-    const touchEnd = e.changedTouches[0].clientX;
-    const diff = touchStart - touchEnd;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+
+    const diffX = touchStart.x - touchEndX;
+    const diffY = touchStart.y - touchEndY;
     const currentIndex = tabs.indexOf(activeTab);
 
-    if (diff > 50 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]);
-    if (diff < -50 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]);
+    if (Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX > 50 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]);
+      if (diffX < -50 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]);
+    }
     setTouchStart(null);
   };
 
