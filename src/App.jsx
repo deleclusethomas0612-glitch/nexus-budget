@@ -741,22 +741,27 @@ export default function NexusUltimateCloud() {
               {history.filter(h => showArchives ? h.isArchived : !h.isArchived).map(h => (
                 <DraggableItem key={h.id} value={h}>
                   <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group transition-all active:scale-95 ${h.isArchived ? 'opacity-50' : ''}`}>
-                    <div className="flex items-center gap-5">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-indigo-500/10 text-indigo-500'}`}>
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className={`min-w-12 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-indigo-500/10 text-indigo-500'}`}>
                         {h.type === 'payment' ? <ArrowUpRight size={20} /> : h.type === 'reimb' ? <ArrowDownLeft size={20} /> : <HistoryIcon size={20} />}
                       </div>
-                      <div className="pr-10"><p className="text-sm font-black italic uppercase truncate max-w-[120px]">{h.label}</p><p className="text-[8px] text-zinc-600 font-bold uppercase">{h.date}</p></div>
+                      <div className="flex flex-col gap-2 min-w-0 pr-2">
+                        <div>
+                          <p className="text-sm font-black italic uppercase truncate">{h.label}</p>
+                          <p className="text-[8px] text-zinc-600 font-bold uppercase">{h.date}</p>
+                        </div>
+                        <div className="flex gap-2 items-center bg-black/20 p-2 w-max rounded-xl border border-white/5">
+                          <button onClick={() => handleArchiveHistory(h)} className="text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
+                          {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-indigo-400"><Pencil size={16} /></button>}
+                          <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 relative z-10">
+                    <div className="flex items-center gap-3 shrink-0 relative z-10">
                       <span className={`font-black italic text-xl ${h.type === 'payment' ? 'text-red-500' : h.type === 'reimb' ? 'text-emerald-500' : 'text-indigo-400'}`}>
                         {h.type === 'payment' ? '-' : '+'}{h.amount}€
                       </span>
-                      <div className="flex gap-2 items-center bg-black/20 p-2 rounded-xl border border-white/5">
-                        <button onClick={() => handleArchiveHistory(h)} className="text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
-                        {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-indigo-400"><Pencil size={16} /></button>}
-                        <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
-                        <DragHandle />
-                      </div>
+                      <DragHandle />
                     </div>
                   </div>
                 </DraggableItem>
