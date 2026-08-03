@@ -221,35 +221,35 @@ export default function NexusUltimateCloud() {
     const currentYear = now.getFullYear();
     const currentMonthIndex = now.getMonth();
 
-    // Cumul des provisions accumulées à un mois donné (0 = Jan ... 11 = Déc).
-    // - Sans date : rétroactif depuis janvier (comportement historique inchangé).
-    // - Avec date sur l'année en cours : compté à partir du mois de démarrage (mois inclus).
-    // - Avec date sur une année future : aucun cumul cette année.
-    // - Avec date sur une année passée : traité comme rétroactif (déjà démarré).
-    const accProvisionAt = (monthIndex) => annualExpenses.reduce((acc, e) => {
-      const rate = (Number(e.amount) || 0) / 12;
-      let months;
-      if (!e.startDate) {
-        months = monthIndex;
-      } else {
-        const startYear = new Date(e.startDate).getFullYear();
-        const startMonth = new Date(e.startDate).getMonth();
-        if (startYear > currentYear) months = 0;
-        else if (startYear < currentYear) months = monthIndex;
-        else months = Math.max(0, monthIndex - startMonth + 1);
-      }
-      return acc + rate * months;
-    }, 0);
+    // Ancre de cumul : janvier 2026 (début du suivi). Le cumul des provisions est
+    // CONTINU dans le temps et ne se réinitialise JAMAIS au 1er janvier. Les
+    // régularisations annuelles se font manuellement via Dépenses / Recettes.
+    const ANCHOR = 2026 * 12; // janvier 2026 en "mois absolus" (année * 12 + mois)
+    const absMonth = (year, monthIndex) => year * 12 + monthIndex;
+
+    // Nombre de mois provisionnés pour une charge, à un mois absolu cible :
+    // - Sans date : compté en continu depuis l'ancre.
+    // - Avec date : compté à partir du mois de démarrage (mois inclus), en continu.
+    const monthsFor = (e, target) => {
+      if (!e.startDate) return Math.max(0, target - ANCHOR);
+      const d = new Date(e.startDate);
+      return Math.max(0, target - absMonth(d.getFullYear(), d.getMonth()) + 1);
+    };
+
+    const accProvisionAt = (target) => annualExpenses.reduce(
+      (acc, e) => acc + ((Number(e.amount) || 0) / 12) * monthsFor(e, target),
+      0
+    );
 
     const realCash = Math.round(
-      startCash + accProvisionAt(currentMonthIndex) + totalReimbursed - totalPaid - totalPending
+      startCash + accProvisionAt(absMonth(currentYear, currentMonthIndex)) + totalReimbursed - totalPaid - totalPending
     );
 
     const baseForProjection = startCash + totalReimbursed - totalPaid - totalPending;
 
     const projection = Array.from({ length: 12 }, (_, i) => ({
       name: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][i],
-      solde: Math.round(baseForProjection + accProvisionAt(i))
+      solde: Math.round(baseForProjection + accProvisionAt(absMonth(currentYear, i)))
     }));
 
     return { virement, realCash, projection, provision, totalFixed, totalAnnual, totalPending };
