@@ -655,7 +655,7 @@ export default function NexusUltimateCloud() {
   };
 
   // --- RENDER ---
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-indigo-500"><Loader2 className="animate-spin" size={48} /></div>;
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-emerald-500"><Loader2 className="animate-spin" size={48} /></div>;
 
   if (!session) return (
     <div className="min-h-screen bg-[#020202] text-white flex items-center justify-center p-6">
@@ -665,13 +665,13 @@ export default function NexusUltimateCloud() {
         </div>
         <div className="bg-zinc-900/50 border border-white/10 rounded-[2.5rem] p-8 space-y-6 backdrop-blur-xl">
           <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
-            <button onClick={() => setAuthMode('login')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${authMode === 'login' ? 'bg-indigo-600 text-white' : 'text-zinc-600'}`}>Connexion</button>
-            <button onClick={() => setAuthMode('signup')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${authMode === 'signup' ? 'bg-indigo-600 text-white' : 'text-zinc-600'}`}>Créer</button>
+            <button onClick={() => setAuthMode('login')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${authMode === 'login' ? 'bg-emerald-600 text-white' : 'text-zinc-600'}`}>Connexion</button>
+            <button onClick={() => setAuthMode('signup')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${authMode === 'signup' ? 'bg-emerald-600 text-white' : 'text-zinc-600'}`}>Créer</button>
           </div>
           {authError && <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-red-400 text-xs font-bold text-center">{authError}</div>}
           <form onSubmit={handleAuth} className="space-y-4">
-            <input type="email" required placeholder="Email" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none focus:border-indigo-500 font-bold transition-all text-white" value={email} onChange={e => setEmail(e.target.value)} />
-            <input type="password" required placeholder="Mot de passe" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none focus:border-indigo-500 font-bold transition-all text-white" value={password} onChange={e => setPassword(e.target.value)} />
+            <input type="email" required placeholder="Email" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none focus:border-emerald-500 font-bold transition-all text-white" value={email} onChange={e => setEmail(e.target.value)} />
+            <input type="password" required placeholder="Mot de passe" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none focus:border-emerald-500 font-bold transition-all text-white" value={password} onChange={e => setPassword(e.target.value)} />
             <button type="submit" className="w-full bg-white text-black py-5 rounded-[2rem] font-black text-lg uppercase hover:scale-[1.02] transition-all">
               {authMode === 'login' ? 'Entrer' : 'S\'inscrire'}
             </button>
@@ -683,7 +683,7 @@ export default function NexusUltimateCloud() {
 
   return (
     <div
-      className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-32 px-6 pt-6 selection:bg-indigo-500/30 overflow-x-hidden select-none"
+      className="min-h-screen bg-[#020202] text-white font-sans antialiased pb-32 px-6 pt-6 selection:bg-emerald-500/30 overflow-x-hidden select-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -702,7 +702,7 @@ export default function NexusUltimateCloud() {
           <div className="space-y-10 page-transition">
             {/* CARTE CASH DISPO */}
             <div className="bg-zinc-900/40 border border-white/10 rounded-[2.5rem] p-6 relative overflow-hidden backdrop-blur-xl shadow-2xl neon-pulse">
-              <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/10 blur-[100px]" />
+              <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-600/10 blur-[100px]" />
               <div className="flex justify-between items-start mb-4 relative z-10">
                 <div>
                   <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic mb-1">Cash Dispo</p>
@@ -717,10 +717,10 @@ export default function NexusUltimateCloud() {
             <div className="h-44 w-full opacity-70 relative z-10">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={totals.projection}>
-                  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.8} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0.2} /></linearGradient></defs>
+                  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.8} /><stop offset="95%" stopColor="#10b981" stopOpacity={0.2} /></linearGradient></defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
                   <XAxis dataKey="name" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} interval={0} padding={{ left: 10, right: 10 }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#09090b', border: 'none', borderRadius: '20px' }} itemStyle={{ color: '#818cf8' }} cursor={{ fill: '#ffffff05' }} />
+                  <Tooltip contentStyle={{ backgroundColor: '#09090b', border: 'none', borderRadius: '20px' }} itemStyle={{ color: '#34d399' }} cursor={{ fill: '#ffffff05' }} />
                   <Bar dataKey="solde" fill="url(#g)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -944,16 +944,16 @@ export default function NexusUltimateCloud() {
           <div className="space-y-8 page-transition">
             {/* TOTAL FIXE MENSUEL */}
             <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/20 blur-xl"></div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/20 blur-xl"></div>
               <div>
-                <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">Total Mensuel Fixe</p>
+                <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Total Mensuel Fixe</p>
                 <p className="text-3xl font-black italic text-white">{personalTotal.toLocaleString()}€</p>
               </div>
             </div>
 
             <div className="flex justify-between items-center px-4 pt-4">
               <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Mes Charges</h2>
-              <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
+              <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-emerald-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
             </div>
 
             <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => setPersonalExpenses(newList)} className="space-y-3 pb-4">
@@ -987,7 +987,7 @@ export default function NexusUltimateCloud() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col items-end">
-                        <span className={`text-xl font-black italic text-indigo-400`}>{item.amount}€</span>
+                        <span className={`text-xl font-black italic text-emerald-400`}>{item.amount}€</span>
                         <div className="flex gap-2">
                           <button onClick={() => { setForm({ label: item.label, amount: item.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'create_personal_expense', data: item }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                           <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
@@ -1007,34 +1007,34 @@ export default function NexusUltimateCloud() {
           <div className="space-y-10 pb-4 text-white page-transition">
             <div className="flex justify-between items-center px-4">
               <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges communes</h2>
-              <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
+              <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-emerald-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
             </div>
 
             {/* TOTAL GLOBAL ET VIREMENT */}
             <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/20 blur-xl"></div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/20 blur-xl"></div>
               <div>
-                <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">Total Mensuel</p>
+                <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Total Mensuel</p>
                 <p className="text-3xl font-black italic text-white">{(totals.totalFixed + totals.provision).toLocaleString()}€</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase text-indigo-400 tracking-widest leading-none mb-1">Virement / P</p>
-                <p className="text-2xl font-black italic text-indigo-400">{totals.virement.toLocaleString()}€</p>
+                <p className="text-[10px] font-black uppercase text-emerald-400 tracking-widest leading-none mb-1">Virement / P</p>
+                <p className="text-2xl font-black italic text-emerald-400">{totals.virement.toLocaleString()}€</p>
               </div>
             </div>
             <section className="space-y-8">
               <div className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
-                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
-                  <p className="text-xl font-black italic text-indigo-500 leading-none">{totals.totalFixed}€</p>
+                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
+                  <p className="text-xl font-black italic text-emerald-500 leading-none">{totals.totalFixed}€</p>
                 </div>
-                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-indigo-500/20 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
                   {fixedExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400">{getIcon(e.name)}</div>
+                          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400">{getIcon(e.name)}</div>
                           <div>
                             <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
                             <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Charge Fixe</p>
@@ -1042,7 +1042,7 @@ export default function NexusUltimateCloud() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-end">
-                            <span className="text-xl font-black italic text-indigo-400">{e.amount}€</span>
+                            <span className="text-xl font-black italic text-emerald-400">{e.amount}€</span>
                             <div className="flex gap-2">
                               <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                               <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
@@ -1094,10 +1094,10 @@ export default function NexusUltimateCloud() {
         {/* --- HISTORIQUE --- */}
         {activeTab === 'history' && (
           <div className="space-y-8 pb-4 page-transition">
-            <div className="bg-gradient-to-br from-zinc-900 to-indigo-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative neon-pulse">
-              <p className="text-indigo-200 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
+            <div className="bg-gradient-to-br from-zinc-900 to-emerald-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative neon-pulse">
+              <p className="text-emerald-200 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
               <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length}</h2>
-              <button onClick={() => setShowArchives(!showArchives)} className="absolute top-8 right-8 bg-black/20 p-3 rounded-2xl text-indigo-200 hover:bg-black/40 transition-all flex items-center gap-2">
+              <button onClick={() => setShowArchives(!showArchives)} className="absolute top-8 right-8 bg-black/20 p-3 rounded-2xl text-emerald-200 hover:bg-black/40 transition-all flex items-center gap-2">
                 <Archive size={18} />
                 <span className="text-[10px] font-bold uppercase">{showArchives ? "Actifs" : "Archives"}</span>
               </button>
@@ -1107,7 +1107,7 @@ export default function NexusUltimateCloud() {
                 <DraggableItem key={h.id} value={h}>
                   <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group transition-all active:scale-95 ${h.isArchived ? 'opacity-50' : ''}`}>
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className={`min-w-12 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-indigo-500/10 text-indigo-500'}`}>
+                      <div className={`min-w-12 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-teal-500/10 text-teal-400'}`}>
                         {h.type === 'payment' ? <ArrowUpRight size={20} /> : h.type === 'reimb' ? <ArrowDownLeft size={20} /> : <HistoryIcon size={20} />}
                       </div>
                       <div className="flex flex-col gap-2 min-w-0 pr-2">
@@ -1117,13 +1117,13 @@ export default function NexusUltimateCloud() {
                         </div>
                         <div className="flex gap-2 items-center bg-black/20 p-2 w-max rounded-xl border border-white/5">
                           <button onClick={() => handleArchiveHistory(h)} className="text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
-                          {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-indigo-400"><Pencil size={16} /></button>}
+                          {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-emerald-400"><Pencil size={16} /></button>}
                           <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 relative z-10">
-                      <span className={`font-black italic text-xl ${h.type === 'payment' ? 'text-red-500' : h.type === 'reimb' ? 'text-emerald-500' : 'text-indigo-400'}`}>
+                      <span className={`font-black italic text-xl ${h.type === 'payment' ? 'text-red-500' : h.type === 'reimb' ? 'text-emerald-500' : 'text-teal-400'}`}>
                         {h.type === 'payment' ? '-' : '+'}{h.amount}€
                       </span>
                       <DragHandle />
@@ -1150,11 +1150,11 @@ export default function NexusUltimateCloud() {
                   <div className="space-y-6">
                     {modal.type === 'expense' && (
                       <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
-                        <button type="button" onClick={() => setForm({ ...form, cat: 'fixed' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-indigo-600 text-white' : 'text-zinc-600'}`}>Mensuel</button>
-                        <button type="button" onClick={() => setForm({ ...form, cat: 'annual' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-indigo-600 text-white' : 'text-zinc-600'}`}>Annuel</button>
+                        <button type="button" onClick={() => setForm({ ...form, cat: 'fixed' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-emerald-600 text-white' : 'text-zinc-600'}`}>Mensuel</button>
+                        <button type="button" onClick={() => setForm({ ...form, cat: 'annual' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-emerald-600 text-white' : 'text-zinc-600'}`}>Annuel</button>
                       </div>
                     )}
-                    <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
+                    <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-emerald-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
                     {modal.type === 'expense' && form.cat === 'annual' && (
                       <div className="space-y-2">
                         <p className="text-[10px] font-black uppercase text-emerald-500 pl-4">Date de démarrage (optionnel)</p>
@@ -1253,9 +1253,9 @@ export default function NexusUltimateCloud() {
 
                 {modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && (
                   <div className="relative flex items-center gap-3">
-                    <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+                    <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-emerald-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
-                      <button type="button" onClick={() => setForm({ ...form, amount: modal.data.amount })} className="px-4 py-8 bg-indigo-600/20 text-indigo-400 font-black uppercase text-xl rounded-2xl border border-indigo-500/20 hover:bg-indigo-600/40 transition-colors">MAX</button>
+                      <button type="button" onClick={() => setForm({ ...form, amount: modal.data.amount })} className="px-4 py-8 bg-emerald-600/20 text-emerald-400 font-black uppercase text-xl rounded-2xl border border-emerald-500/20 hover:bg-emerald-600/40 transition-colors">MAX</button>
                     )}
                   </div>
                 )}
@@ -1274,7 +1274,7 @@ export default function NexusUltimateCloud() {
                   <button type="button" onClick={handleCryptoSave} className="w-full py-6 rounded-[2rem] bg-orange-600 font-black text-xl uppercase shadow-xl">{modal.type === 'edit_crypto' ? 'Enregistrer' : 'Ajouter'}</button>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all bg-indigo-600`}>Confirmer</button>
+                    <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all bg-emerald-600`}>Confirmer</button>
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
                       <button type="button" onClick={handleAbsorb} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-amber-500 border border-amber-500/30 hover:bg-amber-500/10 flex items-center justify-center gap-2"><Flame size={16} /> Absorbé</button>
                     )}
@@ -1286,12 +1286,12 @@ export default function NexusUltimateCloud() {
         )}
         {/* NAV BAR (Avec icones couleurs corrigées) */}
         <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 px-6 py-5 rounded-[2.5rem] flex justify-between items-center z-50 shadow-2xl">
-          <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('crypto')} className={activeTab === 'crypto' ? 'text-orange-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Bitcoin size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
           <div className="w-px h-8 bg-white/10 mx-1" />
           <button onClick={handleLogout} className="text-zinc-600 hover:text-red-500 transition-colors"><LogOut size={22} /></button>
         </nav>
