@@ -217,11 +217,10 @@ export default function NexusUltimateCloud() {
   const totals = useMemo(() => {
     const totalFixed = fixedExpenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
     const totalAnnual = annualExpenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
-    const creche = fixedExpenses.find(e => (e.name || '').toLowerCase().includes('crèche'))?.amount || 0;
-
     // La mensualité (montant/12) est TOUJOURS pleine, quelle que soit la date de démarrage.
     const provision = Math.round(totalAnnual / 12);
-    const virement = Math.ceil((totalFixed - creche + provision) / 2);
+    // Charges communes partagées simplement par 2 (foyer à deux), sans exception.
+    const virement = Math.ceil((totalFixed + provision) / 2);
 
     const totalPending = pending.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
     const totalReimbursed = reimbursements.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);

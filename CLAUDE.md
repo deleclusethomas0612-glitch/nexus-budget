@@ -6,7 +6,7 @@ Guide de contexte pour Claude. À lire au début de chaque session sur ce projet
 
 App **perso** de suivi de budget pour un **couple (2 personnes)**. Usage privé, pas destinée à être vendue ou distribuée. UI en français, mobile-first (téléphone). Design sombre « néon », navigation par onglets avec swipe horizontal.
 
-5 onglets : `dashboard` (Cash Dispo + flux d'avances), `expenses` (Charges communes), `personal` (Mes Charges perso), `savings` (Épargne, dont PEA valorisé en direct), `history` (Journal des flux).
+5 onglets : `dashboard` (Cash Dispo + flux d'avances), `expenses` (Charges communes), `personal` (Mes Charges perso — **pointage seul, hors calculs**), `savings` (Épargne, dont PEA valorisé en direct), `history` (Journal des flux).
 
 ## Stack
 
@@ -30,7 +30,7 @@ Une seule table Supabase `nexus_data`, une ligne par utilisateur (`user_id`). Ch
 | `history` / `history` | `{ id, label, amount, type: 'payment'\|'reimb'\|…, date, isArchived? }` |
 | `savingsAccounts` / `savings_accounts` | compte simple `{ id, name, balance }` **ou** portefeuille `{ id, name, isPortfolio:true, holdings:[{ fundId, shares, lastVL, vlAt }], cash }` |
 | `savingsPending` / `savings_pending` | `{ id, label, amount, targetAccountId }` (avances sur épargne) |
-| `personalExpenses` / `personal_expenses` | `{ id, label, amount, isPaid, comment }` |
+| `personalExpenses` / `personal_expenses` | `{ id, label, amount, isPaid, comment }` (pointage mensuel ; **n'entre dans aucun calcul**) |
 
 Les `id` sont des `Date.now()`.
 
@@ -44,8 +44,9 @@ Les `id` sont des `Date.now()`.
 Tout est dans le `useMemo` `totals` de [`src/App.jsx`](src/App.jsx).
 
 - **Provision mensuelle** = `round(totalAnnual / 12)`. **Toujours pleine**, quelle que soit la date de démarrage d'une provision. Alimente le « Total Mensuel » et le virement.
-- **Virement / P** = `ceil((totalFixed − creche + provision) / 2)` = la **part d'une personne** des charges communes (couple → `/2`).
-- **`creche`** = un item de `fixedExpenses` dont le nom contient « crèche ». **Soustrait avant le `/2`** car c'est une **charge perso** (payée par une seule personne, pas partagée). Elle vit désormais côté onglet perso ; le cas spécial reste au cas où elle réapparaîtrait dans les charges communes.
+- **Charges communes** = tout ce que le foyer paie **à deux** (on y met ce qu'on veut). Aucune exception ni catégorie spéciale : c'est juste partagé par 2.
+- **Charges perso** = **pointage uniquement**. `personalExpenses` sert à cocher « payé ce mois-ci » et à suivre (Km, virement wifi…). N'entre dans **aucun** calcul (ni `realCash`, ni virement, ni projection, ni épargne). Seul `personalTotal` est affiché, sur son onglet.
+- **Virement / P** = `ceil((totalFixed + provision) / 2)` = la **part d'une personne** des charges communes (couple → `/2`). Aucune catégorie spéciale : tout ce qui est dans les charges communes est partagé par 2. (L'ancien terme `− creche` a été retiré.)
 - **Cumul des provisions = CONTINU, sans reset au 1er janvier.** Ancre = **janvier 2026** en « mois absolus » (`année*12 + mois`, `ANCHOR = 2026*12`).
   - Sans date : `max(0, moisCible − ANCHOR)`.
   - Avec date : `max(0, moisCible − moisDémarrage + 1)` (**mois de démarrage inclus**).
