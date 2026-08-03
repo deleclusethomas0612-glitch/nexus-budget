@@ -271,13 +271,13 @@ export default function NexusUltimateCloud() {
   const fundPrice = (h) => (vlMap[h.fundId]?.vl ?? h.lastVL ?? 0);
   // Valeur d'un compte : portefeuille = Σ(parts × VL) arrondi à l'euro ; sinon solde saisi.
   const accountValue = (acc) => acc.isPortfolio
-    ? Math.round((acc.holdings || []).reduce((s, h) => s + (Number(h.shares) || 0) * fundPrice(h), 0))
+    ? Math.round((acc.holdings || []).reduce((s, h) => s + (Number(h.shares) || 0) * fundPrice(h), 0) + (Number(acc.cash) || 0))
     : (Number(acc.balance) || 0);
 
   const savingsTotal = useMemo(() => {
     return savingsAccounts.reduce((sum, acc) => {
       if (acc.isPortfolio) {
-        const v = (acc.holdings || []).reduce((s, h) => s + (Number(h.shares) || 0) * (vlMap[h.fundId]?.vl ?? h.lastVL ?? 0), 0);
+        const v = (acc.holdings || []).reduce((s, h) => s + (Number(h.shares) || 0) * (vlMap[h.fundId]?.vl ?? h.lastVL ?? 0), 0) + (Number(acc.cash) || 0);
         return sum + Math.round(v);
       }
       return sum + (Number(acc.balance) || 0);
@@ -335,6 +335,7 @@ export default function NexusUltimateCloud() {
       const h = (acc.holdings || []).find(x => x.fundId === f.id);
       draft[f.id] = h ? String(h.shares) : '';
     });
+    draft._cash = (acc.cash != null && acc.cash !== 0) ? String(acc.cash) : '';
     setPortfolioDraft(draft);
     setModal({ open: true, type: 'portfolio', data: acc });
     fetchVLs(BOURSO_FUNDS.map(f => f.id)); // VL fraîches pour l'aperçu
@@ -352,7 +353,8 @@ export default function NexusUltimateCloud() {
         vlAt: existing?.vlAt ?? vlMap[f.id]?.at ?? null,
       };
     }).filter(h => h.shares > 0);
-    setSavingsAccounts(savingsAccounts.map(a => a.id === acc.id ? { ...a, isPortfolio: true, holdings } : a));
+    const cash = parseFloat(String(portfolioDraft._cash ?? '').replace(',', '.'));
+    setSavingsAccounts(savingsAccounts.map(a => a.id === acc.id ? { ...a, isPortfolio: true, holdings, cash: isFinite(cash) ? cash : 0 } : a));
     setModal({ open: false, type: '', data: null });
     setPortfolioDraft({});
     const syms = holdings.map(h => h.fundId);
@@ -703,7 +705,7 @@ export default function NexusUltimateCloud() {
                         <DragHandle />
                       </div>
                     </div>
-                    {acc.isPortfolio && (acc.holdings || []).length > 0 && (
+                    {acc.isPortfolio && ((acc.holdings || []).length > 0 || (Number(acc.cash) || 0) > 0) && (
                       <div className="mt-3 pt-3 border-t border-white/5 space-y-1.5">
                         {(acc.holdings || []).map(h => (
                           <div key={h.fundId} className="flex justify-between items-center text-[10px]">
@@ -714,6 +716,12 @@ export default function NexusUltimateCloud() {
                             </span>
                           </div>
                         ))}
+                        {(Number(acc.cash) || 0) > 0 && (
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="font-bold text-zinc-400 uppercase">Liquidités</span>
+                            <span className="font-mono text-cyan-500 font-black">{Math.round(Number(acc.cash) || 0).toLocaleString()}€</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1013,7 +1021,20 @@ export default function NexusUltimateCloud() {
                         </div>
                       );
                     })}
-                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Valeur = parts × dernière VL, arrondie à l'euro. VL récupérée automatiquement sur Boursorama.</p>
+                    <div className="bg-black/40 border border-white/10 rounded-2xl p-4 space-y-2">
+                      <span className="text-sm font-black italic uppercase text-zinc-200">Liquidités (non placées)</span>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="text" inputMode="decimal"
+                          className="flex-1 bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-cyan-500 font-bold text-white text-center"
+                          placeholder="0"
+                          value={portfolioDraft._cash ?? ''}
+                          onChange={e => setPortfolioDraft({ ...portfolioDraft, _cash: e.target.value })}
+                        />
+                        <span className="text-sm font-black text-zinc-500">€</span>
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Valeur = (parts × VL) + liquidités, arrondie à l'euro. VL récupérée automatiquement sur Boursorama.</p>
                   </div>
                 )}
 
