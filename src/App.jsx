@@ -42,6 +42,11 @@ const DragHandle = ({ className }) => {
   );
 };
 
+// Ligne « Crypto » de la page Épargne : sentinelle stable (référence unique) qui
+// représente le bloc crypto dans la liste réordonnable. Sa position dans la liste
+// est encodée par la place des items kind:'crypto' dans savings_accounts.
+const CRYPTO_ROW = { id: 'crypto-row' };
+
 // Fonds du Plan d'Épargne BoursoBank : code Boursorama (OPCVM) + ISIN.
 // Table extensible aux 6 autres fonds (Europe, France, Luxe, Santé, Tech, Climat).
 const BOURSO_FUNDS = [
@@ -381,7 +386,20 @@ export default function NexusUltimateCloud() {
 
   // --- CRYPTO (stocké dans savings_accounts avec kind:'crypto', affiché sur sa propre page) ---
   const cryptoAssets = savingsAccounts.filter(a => a.kind === 'crypto');
-  const savingsView = savingsAccounts.filter(a => a.kind !== 'crypto');
+  // Liste affichée sur la page Épargne : comptes + la ligne Crypto (sentinelle) à la
+  // position du bloc crypto dans savingsAccounts. Réordonner déplace le bloc entier.
+  const savingsDisplay = [];
+  savingsAccounts.forEach(a => {
+    if (a.kind === 'crypto') {
+      if (!savingsDisplay.includes(CRYPTO_ROW)) savingsDisplay.push(CRYPTO_ROW);
+    } else savingsDisplay.push(a);
+  });
+  const reorderSavings = (newList) => setSavingsAccounts(newList.flatMap(item => (item === CRYPTO_ROW ? cryptoAssets : [item])));
+  // Réordonner les cryptos (page Crypto) sans toucher à la position du bloc dans l'épargne.
+  const reorderCryptos = (newList) => {
+    let i = 0;
+    setSavingsAccounts(prev => prev.map(a => (a.kind === 'crypto' ? newList[i++] : a)));
+  };
   const cryptoSymbolsKey = cryptoAssets.map(a => a.sym).join(',');
   const cryptoPrice = (a) => (cryptoPrices[a.sym]?.price ?? a.lastPrice ?? 0);
   const cryptoValue = (a) => Math.round((Number(a.qty) || 0) * cryptoPrice(a));
@@ -770,8 +788,28 @@ export default function NexusUltimateCloud() {
             </div>
 
             {/* LISTE COMPTES */}
-            <Reorder.Group axis="y" values={savingsView} onReorder={(newList) => setSavingsAccounts([...newList, ...cryptoAssets])} className="space-y-4">
-              {savingsView.map(acc => (
+            <Reorder.Group axis="y" values={savingsDisplay} onReorder={reorderSavings} className="space-y-4">
+              {savingsDisplay.map(acc => acc === CRYPTO_ROW ? (
+                /* Ligne Crypto : même thème que les comptes, réordonnable, mais lecture seule */
+                <DraggableItem key="crypto-row" value={CRYPTO_ROW}>
+                  <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400"><Bitcoin size={20} /></div>
+                        <div>
+                          <p className="text-sm font-black italic uppercase text-left text-zinc-200">Crypto</p>
+                          <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Géré sur la page dédiée</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-xl font-black italic text-cyan-500">{cryptoTotal.toLocaleString()}€</span>
+                        <DragHandle />
+                      </div>
+                    </div>
+                  </div>
+                </DraggableItem>
+              ) : (
                 <DraggableItem key={acc.id} value={acc}>
                   <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden">
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
@@ -820,23 +858,6 @@ export default function NexusUltimateCloud() {
                 </DraggableItem>
               ))}
             </Reorder.Group>
-
-            {/* COMPTE CRYPTO (lecture seule — total le plus récent, géré sur sa page dédiée) */}
-            {cryptoAssets.length > 0 && (
-              <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] relative overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500" />
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-400"><Bitcoin size={20} strokeWidth={2.5} /></div>
-                    <div>
-                      <p className="text-sm font-black italic uppercase text-left text-zinc-200">Crypto</p>
-                      <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Géré sur la page dédiée</p>
-                    </div>
-                  </div>
-                  <span className="text-xl font-black italic text-orange-500">{cryptoTotal.toLocaleString()}€</span>
-                </div>
-              </div>
-            )}
 
             {/* AVANCE SUR EPARGNE (RENOMMÉ) */}
             {savingsPending.length > 0 && (
@@ -888,7 +909,7 @@ export default function NexusUltimateCloud() {
             </div>
 
             {/* LISTE */}
-            <Reorder.Group axis="y" values={cryptoAssets} onReorder={(newList) => setSavingsAccounts([...savingsView, ...newList])} className="space-y-4">
+            <Reorder.Group axis="y" values={cryptoAssets} onReorder={reorderCryptos} className="space-y-4">
               {cryptoAssets.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Aucune crypto suivie. Ajoute-en une.</p> :
                 cryptoAssets.map(a => (
                   <DraggableItem key={a.id} value={a}>
