@@ -97,7 +97,7 @@ button:active,
 .neon-pulse-cyan     { --neon-1: #22d3ee; --neon-2: #38bdf8; --neon-glow: rgba(34, 211, 238, 0.30); }
 .neon-pulse-green    { --neon-1: #34d399; --neon-2: #10b981; --neon-glow: rgba(52, 211, 153, 0.28); }
 .neon-pulse-orange   { --neon-1: #fbbf24; --neon-2: #f97316; --neon-glow: rgba(249, 115, 22, 0.34); }
-.neon-pulse-pink     { --neon-1: #f9a8d4; --neon-2: #ec4899; --neon-glow: rgba(236, 72, 153, 0.30); }
+.neon-pulse-pink     { --neon-1: #fbcfe8; --neon-2: #f472b6; --neon-glow: rgba(244, 114, 182, 0.20); }
 .neon-pulse-ruby     { --neon-1: #fb7185; --neon-2: #e11d48; --neon-glow: rgba(225, 29, 72, 0.32); }
 .neon-pulse-platinum { --neon-1: #f8fafc; --neon-2: #94a3b8; --neon-glow: rgba(226, 232, 240, 0.25); }
 

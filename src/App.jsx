@@ -31,9 +31,30 @@ const DraggableItem = ({ children, value }) => {
 
 const DragHandle = ({ className }) => {
   const dragControls = React.useContext(DragContext);
+  // Anti-déplacement accidentel : le drag ne démarre qu'après un appui maintenu
+  // (~220 ms) sans bouger. Un geste de scroll qui commence sur la poignée est
+  // détecté (mouvement > 8 px avant l'échéance) et annule l'armement.
+  const holdTimer = React.useRef(null);
+  const startPos = React.useRef(null);
+  const cancelHold = () => { if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; } };
   return (
     <div
-      onPointerDown={(e) => dragControls.start(e)}
+      onPointerDown={(e) => {
+        startPos.current = { x: e.clientX, y: e.clientY };
+        cancelHold();
+        holdTimer.current = setTimeout(() => {
+          holdTimer.current = null;
+          if (navigator.vibrate) navigator.vibrate(10);
+          dragControls.start(e);
+        }, 220);
+      }}
+      onPointerMove={(e) => {
+        if (holdTimer.current && startPos.current
+          && Math.hypot(e.clientX - startPos.current.x, e.clientY - startPos.current.y) > 8) cancelHold();
+      }}
+      onPointerUp={cancelHold}
+      onPointerCancel={cancelHold}
+      onPointerLeave={cancelHold}
       style={{ touchAction: 'none' }}
       className={`cursor-grab active:cursor-grabbing p-4 -mr-4 flex items-center justify-center z-20 ${className}`}
     >
@@ -358,7 +379,10 @@ export default function NexusUltimateCloud() {
       const h = (acc.holdings || []).find(x => x.fundId === f.id);
       draft[f.id] = h ? String(h.shares) : '';
     });
-    draft._cash = (acc.cash != null && acc.cash !== 0) ? String(acc.cash) : '';
+    // Compte simple : son solde est repris comme liquidités (rien ne disparaît
+    // quand on ajoute des titres à un compte qui n'était pas encore portefeuille).
+    const cashInit = acc.isPortfolio ? acc.cash : (acc.cash ?? acc.balance);
+    draft._cash = (cashInit != null && cashInit !== 0) ? String(cashInit) : '';
     setPortfolioDraft(draft);
     setModal({ open: true, type: 'portfolio', data: acc });
     fetchVLs(BOURSO_FUNDS.map(f => f.id)); // VL fraîches pour l'aperçu
@@ -377,7 +401,13 @@ export default function NexusUltimateCloud() {
       };
     }).filter(h => h.shares > 0);
     const cash = parseFloat(String(portfolioDraft._cash ?? '').replace(',', '.'));
-    setSavingsAccounts(savingsAccounts.map(a => a.id === acc.id ? { ...a, isPortfolio: true, holdings, cash: isFinite(cash) ? cash : 0 } : a));
+    const safeCash = isFinite(cash) ? cash : 0;
+    // Sans aucune part : le compte (re)devient un compte simple dont le solde = liquidités.
+    setSavingsAccounts(savingsAccounts.map(a => a.id === acc.id
+      ? (holdings.length
+        ? { ...a, isPortfolio: true, holdings, cash: safeCash }
+        : { id: a.id, name: a.name, balance: safeCash })
+      : a));
     setModal({ open: false, type: '', data: null });
     setPortfolioDraft({});
     const syms = holdings.map(h => h.fundId);
@@ -566,6 +596,10 @@ export default function NexusUltimateCloud() {
 
   const handleForm = (e) => {
     e.preventDefault();
+    // Modales à bouton dédié : la validation clavier (Entrée / « OK » mobile)
+    // doit enregistrer au lieu d'être ignorée (form.amount y est vide).
+    if (modal.type === 'portfolio') { handlePortfolioSave(); return; }
+    if (modal.type === 'add_crypto' || modal.type === 'edit_crypto') { handleCryptoSave(); return; }
     const val = parseFloat(form.amount);
     if (isNaN(val) || val <= 0) return;
     const sharedId = Date.now();
@@ -765,7 +799,7 @@ export default function NexusUltimateCloud() {
                   pending.map(p => (
                     <DraggableItem key={p.id} value={p}>
                       <button onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center transition-all group relative overflow-hidden active:scale-95">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
+                        <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-amber-500" />
                         <div className="flex items-center gap-5">
                           <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500"><Coins size={22} /></div>
                           <div><p className="text-sm font-black italic uppercase text-left">{p.label}</p><p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Gérer l'avance</p></div>
@@ -809,7 +843,7 @@ export default function NexusUltimateCloud() {
                 /* Ligne Crypto : même thème que les comptes, réordonnable, mais lecture seule */
                 <DraggableItem key="crypto-row" value={CRYPTO_ROW}>
                   <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
+                    <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-cyan-500" />
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400"><Bitcoin size={20} /></div>
@@ -828,7 +862,7 @@ export default function NexusUltimateCloud() {
               ) : (
                 <DraggableItem key={acc.id} value={acc}>
                   <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
+                    <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-cyan-500" />
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400">
@@ -887,7 +921,7 @@ export default function NexusUltimateCloud() {
                   const targetName = savingsAccounts.find(a => a.id === p.targetAccountId)?.name || 'Compte supprimé';
                   return (
                     <div key={p.id} onClick={() => { setForm({ amount: '' }); setModal({ open: true, type: 'repay_savings_advance', data: p }) }} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center cursor-pointer transition-all active:scale-95 relative overflow-hidden">
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
+                      <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-amber-500" />
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500"><Coins size={20} /></div>
                         <div>
@@ -930,7 +964,7 @@ export default function NexusUltimateCloud() {
                 cryptoAssets.map(a => (
                   <DraggableItem key={a.id} value={a}>
                     <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500" />
+                      <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-orange-500" />
                       <div className="flex items-center gap-4">
                         <div className="w-11 h-11 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-400 text-[10px] font-black">{a.sym}</div>
                         <div>
@@ -1027,35 +1061,35 @@ export default function NexusUltimateCloud() {
           <div className="space-y-10 pb-4 text-white page-transition">
             <div className="flex justify-between items-center px-4">
               <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges communes</h2>
-              <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-pink-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
+              <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-pink-400/30 border border-pink-300/30 text-pink-100 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
             </div>
 
             {/* TOTAL GLOBAL ET VIREMENT */}
             <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse neon-pulse-pink">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/20 blur-xl"></div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-pink-400/10 blur-xl"></div>
               <div>
-                <p className="text-[10px] font-black uppercase text-pink-500 tracking-widest">Total Mensuel</p>
+                <p className="text-[10px] font-black uppercase text-pink-300 tracking-widest">Total Mensuel</p>
                 <p className="text-3xl font-black italic text-white">{(totals.totalFixed + totals.provision).toLocaleString()}€</p>
                 <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">{totals.totalFixed.toLocaleString()}€ fixe + {totals.provision.toLocaleString()}€ provision</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase text-pink-400 tracking-widest leading-none mb-1">Virement / P</p>
-                <p className="text-2xl font-black italic text-pink-400">{totals.virement.toLocaleString()}€</p>
+                <p className="text-[10px] font-black uppercase text-pink-300 tracking-widest leading-none mb-1">Virement / P</p>
+                <p className="text-2xl font-black italic text-pink-300">{totals.virement.toLocaleString()}€</p>
               </div>
             </div>
             <section className="space-y-8">
               <div className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
-                  <p className="text-[10px] font-black text-pink-500 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
-                  <p className="text-xl font-black italic text-pink-500 leading-none">{totals.totalFixed.toLocaleString()}€</p>
+                  <p className="text-[10px] font-black text-pink-300 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
+                  <p className="text-xl font-black italic text-pink-300 leading-none">{totals.totalFixed.toLocaleString()}€</p>
                 </div>
-                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-pink-500/20 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-pink-400/10 rounded-[3rem] p-2 space-y-2">
                   {fixedExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-pink-500" />
+                        <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-pink-300/70" />
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-pink-500/10 rounded-xl flex items-center justify-center text-pink-400">{getIcon(e.name)}</div>
+                          <div className="w-10 h-10 bg-pink-400/10 rounded-xl flex items-center justify-center text-pink-300">{getIcon(e.name)}</div>
                           <div>
                             <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
                             <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Charge Fixe</p>
@@ -1063,7 +1097,7 @@ export default function NexusUltimateCloud() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-end">
-                            <span className="text-xl font-black italic text-pink-400">{Number(e.amount).toLocaleString()}€</span>
+                            <span className="text-xl font-black italic text-pink-300">{Number(e.amount).toLocaleString()}€</span>
                             <div className="flex gap-2">
                               <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                               <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
@@ -1088,7 +1122,7 @@ export default function NexusUltimateCloud() {
                   {annualExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-400" />
+                        <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-amber-400" />
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400"><Calendar size={18} /></div>
                           <div>
@@ -1174,7 +1208,7 @@ export default function NexusUltimateCloud() {
                   <div className="space-y-6">
                     {modal.type === 'expense' && (
                       <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
-                        <button type="button" onClick={() => setForm({ ...form, cat: 'fixed' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-pink-600 text-white' : 'text-zinc-600'}`}>Mensuel</button>
+                        <button type="button" onClick={() => setForm({ ...form, cat: 'fixed' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-pink-400/30 border border-pink-300/30 text-pink-100' : 'text-zinc-600'}`}>Mensuel</button>
                         <button type="button" onClick={() => setForm({ ...form, cat: 'annual' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-amber-500 text-black' : 'text-zinc-600'}`}>Annuel</button>
                       </div>
                     )}
@@ -1311,7 +1345,7 @@ export default function NexusUltimateCloud() {
         {/* NAV BAR (Avec icones couleurs corrigées) */}
         <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 px-6 py-5 rounded-[2.5rem] flex justify-between items-center z-50 shadow-2xl">
           <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-pink-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-pink-300 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-rose-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('crypto')} className={activeTab === 'crypto' ? 'text-orange-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Bitcoin size={24} strokeWidth={3} /></button>
