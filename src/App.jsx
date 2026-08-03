@@ -67,7 +67,7 @@ export default function NexusUltimateCloud() {
   // --- UI STATE ---
   const [activeTab, setActiveTab] = useState('dashboard');
   const [modal, setModal] = useState({ open: false, type: '', data: null });
-  const [form, setForm] = useState({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
+  const [form, setForm] = useState({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   const [showArchives, setShowArchives] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
 
@@ -206,6 +206,7 @@ export default function NexusUltimateCloud() {
     const totalAnnual = annualExpenses.reduce((acc, c) => acc + c.amount, 0);
     const creche = fixedExpenses.find(e => e.name.toLowerCase().includes('crèche'))?.amount || 0;
 
+    // La mensualité (montant/12) est TOUJOURS pleine, quelle que soit la date de démarrage.
     const provision = Math.round(totalAnnual / 12);
     const virement = Math.ceil((totalFixed - creche + provision) / 2);
 
@@ -214,20 +215,42 @@ export default function NexusUltimateCloud() {
     const totalPaid = exceptionalPaid.reduce((acc, c) => acc + c.amount, 0);
 
     const startCash = 0;
-    const currentMonthIndex = new Date().getMonth();
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthIndex = now.getMonth();
 
-    const realCash = startCash
-      + (provision * currentMonthIndex)
-      + totalReimbursed - totalPaid - totalPending;
+    // Cumul des provisions accumulées à un mois donné (0 = Jan ... 11 = Déc).
+    // - Sans date : rétroactif depuis janvier (comportement historique inchangé).
+    // - Avec date sur l'année en cours : compté à partir du mois de démarrage (mois inclus).
+    // - Avec date sur une année future : aucun cumul cette année.
+    // - Avec date sur une année passée : traité comme rétroactif (déjà démarré).
+    const accProvisionAt = (monthIndex) => annualExpenses.reduce((acc, e) => {
+      const rate = e.amount / 12;
+      let months;
+      if (!e.startDate) {
+        months = monthIndex;
+      } else {
+        const startYear = new Date(e.startDate).getFullYear();
+        const startMonth = new Date(e.startDate).getMonth();
+        if (startYear > currentYear) months = 0;
+        else if (startYear < currentYear) months = monthIndex;
+        else months = Math.max(0, monthIndex - startMonth + 1);
+      }
+      return acc + rate * months;
+    }, 0);
+
+    const realCash = Math.round(
+      startCash + accProvisionAt(currentMonthIndex) + totalReimbursed - totalPaid - totalPending
+    );
 
     const baseForProjection = startCash + totalReimbursed - totalPaid - totalPending;
 
     const projection = Array.from({ length: 12 }, (_, i) => ({
       name: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][i],
-      solde: Math.round(baseForProjection + (provision * i))
+      solde: Math.round(baseForProjection + accProvisionAt(i))
     }));
 
-    return { virement, realCash, projection, provision, totalFixed, totalAnnual };
+    return { virement, realCash, projection, provision, totalFixed, totalAnnual, totalPending };
   }, [fixedExpenses, annualExpenses, reimbursements, exceptionalPaid, pending]);
 
   // --- 4. LOGIQUES INDÉPENDANTES ---
@@ -238,6 +261,10 @@ export default function NexusUltimateCloud() {
   const personalTotal = useMemo(() => {
     return personalExpenses.reduce((acc, c) => acc + c.amount, 0);
   }, [personalExpenses]);
+
+  const savingsPendingTotal = useMemo(() => {
+    return savingsPending.reduce((acc, c) => acc + c.amount, 0);
+  }, [savingsPending]);
 
   const handleSavingsTransaction = (isIncome) => {
     const val = parseFloat(form.amount);
@@ -250,7 +277,7 @@ export default function NexusUltimateCloud() {
       return acc;
     }));
     setModal({ open: false, type: '', data: null });
-    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
+    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   };
 
   const handleSavingsAdvance = () => {
@@ -262,7 +289,7 @@ export default function NexusUltimateCloud() {
       return acc;
     }));
     setModal({ open: false, type: '', data: null });
-    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
+    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   };
 
   const handleReimburseSavings = (debt) => {
@@ -364,9 +391,11 @@ export default function NexusUltimateCloud() {
       addEntry(sharedId, form.label, val, 'reimb');
     }
     else if (modal.type === 'expense') {
-      const item = { id: sharedId, name: form.label, amount: val };
-      if (form.cat === 'fixed') setFixedExpenses([...fixedExpenses, item]);
-      else setAnnualExpenses([...annualExpenses, item]);
+      if (form.cat === 'fixed') {
+        setFixedExpenses([...fixedExpenses, { id: sharedId, name: form.label, amount: val }]);
+      } else {
+        setAnnualExpenses([...annualExpenses, { id: sharedId, name: form.label, amount: val, startDate: form.startDate || null }]);
+      }
     }
     else if (modal.type === 'repay_partial') {
       const debt = modal.data;
@@ -397,7 +426,7 @@ export default function NexusUltimateCloud() {
       }
     }
     setModal({ open: false, type: '', data: null });
-    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '' });
+    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   };
 
   // --- RENDER ---
@@ -448,7 +477,10 @@ export default function NexusUltimateCloud() {
                   <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic mb-1">Cash Dispo</p>
                   <h2 className="text-5xl font-black tracking-tighter italic">{totals.realCash.toLocaleString()}€</h2>
                 </div>
-                {/* Virement déplacé sur Charges Fixes */}
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl px-4 py-2 text-right shadow-lg shadow-amber-500/5">
+                  <p className="text-amber-500 text-[9px] font-black uppercase tracking-widest italic leading-none mb-1.5">Avances</p>
+                  <p className="text-xl font-black italic text-amber-400 leading-none">{totals.totalPending.toLocaleString()}€</p>
+                </div>
               </div>
             </div>
             <div className="h-44 w-full opacity-70 relative z-10">
@@ -552,6 +584,10 @@ export default function NexusUltimateCloud() {
             {/* AVANCE SUR EPARGNE (RENOMMÉ) */}
             {savingsPending.length > 0 && (
               <section className="space-y-4 pt-4 border-t border-white/5">
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-[2rem] p-5 flex justify-between items-center shadow-lg shadow-amber-500/5">
+                  <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest italic">Total Avances</p>
+                  <p className="text-2xl font-black italic text-amber-400">{savingsPendingTotal.toLocaleString()}€</p>
+                </div>
                 <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest px-2">Avance sur Épargne</h3>
                 {savingsPending.map(p => {
                   const targetName = savingsAccounts.find(a => a.id === p.targetAccountId)?.name || 'Compte supprimé';
@@ -679,7 +715,7 @@ export default function NexusUltimateCloud() {
                           <div className="flex flex-col items-end">
                             <span className="text-xl font-black italic text-indigo-400">{e.amount}€</span>
                             <div className="flex gap-2">
-                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed' }); setModal({ open: true, type: 'expense' }); setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
+                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'expense' }); setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                               <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
                           </div>
@@ -704,14 +740,14 @@ export default function NexusUltimateCloud() {
                           <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500"><Calendar size={18} /></div>
                           <div>
                             <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
-                            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Provision</p>
+                            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">{e.startDate ? `Dès ${new Date(e.startDate).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })}` : 'Provision'}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-end">
                             <span className="text-xl font-black italic text-emerald-500">{e.amount}€</span>
                             <div className="flex gap-2">
-                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual' }); setModal({ open: true, type: 'expense' }); setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id)); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
+                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual', startDate: e.startDate || '' }); setModal({ open: true, type: 'expense' }); setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id)); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                               <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
                           </div>
@@ -777,7 +813,7 @@ export default function NexusUltimateCloud() {
                 <h2 className="text-2xl font-black italic uppercase text-white">
                   {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : 'Opération'}
                 </h2>
-                <button onClick={() => { setModal({ open: false, type: '', data: null }); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '' }) }} className="text-zinc-600"><X size={28} /></button>
+                <button onClick={() => { setModal({ open: false, type: '', data: null }); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
               </div>
 
               <form onSubmit={handleForm} className="space-y-8">
@@ -790,6 +826,13 @@ export default function NexusUltimateCloud() {
                       </div>
                     )}
                     <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
+                    {modal.type === 'expense' && form.cat === 'annual' && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black uppercase text-emerald-500 pl-4">Date de démarrage (optionnel)</p>
+                        <input type="date" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none focus:border-emerald-500 font-bold text-white [color-scheme:dark]" value={form.startDate || ''} onChange={e => setForm({ ...form, startDate: e.target.value })} />
+                        <p className="text-[9px] text-zinc-600 font-bold pl-4 leading-tight">Sans date : cumul rétroactif depuis janvier. Avec date : cumul à partir du mois choisi.</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
