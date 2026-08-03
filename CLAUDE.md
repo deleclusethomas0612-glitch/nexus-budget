@@ -57,6 +57,7 @@ Tout est dans le `useMemo` `totals` de [`src/App.jsx`](src/App.jsx).
 
 ### PEA / valorisation live (VL)
 
+- **Seuls le PEA et un compte-titres peuvent détenir des parts** (`canHoldTitles` : `isPortfolio` déjà actif ou nom contenant « pea »/« titre », insensible à la casse). Les autres comptes épargne sont **monétaires** (argent qui dort, saisi ~1×/an) : leur crayon ouvre un modal **Renommer** (`rename_savings`, change uniquement l'intitulé), jamais le portefeuille. L'assurance-vie est gérée à part, sans détail.
 - Fonds du Plan d'Épargne BoursoBank, table `BOURSO_FUNDS` (portée module) :
   - Bourso Monde — code Boursorama `0P0001US9F`, ISIN `FR001400RWK6`.
   - Bourso US — code `0P0001US9I`, ISIN `FR001400RWL4`.

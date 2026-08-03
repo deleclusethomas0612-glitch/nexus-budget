@@ -318,6 +318,10 @@ export default function NexusUltimateCloud() {
     ? Math.round((acc.holdings || []).reduce((s, h) => s + (Number(h.shares) || 0) * fundPrice(h), 0) + (Number(acc.cash) || 0))
     : (Number(acc.balance) || 0);
 
+  // Seuls le PEA et un compte-titres peuvent détenir des parts (détection par le
+  // nom). Les autres comptes sont monétaires : leur crayon sert juste à renommer.
+  const canHoldTitles = (acc) => acc.isPortfolio || /pea|titre/i.test(acc.name || '');
+
   const savingsTotal = useMemo(() => {
     return savingsAccounts.filter(a => a.kind !== 'crypto').reduce((sum, acc) => {
       if (acc.isPortfolio) {
@@ -600,6 +604,13 @@ export default function NexusUltimateCloud() {
     // doit enregistrer au lieu d'être ignorée (form.amount y est vide).
     if (modal.type === 'portfolio') { handlePortfolioSave(); return; }
     if (modal.type === 'add_crypto' || modal.type === 'edit_crypto') { handleCryptoSave(); return; }
+    if (modal.type === 'rename_savings') {
+      const name = (form.label || '').trim();
+      if (name) setSavingsAccounts(savingsAccounts.map(a => a.id === modal.data.id ? { ...a, name } : a));
+      setModal({ open: false, type: '', data: null });
+      setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
+      return;
+    }
     const val = parseFloat(form.amount);
     if (isNaN(val) || val <= 0) return;
     const sharedId = Date.now();
@@ -877,7 +888,10 @@ export default function NexusUltimateCloud() {
                         <div className="flex flex-col items-end">
                           <span className="text-xl font-black italic text-cyan-500">{accountValue(acc).toLocaleString()}€</span>
                           <div className="flex gap-2 items-center mt-0.5">
-                            <button onClick={() => openPortfolio(acc)} className="text-zinc-600 hover:text-cyan-400" title="Gérer les parts"><Pencil size={13} /></button>
+                            <button onClick={() => {
+                              if (canHoldTitles(acc)) { openPortfolio(acc); }
+                              else { setForm({ label: acc.name, amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setModal({ open: true, type: 'rename_savings', data: acc }); }
+                            }} className="text-zinc-600 hover:text-cyan-400" title={canHoldTitles(acc) ? 'Gérer les parts' : 'Renommer le compte'}><Pencil size={13} /></button>
                             {acc.isPortfolio && <button onClick={() => fetchVLs(portfolioSymbols)} className="text-zinc-600 hover:text-white" title="Rafraîchir la VL"><RefreshCw size={12} className={vlLoading ? 'animate-spin' : ''} /></button>}
                             <button onClick={() => { if (window.confirm('Supprimer ce compte épargne ?')) setSavingsAccounts(savingsAccounts.filter(a => a.id !== acc.id)) }} className="text-zinc-700 hover:text-red-500"><Trash2 size={12} /></button>
                           </div>
@@ -1198,7 +1212,7 @@ export default function NexusUltimateCloud() {
             <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">
-                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : 'Opération'}
+                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : 'Opération'}
                 </h2>
                 <button onClick={() => { setModal({ open: false, type: '', data: null }); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
               </div>
@@ -1309,7 +1323,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
 
-                {modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && (
+                {modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && modal.type !== 'rename_savings' && (
                   <div className="relative flex items-center gap-3">
                     <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-emerald-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
