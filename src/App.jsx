@@ -756,7 +756,7 @@ export default function NexusUltimateCloud() {
               <div className="flex justify-between items-center relative z-10">
                 <div>
                   <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Épargne Totale</p>
-                  <h2 className="text-5xl font-black tracking-tighter italic text-cyan-100">{savingsTotal.toLocaleString()}€</h2>
+                  <h2 className="text-5xl font-black tracking-tighter italic text-cyan-100">{(savingsTotal + cryptoTotal).toLocaleString()}€</h2>
                 </div>
                 <div className="w-14 h-14 bg-cyan-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-cyan-500/20"><PiggyBank size={28} /></div>
               </div>
@@ -820,6 +820,23 @@ export default function NexusUltimateCloud() {
                 </DraggableItem>
               ))}
             </Reorder.Group>
+
+            {/* COMPTE CRYPTO (lecture seule — total le plus récent, géré sur sa page dédiée) */}
+            {cryptoAssets.length > 0 && (
+              <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] relative overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500" />
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-400"><Bitcoin size={20} strokeWidth={2.5} /></div>
+                    <div>
+                      <p className="text-sm font-black italic uppercase text-left text-zinc-200">Crypto</p>
+                      <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Géré sur la page dédiée</p>
+                    </div>
+                  </div>
+                  <span className="text-xl font-black italic text-orange-500">{cryptoTotal.toLocaleString()}€</span>
+                </div>
+              </div>
+            )}
 
             {/* AVANCE SUR EPARGNE (RENOMMÉ) */}
             {savingsPending.length > 0 && (
