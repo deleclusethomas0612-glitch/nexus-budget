@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
-  TrendingUp, Users, Wallet, AlertCircle, Plus, Check, X, Trash2, Pencil,
-  Banknote, ShieldCheck, History as HistoryIcon, Zap, HeartPulse,
+  TrendingUp, Users, Wallet, Plus, Check, X, Trash2, Pencil,
+  History as HistoryIcon, Zap, HeartPulse,
   Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame,
-  PiggyBank, CheckSquare, MessageSquare, Save, Archive, GripVertical
+  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical
 } from 'lucide-react';
 import { supabase } from './supabase';
-import { motion, Reorder, useDragControls } from 'framer-motion';
+import { Reorder, useDragControls } from 'framer-motion';
 
 // --- CONTEXTE POUR LES CONTRÔLES DE DRAG ---
 const DragContext = React.createContext();
@@ -70,6 +70,7 @@ export default function NexusUltimateCloud() {
   const [form, setForm] = useState({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   const [showArchives, setShowArchives] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
+  const [saveError, setSaveError] = useState(false);
 
   const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'history'];
 
@@ -94,22 +95,6 @@ export default function NexusUltimateCloud() {
   };
 
   // --- 1. INITIALISATION CLOUD ---
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchData(session.user.id);
-      else setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) fetchData(session.user.id);
-      else setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const clearAllStates = () => {
     setFixedExpenses([]);
     setAnnualExpenses([]);
@@ -125,7 +110,7 @@ export default function NexusUltimateCloud() {
   const fetchData = async (userId) => {
     setLoading(true);
     clearAllStates(); // Reset avant de charger le nouveau compte
-    const { data, error } = await supabase.from('nexus_data').select('*').eq('user_id', userId).single();
+    const { data } = await supabase.from('nexus_data').select('*').eq('user_id', userId).single();
 
     if (data) {
       setFixedExpenses(data.fixed_expenses || []);
@@ -152,6 +137,23 @@ export default function NexusUltimateCloud() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchData(session.user.id);
+      else setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) fetchData(session.user.id);
+      else setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const saveData = async () => {
     if (!session) return;
     const updates = {
@@ -166,17 +168,17 @@ export default function NexusUltimateCloud() {
       savings_pending: savingsPending,
       personal_expenses: personalExpenses
     };
-    await supabase.from('nexus_data').upsert({ user_id: session.user.id, ...updates });
+    const { error } = await supabase.from('nexus_data').upsert({ user_id: session.user.id, ...updates });
+    setSaveError(!!error);
   };
 
-  const saveToCloud = async (column, data) => {
-    if (!session) return;
-    await supabase.from('nexus_data').update({ [column]: data }).eq('user_id', session.user.id);
-  };
-
-  // Trigger sauvegarde auto
+  // Sauvegarde auto avec anti-rebond : les modifications rapprochées (ex. saisie clavier)
+  // sont regroupées en une seule écriture, 800 ms après la dernière modification.
   useEffect(() => {
-    if (!loading && session) saveData();
+    if (loading || !session) return;
+    const timer = setTimeout(() => { saveData(); }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fixedExpenses, annualExpenses, pending, history, reimbursements, exceptionalPaid, savingsAccounts, savingsPending, personalExpenses]);
 
   // --- 2. AUTHENTIFICATION ---
@@ -202,17 +204,17 @@ export default function NexusUltimateCloud() {
 
   // --- 3. LOGIQUE MÉTIER ---
   const totals = useMemo(() => {
-    const totalFixed = fixedExpenses.reduce((acc, c) => acc + c.amount, 0);
-    const totalAnnual = annualExpenses.reduce((acc, c) => acc + c.amount, 0);
-    const creche = fixedExpenses.find(e => e.name.toLowerCase().includes('crèche'))?.amount || 0;
+    const totalFixed = fixedExpenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+    const totalAnnual = annualExpenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+    const creche = fixedExpenses.find(e => (e.name || '').toLowerCase().includes('crèche'))?.amount || 0;
 
     // La mensualité (montant/12) est TOUJOURS pleine, quelle que soit la date de démarrage.
     const provision = Math.round(totalAnnual / 12);
     const virement = Math.ceil((totalFixed - creche + provision) / 2);
 
-    const totalPending = pending.reduce((acc, c) => acc + c.amount, 0);
-    const totalReimbursed = reimbursements.reduce((acc, c) => acc + c.amount, 0);
-    const totalPaid = exceptionalPaid.reduce((acc, c) => acc + c.amount, 0);
+    const totalPending = pending.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+    const totalReimbursed = reimbursements.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+    const totalPaid = exceptionalPaid.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
 
     const startCash = 0;
     const now = new Date();
@@ -225,7 +227,7 @@ export default function NexusUltimateCloud() {
     // - Avec date sur une année future : aucun cumul cette année.
     // - Avec date sur une année passée : traité comme rétroactif (déjà démarré).
     const accProvisionAt = (monthIndex) => annualExpenses.reduce((acc, e) => {
-      const rate = e.amount / 12;
+      const rate = (Number(e.amount) || 0) / 12;
       let months;
       if (!e.startDate) {
         months = monthIndex;
@@ -255,15 +257,15 @@ export default function NexusUltimateCloud() {
 
   // --- 4. LOGIQUES INDÉPENDANTES ---
   const savingsTotal = useMemo(() => {
-    return savingsAccounts.reduce((acc, c) => acc + c.balance, 0);
+    return savingsAccounts.reduce((acc, c) => acc + (Number(c.balance) || 0), 0);
   }, [savingsAccounts]);
 
   const personalTotal = useMemo(() => {
-    return personalExpenses.reduce((acc, c) => acc + c.amount, 0);
+    return personalExpenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
   }, [personalExpenses]);
 
   const savingsPendingTotal = useMemo(() => {
-    return savingsPending.reduce((acc, c) => acc + c.amount, 0);
+    return savingsPending.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
   }, [savingsPending]);
 
   const handleSavingsTransaction = (isIncome) => {
@@ -292,16 +294,6 @@ export default function NexusUltimateCloud() {
     setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   };
 
-  const handleReimburseSavings = (debt) => {
-    // Rendue obsolète par le nouveau flux de modale pour le remboursement
-    // Conservée pour éviter de casser des dépendances invisibles, mais plus appelée directement depuis le onClick.
-    setSavingsPending(savingsPending.filter(p => p.id !== debt.id));
-    setSavingsAccounts(savingsAccounts.map(acc => {
-      if (acc.id === debt.targetAccountId) return { ...acc, balance: acc.balance + debt.amount };
-      return acc;
-    }));
-  };
-
   const togglePersonalPaid = (id) => {
     setPersonalExpenses(personalExpenses.map(p => p.id === id ? { ...p, isPaid: !p.isPaid } : p));
   };
@@ -320,7 +312,7 @@ export default function NexusUltimateCloud() {
   };
 
   const getIcon = (name) => {
-    const n = name.toLowerCase();
+    const n = (name || '').toLowerCase();
     if (n.includes('crédit') || n.includes('immo')) return <Home size={18} />;
     if (n.includes('charges') || n.includes('engie') || n.includes('eau')) return <Zap size={18} />;
     if (n.includes('crèche') || n.includes('santé')) return <HeartPulse size={18} />;
@@ -371,7 +363,12 @@ export default function NexusUltimateCloud() {
       setSavingsAccounts([...savingsAccounts, { id: Date.now().toString(), name: form.label, balance: val }]);
     }
     else if (modal.type === 'create_personal_expense') {
-      setPersonalExpenses([...personalExpenses, { id: Date.now(), label: form.label, amount: val, isPaid: false, comment: '' }]);
+      const editing = modal.data;
+      if (editing) {
+        setPersonalExpenses(personalExpenses.map(p => p.id === editing.id ? { ...p, label: form.label, amount: val } : p));
+      } else {
+        setPersonalExpenses([...personalExpenses, { id: Date.now(), label: form.label, amount: val, isPaid: false, comment: '' }]);
+      }
     }
     else if (modal.type === 'edit_history') {
       const oldItem = modal.data;
@@ -391,10 +388,27 @@ export default function NexusUltimateCloud() {
       addEntry(sharedId, form.label, val, 'reimb');
     }
     else if (modal.type === 'expense') {
-      if (form.cat === 'fixed') {
-        setFixedExpenses([...fixedExpenses, { id: sharedId, name: form.label, amount: val }]);
+      const editing = modal.data;
+      const nowFixed = form.cat === 'fixed';
+      const item = nowFixed
+        ? { id: editing ? editing.id : sharedId, name: form.label, amount: val }
+        : { id: editing ? editing.id : sharedId, name: form.label, amount: val, startDate: form.startDate || null };
+      if (editing) {
+        const wasFixed = fixedExpenses.some(x => x.id === editing.id);
+        if (wasFixed === nowFixed) {
+          if (nowFixed) setFixedExpenses(fixedExpenses.map(x => x.id === editing.id ? item : x));
+          else setAnnualExpenses(annualExpenses.map(x => x.id === editing.id ? item : x));
+        } else if (wasFixed) {
+          setFixedExpenses(fixedExpenses.filter(x => x.id !== editing.id));
+          setAnnualExpenses([...annualExpenses, item]);
+        } else {
+          setAnnualExpenses(annualExpenses.filter(x => x.id !== editing.id));
+          setFixedExpenses([...fixedExpenses, item]);
+        }
+      } else if (nowFixed) {
+        setFixedExpenses([...fixedExpenses, item]);
       } else {
-        setAnnualExpenses([...annualExpenses, { id: sharedId, name: form.label, amount: val, startDate: form.startDate || null }]);
+        setAnnualExpenses([...annualExpenses, item]);
       }
     }
     else if (modal.type === 'repay_partial') {
@@ -464,6 +478,12 @@ export default function NexusUltimateCloud() {
     >
       <div className="max-w-md mx-auto space-y-6">
 
+        {saveError && (
+          <div className="bg-red-500/15 border border-red-500/30 text-red-400 text-[11px] font-bold rounded-2xl px-4 py-3 text-center leading-tight">
+            ⚠ Échec de sauvegarde — vérifie ta connexion. Tes dernières modifications ne sont peut-être pas enregistrées.
+          </div>
+        )}
+
         {/* HEADER REMOVED REPLACEMENT LOGIC */}
 
 
@@ -513,7 +533,7 @@ export default function NexusUltimateCloud() {
               <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] px-4 italic flex justify-between">
                 Flux
               </h3>
-              <Reorder.Group axis="y" values={pending} onReorder={(newList) => { setPending(newList); saveToCloud('pending', newList); }} className="space-y-4">
+              <Reorder.Group axis="y" values={pending} onReorder={(newList) => setPending(newList)} className="space-y-4">
                 {pending.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Aucune avance active.</p> :
                   pending.map(p => (
                     <DraggableItem key={p.id} value={p}>
@@ -557,7 +577,7 @@ export default function NexusUltimateCloud() {
             </div>
 
             {/* LISTE COMPTES */}
-            <Reorder.Group axis="y" values={savingsAccounts} onReorder={(newList) => { setSavingsAccounts(newList); saveToCloud('savings_accounts', newList); }} className="space-y-4">
+            <Reorder.Group axis="y" values={savingsAccounts} onReorder={(newList) => setSavingsAccounts(newList)} className="space-y-4">
               {savingsAccounts.map(acc => (
                 <DraggableItem key={acc.id} value={acc}>
                   <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
@@ -627,7 +647,7 @@ export default function NexusUltimateCloud() {
               <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
             </div>
 
-            <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => { setPersonalExpenses(newList); saveToCloud('personal_expenses', newList); }} className="space-y-3 pb-4">
+            <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => setPersonalExpenses(newList)} className="space-y-3 pb-4">
               {personalExpenses.map(item => (
                 <DraggableItem key={item.id} value={item}>
                   <div className={`p-4 rounded-[2.8rem] border transition-all active:scale-95 flex justify-between items-center group relative overflow-hidden bg-zinc-900/30 border-white/5`}>
@@ -660,7 +680,7 @@ export default function NexusUltimateCloud() {
                       <div className="flex flex-col items-end">
                         <span className={`text-xl font-black italic text-indigo-400`}>{item.amount}€</span>
                         <div className="flex gap-2">
-                          <button onClick={() => { setForm({ label: item.label, amount: item.amount }); setModal({ open: true, type: 'create_personal_expense' }); setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
+                          <button onClick={() => { setForm({ label: item.label, amount: item.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'create_personal_expense', data: item }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                           <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                         </div>
                       </div>
@@ -699,7 +719,7 @@ export default function NexusUltimateCloud() {
                   <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
                   <p className="text-xl font-black italic text-indigo-500 leading-none">{totals.totalFixed}€</p>
                 </div>
-                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => { setFixedExpenses(newList); saveToCloud('fixed_expenses', newList); }} className="bg-zinc-900/20 border border-indigo-500/20 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-indigo-500/20 rounded-[3rem] p-2 space-y-2">
                   {fixedExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
@@ -715,7 +735,7 @@ export default function NexusUltimateCloud() {
                           <div className="flex flex-col items-end">
                             <span className="text-xl font-black italic text-indigo-400">{e.amount}€</span>
                             <div className="flex gap-2">
-                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'expense' }); setFixedExpenses(fixedExpenses.filter(x => x.id !== e.id)) }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
+                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                               <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
                           </div>
@@ -731,7 +751,7 @@ export default function NexusUltimateCloud() {
                   <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic leading-none">Provisions Annuelles</p>
                   <p className="text-xl font-black italic text-emerald-500 leading-none">{totals.totalAnnual}€</p>
                 </div>
-                <Reorder.Group axis="y" values={annualExpenses} onReorder={(newList) => { setAnnualExpenses(newList); saveToCloud('annual_expenses', newList); }} className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={annualExpenses} onReorder={(newList) => setAnnualExpenses(newList)} className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
                   {annualExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
@@ -747,7 +767,7 @@ export default function NexusUltimateCloud() {
                           <div className="flex flex-col items-end">
                             <span className="text-xl font-black italic text-emerald-500">{e.amount}€</span>
                             <div className="flex gap-2">
-                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual', startDate: e.startDate || '' }); setModal({ open: true, type: 'expense' }); setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id)); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
+                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual', startDate: e.startDate || '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                               <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
                           </div>
@@ -773,7 +793,7 @@ export default function NexusUltimateCloud() {
                 <span className="text-[10px] font-bold uppercase">{showArchives ? "Actifs" : "Archives"}</span>
               </button>
             </div>
-            <Reorder.Group axis="y" values={history} onReorder={(newList) => { setHistory(newList); saveToCloud('history', newList); }} className="space-y-4">
+            <Reorder.Group axis="y" values={history} onReorder={(newList) => setHistory(newList)} className="space-y-4">
               {history.filter(h => showArchives ? h.isArchived : !h.isArchived).map(h => (
                 <DraggableItem key={h.id} value={h}>
                   <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group transition-all active:scale-95 ${h.isArchived ? 'opacity-50' : ''}`}>
