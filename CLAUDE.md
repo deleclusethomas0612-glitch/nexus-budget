@@ -92,6 +92,10 @@ npm run lint     # eslint . (le dossier api/ est ignoré)
 - **Ne jamais altérer un solde / chiffre / calcul existant sans prévenir explicitement** l'utilisateur d'abord.
 - UI, commits et échanges en français (convention observée).
 
+## Effet néon (design)
+
+`neon-pulse` (dans [`src/index.css`](src/index.css)) = liseré lumineux qui tourne lentement (conic-gradient floutée, 7 s) + halo ambiant coloré + liseré de verre. Variantes de couleur via classe additionnelle : `neon-pulse-cyan` (Épargne), `neon-pulse-green` (pointage payé), `neon-pulse-orange` (Crypto) ; défaut = indigo. Couleurs pilotées par les vars `--neon-1/2/-glow`. Respecte `prefers-reduced-motion` (rotation figée). Pour un nouvel univers de couleur, ajouter une variante `.neon-pulse-xxx` plutôt que de bricoler inline.
+
 ## Pièges connus
 
 - Un seul fichier composant : les states mappent 1:1 aux colonnes DB. Ajouter une donnée = l'imbriquer dans un JSON existant, **pas** une nouvelle colonne.

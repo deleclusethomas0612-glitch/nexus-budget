@@ -854,7 +854,7 @@ export default function NexusUltimateCloud() {
         {activeTab === 'crypto' && (
           <div className="space-y-10 page-transition">
             {/* CARTE ORANGE BITCOIN */}
-            <div className="bg-gradient-to-br from-orange-900/40 to-amber-600/10 border border-orange-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse">
+            <div className="bg-gradient-to-br from-orange-900/40 to-amber-600/10 border border-orange-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-orange">
               <div className="flex justify-between items-center relative z-10">
                 <div>
                   <p className="text-orange-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Portefeuille Crypto</p>
