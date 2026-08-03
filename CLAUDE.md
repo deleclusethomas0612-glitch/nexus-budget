@@ -6,7 +6,7 @@ Guide de contexte pour Claude. À lire au début de chaque session sur ce projet
 
 App **perso** de suivi de budget pour un **couple (2 personnes)**. Usage privé, pas destinée à être vendue ou distribuée. UI en français, mobile-first (téléphone). Design sombre « néon », navigation par onglets avec swipe horizontal.
 
-5 onglets : `dashboard` (Cash Dispo + flux d'avances), `expenses` (Charges communes), `personal` (Mes Charges perso — **pointage seul, hors calculs**), `savings` (Épargne, dont PEA valorisé en direct), `history` (Journal des flux).
+6 onglets : `dashboard` (Cash Dispo + flux d'avances), `expenses` (Charges communes), `personal` (Mes Charges perso — **pointage seul, hors calculs**), `savings` (Épargne, dont PEA valorisé en direct), `crypto` (Portefeuille crypto valorisé via Coinbase), `history` (Journal des flux).
 
 ## Stack
 
@@ -28,7 +28,7 @@ Une seule table Supabase `nexus_data`, une ligne par utilisateur (`user_id`). Ch
 | `reimbursements` / `reimbursements` | `{ id, label, amount }` (recettes) |
 | `exceptionalPaid` / `exceptional_paid` | `{ id, label, amount }` (dépenses exceptionnelles) |
 | `history` / `history` | `{ id, label, amount, type: 'payment'\|'reimb'\|…, date, isArchived? }` |
-| `savingsAccounts` / `savings_accounts` | compte simple `{ id, name, balance }` **ou** portefeuille `{ id, name, isPortfolio:true, holdings:[{ fundId, shares, lastVL, vlAt }], cash }` |
+| `savingsAccounts` / `savings_accounts` | compte simple `{ id, name, balance }`, portefeuille `{ id, name, isPortfolio:true, holdings:[{ fundId, shares, lastVL, vlAt }], cash }`, **ou crypto** `{ id, kind:'crypto', sym, qty, lastPrice, priceAt }` (affiché sur la page Crypto, **exclu** de la page/total Épargne via `kind !== 'crypto'`) |
 | `savingsPending` / `savings_pending` | `{ id, label, amount, targetAccountId }` (avances sur épargne) |
 | `personalExpenses` / `personal_expenses` | `{ id, label, amount, isPaid, comment }` (pointage mensuel ; **n'entre dans aucun calcul**) |
 
@@ -64,6 +64,12 @@ Tout est dans le `useMemo` `totals` de [`src/App.jsx`](src/App.jsx).
 - Ce sont des **fonds à VL quotidienne** (pas d'intraday temps réel).
 - [`api/vl.js`](api/vl.js) : récupère la VL sur la page Boursorama `bourse/opcvm/cours/<code>/` côté serveur (same-origin `/api/vl?symbol=…`, **pas de CORS**, pas de clé). Parse la 1re occurrence de `data-ist-last` (format FR : espace = milliers, virgule = décimale).
 - Client : `fetchVLs` appelle l'endpoint, remplit `vlMap`, et **met en cache** `lastVL` dans chaque ligne (reste lisible si la source échoue). Rafraîchi au chargement + bouton MAJ.
+
+### Crypto (page dédiée)
+
+- Suivi de cryptos par **volume détenu**, valorisées au **cours Coinbase EUR**. Même patron que le PEA. Valeur = `round(qty × cours)` (arrondi à l'euro). Total « Portefeuille Crypto » = Σ, **page autonome** (n'impacte pas le Cash Dispo ni l'Épargne).
+- Stockées dans `savings_accounts` avec `kind:'crypto'` → filtrées hors Épargne (`savingsView` / `cryptoAssets`). Registre `CRYPTOS` (portée module) : nom → ticker Coinbase. **ASI = ticker `FET`** sur Coinbase (`ASI-EUR` n'existe pas). 11 cryptos suivies (BTC, ADA, FET, ONDO, DOT, ICP, JASMY, ENJ, ATOM, IMX, GRT).
+- [`api/crypto.js`](api/crypto.js) : `?symbols=BTC,ADA,…` → interroge `api.coinbase.com/v2/prices/<SYM>-EUR/spot` côté serveur (un seul appel groupé). Liste blanche `ALLOWED` = les 11 tickers. Client : `fetchCryptoPrices` remplit `cryptoPrices`, cache `lastPrice` dans chaque ligne. Rafraîchi au chargement + bouton MAJ.
 
 ## Commandes
 

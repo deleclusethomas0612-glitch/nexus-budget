@@ -4,7 +4,7 @@ import {
   TrendingUp, Users, Wallet, Plus, Check, X, Trash2, Pencil,
   History as HistoryIcon, Zap, HeartPulse,
   Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame,
-  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw
+  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw, Bitcoin
 } from 'lucide-react';
 import { supabase } from './supabase';
 import { Reorder, useDragControls } from 'framer-motion';
@@ -50,6 +50,22 @@ const BOURSO_FUNDS = [
 ];
 const fundName = (id) => BOURSO_FUNDS.find(f => f.id === id)?.name || id;
 
+// Cryptos suivies : nom → ticker Coinbase (paire EUR). ASI = FET sur Coinbase.
+const CRYPTOS = [
+  { sym: 'BTC', name: 'Bitcoin' },
+  { sym: 'ADA', name: 'Cardano' },
+  { sym: 'FET', name: 'ASI (Fetch.ai)' },
+  { sym: 'ONDO', name: 'Ondo' },
+  { sym: 'DOT', name: 'Polkadot' },
+  { sym: 'ICP', name: 'Internet Computer' },
+  { sym: 'JASMY', name: 'Jasmy' },
+  { sym: 'ENJ', name: 'Enjin Coin' },
+  { sym: 'ATOM', name: 'Cosmos' },
+  { sym: 'IMX', name: 'Immutable' },
+  { sym: 'GRT', name: 'The Graph' },
+];
+const cryptoName = (sym) => CRYPTOS.find(c => c.sym === sym)?.name || sym;
+
 export default function NexusUltimateCloud() {
   // --- AUTH STATE ---
   const [session, setSession] = useState(null);
@@ -82,8 +98,11 @@ export default function NexusUltimateCloud() {
   const [vlMap, setVlMap] = useState({});          // { symbol: { vl, at } } — VL live
   const [vlLoading, setVlLoading] = useState(false);
   const [portfolioDraft, setPortfolioDraft] = useState({}); // { fundId: "parts" } dans la modale
+  const [cryptoPrices, setCryptoPrices] = useState({}); // { sym: { price, at } } — cours EUR live
+  const [cryptoLoading, setCryptoLoading] = useState(false);
+  const [cryptoDraft, setCryptoDraft] = useState({});   // { sym, qty } dans la modale
 
-  const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'history'];
+  const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'crypto', 'history'];
 
   const handleTouchStart = (e) => {
     setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
@@ -274,7 +293,7 @@ export default function NexusUltimateCloud() {
     : (Number(acc.balance) || 0);
 
   const savingsTotal = useMemo(() => {
-    return savingsAccounts.reduce((sum, acc) => {
+    return savingsAccounts.filter(a => a.kind !== 'crypto').reduce((sum, acc) => {
       if (acc.isPortfolio) {
         const v = (acc.holdings || []).reduce((s, h) => s + (Number(h.shares) || 0) * (vlMap[h.fundId]?.vl ?? h.lastVL ?? 0), 0) + (Number(acc.cash) || 0);
         return sum + Math.round(v);
@@ -358,6 +377,80 @@ export default function NexusUltimateCloud() {
     setPortfolioDraft({});
     const syms = holdings.map(h => h.fundId);
     if (syms.length) fetchVLs(syms);
+  };
+
+  // --- CRYPTO (stocké dans savings_accounts avec kind:'crypto', affiché sur sa propre page) ---
+  const cryptoAssets = savingsAccounts.filter(a => a.kind === 'crypto');
+  const savingsView = savingsAccounts.filter(a => a.kind !== 'crypto');
+  const cryptoSymbolsKey = cryptoAssets.map(a => a.sym).join(',');
+  const cryptoPrice = (a) => (cryptoPrices[a.sym]?.price ?? a.lastPrice ?? 0);
+  const cryptoValue = (a) => Math.round((Number(a.qty) || 0) * cryptoPrice(a));
+  const cryptoTotal = cryptoAssets.reduce((s, a) => s + cryptoValue(a), 0);
+
+  const fetchCryptoPrices = async (symbols) => {
+    const list = [...new Set(symbols && symbols.length ? symbols : cryptoAssets.map(a => a.sym))];
+    if (!list.length) return;
+    setCryptoLoading(true);
+    try {
+      const r = await fetch(`/api/crypto?symbols=${encodeURIComponent(list.join(','))}`);
+      if (r.ok) {
+        const j = await r.json();
+        const now = Date.now();
+        const updates = {};
+        Object.entries(j.prices || {}).forEach(([sym, p]) => {
+          const n = Number(p);
+          if (isFinite(n)) updates[sym] = { price: n, at: now };
+        });
+        if (Object.keys(updates).length) {
+          setCryptoPrices(prev => ({ ...prev, ...updates }));
+          setSavingsAccounts(prev => prev.map(a => (a.kind === 'crypto' && updates[a.sym])
+            ? { ...a, lastPrice: updates[a.sym].price, priceAt: now } : a));
+        }
+      }
+    } finally {
+      setCryptoLoading(false);
+    }
+  };
+
+  // Rafraîchit les cours au chargement et quand la liste des cryptos détenues change.
+  useEffect(() => {
+    if (loading || !session) return;
+    if (cryptoAssets.length) fetchCryptoPrices(cryptoAssets.map(a => a.sym));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cryptoSymbolsKey, loading]);
+
+  const openAddCrypto = () => {
+    const held = new Set(cryptoAssets.map(a => a.sym));
+    const first = CRYPTOS.find(c => !held.has(c.sym));
+    setCryptoDraft({ sym: first ? first.sym : '', qty: '' });
+    setModal({ open: true, type: 'add_crypto', data: null });
+    fetchCryptoPrices(CRYPTOS.map(c => c.sym));
+  };
+
+  const openEditCrypto = (a) => {
+    setCryptoDraft({ sym: a.sym, qty: String(a.qty) });
+    setModal({ open: true, type: 'edit_crypto', data: a });
+    fetchCryptoPrices([a.sym]);
+  };
+
+  const handleCryptoSave = () => {
+    const qty = parseFloat(String(cryptoDraft.qty ?? '').replace(',', '.'));
+    if (!cryptoDraft.sym || !isFinite(qty) || qty <= 0) return;
+    const existing = cryptoAssets.find(a => a.sym === cryptoDraft.sym);
+    if (modal.type === 'edit_crypto') {
+      setSavingsAccounts(savingsAccounts.map(x => x.id === modal.data.id ? { ...x, qty } : x));
+    } else if (existing) {
+      setSavingsAccounts(savingsAccounts.map(x => x.id === existing.id ? { ...x, qty } : x));
+    } else {
+      setSavingsAccounts([...savingsAccounts, {
+        id: Date.now(), kind: 'crypto', sym: cryptoDraft.sym, qty,
+        lastPrice: cryptoPrices[cryptoDraft.sym]?.price ?? null,
+        priceAt: cryptoPrices[cryptoDraft.sym]?.at ?? null,
+      }]);
+    }
+    setModal({ open: false, type: '', data: null });
+    setCryptoDraft({});
+    fetchCryptoPrices([cryptoDraft.sym]);
   };
 
   const personalTotal = useMemo(() => {
@@ -677,8 +770,8 @@ export default function NexusUltimateCloud() {
             </div>
 
             {/* LISTE COMPTES */}
-            <Reorder.Group axis="y" values={savingsAccounts} onReorder={(newList) => setSavingsAccounts(newList)} className="space-y-4">
-              {savingsAccounts.map(acc => (
+            <Reorder.Group axis="y" values={savingsView} onReorder={(newList) => setSavingsAccounts([...newList, ...cryptoAssets])} className="space-y-4">
+              {savingsView.map(acc => (
                 <DraggableItem key={acc.id} value={acc}>
                   <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden">
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
@@ -754,6 +847,57 @@ export default function NexusUltimateCloud() {
                 })}
               </section>
             )}
+          </div>
+        )}
+
+        {/* --- PAGE CRYPTO --- */}
+        {activeTab === 'crypto' && (
+          <div className="space-y-10 page-transition">
+            {/* CARTE ORANGE BITCOIN */}
+            <div className="bg-gradient-to-br from-orange-900/40 to-amber-600/10 border border-orange-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse">
+              <div className="flex justify-between items-center relative z-10">
+                <div>
+                  <p className="text-orange-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Portefeuille Crypto</p>
+                  <h2 className="text-5xl font-black tracking-tighter italic text-orange-100">{cryptoTotal.toLocaleString()}€</h2>
+                </div>
+                <div className="w-14 h-14 bg-orange-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-orange-500/30"><Bitcoin size={28} strokeWidth={2.5} /></div>
+              </div>
+            </div>
+
+            {/* ACTIONS */}
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={openAddCrypto} className="bg-orange-500/10 border border-orange-500/30 py-4 rounded-2xl text-[10px] font-black uppercase text-orange-400 hover:text-orange-300 transition-colors flex items-center justify-center gap-2"><Plus size={16} /> Ajouter</button>
+              <button onClick={() => fetchCryptoPrices(cryptoAssets.map(a => a.sym))} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-white transition-colors flex items-center justify-center gap-2"><RefreshCw size={14} className={cryptoLoading ? 'animate-spin' : ''} /> MAJ cours</button>
+            </div>
+
+            {/* LISTE */}
+            <Reorder.Group axis="y" values={cryptoAssets} onReorder={(newList) => setSavingsAccounts([...savingsView, ...newList])} className="space-y-4">
+              {cryptoAssets.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Aucune crypto suivie. Ajoute-en une.</p> :
+                cryptoAssets.map(a => (
+                  <DraggableItem key={a.id} value={a}>
+                    <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500" />
+                      <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-400 text-[10px] font-black">{a.sym}</div>
+                        <div>
+                          <p className="text-sm font-black italic uppercase text-left text-zinc-200">{cryptoName(a.sym)}</p>
+                          <p className="text-[9px] text-zinc-500 font-mono text-left">{Number(a.qty).toLocaleString('fr-FR', { maximumFractionDigits: 8 })} × {cryptoPrice(a) ? cryptoPrice(a).toLocaleString('fr-FR', { maximumFractionDigits: cryptoPrice(a) < 1 ? 6 : 2 }) + '€' : '—'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex flex-col items-end">
+                          <span className="text-xl font-black italic text-orange-500">{cryptoValue(a).toLocaleString()}€</span>
+                          <div className="flex gap-2 mt-0.5">
+                            <button onClick={() => openEditCrypto(a)} className="text-zinc-600 hover:text-orange-400"><Pencil size={13} /></button>
+                            <button onClick={() => { if (window.confirm('Retirer cette crypto ?')) setSavingsAccounts(savingsAccounts.filter(x => x.id !== a.id)) }} className="text-zinc-700 hover:text-red-500"><Trash2 size={13} /></button>
+                          </div>
+                        </div>
+                        <DragHandle />
+                      </div>
+                    </div>
+                  </DraggableItem>
+                ))}
+            </Reorder.Group>
           </div>
         )}
 
@@ -958,13 +1102,13 @@ export default function NexusUltimateCloud() {
             <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">
-                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : 'Opération'}
+                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : 'Opération'}
                 </h2>
                 <button onClick={() => { setModal({ open: false, type: '', data: null }); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
               </div>
 
               <form onSubmit={handleForm} className="space-y-8">
-                {modal.type !== 'repay_partial' && modal.type !== 'repay_savings_advance' && modal.type !== 'savings_transaction' && modal.type !== 'portfolio' && (
+                {modal.type !== 'repay_partial' && modal.type !== 'repay_savings_advance' && modal.type !== 'savings_transaction' && modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && (
                   <div className="space-y-6">
                     {modal.type === 'expense' && (
                       <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
@@ -1037,7 +1181,39 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
 
-                {modal.type !== 'portfolio' && (
+                {(modal.type === 'add_crypto' || modal.type === 'edit_crypto') && (
+                  <div className="space-y-5">
+                    {modal.type === 'add_crypto' && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black uppercase text-orange-500 pl-2">Crypto</p>
+                        <div className="flex flex-wrap gap-2">
+                          {CRYPTOS.filter(c => !cryptoAssets.some(a => a.sym === c.sym) || c.sym === cryptoDraft.sym).map(c => (
+                            <button type="button" key={c.sym} onClick={() => setCryptoDraft({ ...cryptoDraft, sym: c.sym })} className={`px-3 py-2 rounded-xl text-[11px] font-black uppercase border ${cryptoDraft.sym === c.sym ? 'bg-orange-500 border-orange-500 text-black' : 'border-zinc-800 text-zinc-500'}`}>{c.sym}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="bg-black/40 border border-white/10 rounded-2xl p-4 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-black italic uppercase text-zinc-200">{cryptoName(cryptoDraft.sym)}</span>
+                        <span className="text-[10px] font-mono text-zinc-500">{cryptoPrices[cryptoDraft.sym]?.price ? cryptoPrices[cryptoDraft.sym].price.toLocaleString('fr-FR', { maximumFractionDigits: cryptoPrices[cryptoDraft.sym].price < 1 ? 6 : 2 }) + '€' : (cryptoLoading ? '…' : '—')}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="text" inputMode="decimal" autoFocus
+                          className="flex-1 bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-orange-500 font-bold text-white text-center"
+                          placeholder="Volume détenu"
+                          value={cryptoDraft.qty ?? ''}
+                          onChange={e => setCryptoDraft({ ...cryptoDraft, qty: e.target.value })}
+                        />
+                        <span className="text-sm font-black italic text-orange-500 whitespace-nowrap w-20 text-right">{cryptoPrices[cryptoDraft.sym]?.price ? Math.round((parseFloat(String(cryptoDraft.qty).replace(',', '.')) || 0) * cryptoPrices[cryptoDraft.sym].price).toLocaleString() + '€' : '—'}</span>
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Valeur = volume × cours Coinbase (EUR), arrondie à l'euro.</p>
+                  </div>
+                )}
+
+                {modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && (
                   <div className="relative flex items-center gap-3">
                     <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
@@ -1056,6 +1232,8 @@ export default function NexusUltimateCloud() {
                   <button type="button" onClick={handleSavingsAdvance} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">Créer Avance</button>
                 ) : modal.type === 'portfolio' ? (
                   <button type="button" onClick={handlePortfolioSave} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">Enregistrer</button>
+                ) : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? (
+                  <button type="button" onClick={handleCryptoSave} className="w-full py-6 rounded-[2rem] bg-orange-600 font-black text-xl uppercase shadow-xl">{modal.type === 'edit_crypto' ? 'Enregistrer' : 'Ajouter'}</button>
                 ) : (
                   <div className="flex flex-col gap-3">
                     <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all bg-indigo-600`}>Confirmer</button>
@@ -1074,6 +1252,7 @@ export default function NexusUltimateCloud() {
           <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('crypto')} className={activeTab === 'crypto' ? 'text-orange-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Bitcoin size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-indigo-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
           <div className="w-px h-8 bg-white/10 mx-1" />
           <button onClick={handleLogout} className="text-zinc-600 hover:text-red-500 transition-colors"><LogOut size={22} /></button>
