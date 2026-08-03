@@ -94,7 +94,9 @@ npm run lint     # eslint . (le dossier api/ est ignoré)
 
 ## Effet néon (design)
 
-`neon-pulse` (dans [`src/index.css`](src/index.css)) = liseré lumineux qui tourne lentement (conic-gradient floutée, 7 s) + halo ambiant coloré + liseré de verre. Variantes de couleur via classe additionnelle : `neon-pulse-cyan` (Épargne), `neon-pulse-green` (pointage payé), `neon-pulse-orange` (Crypto) ; défaut = **émeraude → menthe** (thème « Émeraude » choisi en août 2026, tout l'ancien violet/indigo a été remplacé par emerald ; flux « autres » du journal en teal pour rester distincts des recettes). Couleurs pilotées par les vars `--neon-1/2/-glow`. Respecte `prefers-reduced-motion` (rotation figée). Pour un nouvel univers de couleur, ajouter une variante `.neon-pulse-xxx` plutôt que de bricoler inline.
+`neon-pulse` (dans [`src/index.css`](src/index.css)) = liseré lumineux qui tourne lentement (conic-gradient floutée, 7 s) + halo ambiant coloré + liseré de verre. Variantes de couleur via classe additionnelle : `neon-pulse-cyan` (Épargne), `neon-pulse-green` (pointage payé), `neon-pulse-orange` (Crypto), `neon-pulse-pink` (Charges communes), `neon-pulse-ruby` (Perso), `neon-pulse-platinum` (Journal) ; défaut = **émeraude → menthe** (thème « Émeraude » choisi en août 2026, tout l'ancien violet/indigo a été remplacé).
+
+**Code couleur par page** (validé août 2026) : Dashboard = émeraude · Charges communes = **rose** (section Mensuel Fixe) + **or/ambre** (section Provisions Annuelles, avec équivalent `/mois` affiché) · Perso = **rubis** (check « payé » reste vert néon) · Épargne = cyan · Crypto = orange · Journal = **platine** (flux : rouge = paiement, émeraude = recette, teal = autre). La nav reflète la couleur de chaque page sur l'onglet actif. L'ambre reste aussi la couleur des Avances (partout). Couleurs pilotées par les vars `--neon-1/2/-glow`. Respecte `prefers-reduced-motion` (rotation figée). Pour un nouvel univers de couleur, ajouter une variante `.neon-pulse-xxx` plutôt que de bricoler inline.
 
 ## Pièges connus
 

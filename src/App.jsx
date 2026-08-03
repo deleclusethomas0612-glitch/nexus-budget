@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import {
   TrendingUp, Users, Wallet, Plus, Check, X, Trash2, Pencil,
   History as HistoryIcon, Zap, HeartPulse,
@@ -714,14 +714,30 @@ export default function NexusUltimateCloud() {
                 </div>
               </div>
             </div>
-            <div className="h-44 w-full opacity-70 relative z-10">
+            <div className="h-44 w-full relative z-10">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={totals.projection}>
-                  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.8} /><stop offset="95%" stopColor="#10b981" stopOpacity={0.2} /></linearGradient></defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
-                  <XAxis dataKey="name" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} interval={0} padding={{ left: 10, right: 10 }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#09090b', border: 'none', borderRadius: '20px' }} itemStyle={{ color: '#34d399' }} cursor={{ fill: '#ffffff05' }} />
-                  <Bar dataKey="solde" fill="url(#g)" radius={[4, 4, 0, 0]} />
+                  <defs>
+                    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.55} /><stop offset="95%" stopColor="#10b981" stopOpacity={0.10} /></linearGradient>
+                    <linearGradient id="gNow" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#34d399" stopOpacity={1} /><stop offset="95%" stopColor="#2dd4bf" stopOpacity={0.45} /></linearGradient>
+                    <linearGradient id="gNeg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f87171" stopOpacity={0.8} /><stop offset="95%" stopColor="#ef4444" stopOpacity={0.25} /></linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                  <XAxis dataKey="name" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} interval={0} padding={{ left: 10, right: 10 }}
+                    tick={({ x, y, payload, index }) => (
+                      <text x={x} y={y + 10} textAnchor="middle" fontSize={10} fontWeight={index === new Date().getMonth() ? 900 : 500} fill={index === new Date().getMonth() ? '#34d399' : '#3f3f46'}>{payload.value}</text>
+                    )} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#09090b', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '10px 16px' }}
+                    labelStyle={{ color: '#71717a', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}
+                    itemStyle={{ color: '#34d399', fontWeight: 900 }}
+                    formatter={(v) => [`${Number(v).toLocaleString()}€`, 'Solde']}
+                    cursor={{ fill: '#ffffff05' }} />
+                  <Bar dataKey="solde" radius={[6, 6, 0, 0]}>
+                    {totals.projection.map((d, i) => (
+                      <Cell key={d.name} fill={d.solde < 0 ? 'url(#gNeg)' : i === new Date().getMonth() ? 'url(#gNow)' : 'url(#g)'} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -729,7 +745,7 @@ export default function NexusUltimateCloud() {
             {/* QUICK ACTIONS */}
             <div className="grid grid-cols-3 gap-4">
               <button onClick={() => setModal({ open: true, type: 'exceptional' })} className="bg-zinc-900/50 border border-white/5 p-5 rounded-[2rem] flex flex-col items-center transition-all">
-                <ArrowUpRight size={22} className="mb-2 text-red-500" /><span className="text-[8px] font-black uppercase text-zinc-500 text-center tracking-tighter leading-tight text-red-400">Dépenses</span>
+                <ArrowUpRight size={22} className="mb-2 text-red-500" /><span className="text-[8px] font-black uppercase text-red-400 text-center tracking-tighter leading-tight">Dépenses</span>
               </button>
               <button onClick={() => setModal({ open: true, type: 'reimbursement' })} className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-[2rem] flex flex-col items-center transition-all">
                 <ArrowDownLeft size={22} className="mb-2 text-emerald-500" /><span className="text-[8px] font-black uppercase text-emerald-400 text-center tracking-tighter leading-tight text-emerald-400">Recette</span>
@@ -755,7 +771,7 @@ export default function NexusUltimateCloud() {
                           <div><p className="text-sm font-black italic uppercase text-left">{p.label}</p><p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Gérer l'avance</p></div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="font-mono font-black text-amber-500 text-2xl">{p.amount}€</span>
+                          <span className="font-mono font-black text-amber-500 text-2xl">{Number(p.amount).toLocaleString()}€</span>
                           <DragHandle />
                         </div>
                       </button>
@@ -879,7 +895,7 @@ export default function NexusUltimateCloud() {
                           <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Vers: {targetName}</p>
                         </div>
                       </div>
-                      <span className="text-xl font-black italic text-amber-500">{p.amount}€</span>
+                      <span className="text-xl font-black italic text-amber-500">{Number(p.amount).toLocaleString()}€</span>
                     </div>
                   )
                 })}
@@ -943,17 +959,21 @@ export default function NexusUltimateCloud() {
         {activeTab === 'personal' && (
           <div className="space-y-8 page-transition">
             {/* TOTAL FIXE MENSUEL */}
-            <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/20 blur-xl"></div>
+            <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse neon-pulse-ruby">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/20 blur-xl"></div>
               <div>
-                <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Total Mensuel Fixe</p>
+                <p className="text-[10px] font-black uppercase text-rose-400 tracking-widest">Total Mensuel Fixe</p>
                 <p className="text-3xl font-black italic text-white">{personalTotal.toLocaleString()}€</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest leading-none mb-1">Pointées</p>
+                <p className="text-2xl font-black italic text-emerald-400">{personalExpenses.filter(i => i.isPaid).length}<span className="text-sm text-zinc-500">/{personalExpenses.length}</span></p>
               </div>
             </div>
 
             <div className="flex justify-between items-center px-4 pt-4">
               <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Mes Charges</h2>
-              <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-emerald-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
+              <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-rose-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
             </div>
 
             <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => setPersonalExpenses(newList)} className="space-y-3 pb-4">
@@ -987,7 +1007,7 @@ export default function NexusUltimateCloud() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col items-end">
-                        <span className={`text-xl font-black italic text-emerald-400`}>{item.amount}€</span>
+                        <span className={`text-xl font-black italic text-rose-400`}>{Number(item.amount).toLocaleString()}€</span>
                         <div className="flex gap-2">
                           <button onClick={() => { setForm({ label: item.label, amount: item.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'create_personal_expense', data: item }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                           <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
@@ -1007,34 +1027,35 @@ export default function NexusUltimateCloud() {
           <div className="space-y-10 pb-4 text-white page-transition">
             <div className="flex justify-between items-center px-4">
               <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges communes</h2>
-              <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-emerald-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
+              <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-pink-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
             </div>
 
             {/* TOTAL GLOBAL ET VIREMENT */}
-            <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/20 blur-xl"></div>
+            <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse neon-pulse-pink">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/20 blur-xl"></div>
               <div>
-                <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Total Mensuel</p>
+                <p className="text-[10px] font-black uppercase text-pink-500 tracking-widest">Total Mensuel</p>
                 <p className="text-3xl font-black italic text-white">{(totals.totalFixed + totals.provision).toLocaleString()}€</p>
+                <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">{totals.totalFixed.toLocaleString()}€ fixe + {totals.provision.toLocaleString()}€ provision</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase text-emerald-400 tracking-widest leading-none mb-1">Virement / P</p>
-                <p className="text-2xl font-black italic text-emerald-400">{totals.virement.toLocaleString()}€</p>
+                <p className="text-[10px] font-black uppercase text-pink-400 tracking-widest leading-none mb-1">Virement / P</p>
+                <p className="text-2xl font-black italic text-pink-400">{totals.virement.toLocaleString()}€</p>
               </div>
             </div>
             <section className="space-y-8">
               <div className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
-                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
-                  <p className="text-xl font-black italic text-emerald-500 leading-none">{totals.totalFixed}€</p>
+                  <p className="text-[10px] font-black text-pink-500 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
+                  <p className="text-xl font-black italic text-pink-500 leading-none">{totals.totalFixed.toLocaleString()}€</p>
                 </div>
-                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-pink-500/20 rounded-[3rem] p-2 space-y-2">
                   {fixedExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-pink-500" />
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400">{getIcon(e.name)}</div>
+                          <div className="w-10 h-10 bg-pink-500/10 rounded-xl flex items-center justify-center text-pink-400">{getIcon(e.name)}</div>
                           <div>
                             <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
                             <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Charge Fixe</p>
@@ -1042,7 +1063,7 @@ export default function NexusUltimateCloud() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-end">
-                            <span className="text-xl font-black italic text-emerald-400">{e.amount}€</span>
+                            <span className="text-xl font-black italic text-pink-400">{Number(e.amount).toLocaleString()}€</span>
                             <div className="flex gap-2">
                               <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                               <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
@@ -1057,16 +1078,19 @@ export default function NexusUltimateCloud() {
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
-                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em] italic leading-none">Provisions Annuelles</p>
-                  <p className="text-xl font-black italic text-emerald-500 leading-none">{totals.totalAnnual}€</p>
+                  <p className="text-[10px] font-black text-amber-400 uppercase tracking-[0.4em] italic leading-none">Provisions Annuelles</p>
+                  <div className="text-right">
+                    <p className="text-xl font-black italic text-amber-400 leading-none">{totals.totalAnnual.toLocaleString()}€<span className="text-[10px] text-amber-600 not-italic font-bold"> /an</span></p>
+                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">≈ {totals.provision.toLocaleString()}€ /mois</p>
+                  </div>
                 </div>
-                <Reorder.Group axis="y" values={annualExpenses} onReorder={(newList) => setAnnualExpenses(newList)} className="bg-zinc-900/20 border border-emerald-500/20 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={annualExpenses} onReorder={(newList) => setAnnualExpenses(newList)} className="bg-zinc-900/20 border border-amber-500/20 rounded-[3rem] p-2 space-y-2">
                   {annualExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-400" />
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500"><Calendar size={18} /></div>
+                          <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400"><Calendar size={18} /></div>
                           <div>
                             <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
                             <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">{e.startDate ? `Dès ${new Date(e.startDate).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })}` : 'Provision'}</p>
@@ -1074,7 +1098,7 @@ export default function NexusUltimateCloud() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-end">
-                            <span className="text-xl font-black italic text-emerald-500">{e.amount}€</span>
+                            <span className="text-xl font-black italic text-amber-400">{Number(e.amount).toLocaleString()}€<span className="text-[10px] text-zinc-500 not-italic font-bold"> · {Math.round((Number(e.amount) || 0) / 12).toLocaleString()}€/m</span></span>
                             <div className="flex gap-2">
                               <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual', startDate: e.startDate || '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                               <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
@@ -1094,10 +1118,10 @@ export default function NexusUltimateCloud() {
         {/* --- HISTORIQUE --- */}
         {activeTab === 'history' && (
           <div className="space-y-8 pb-4 page-transition">
-            <div className="bg-gradient-to-br from-zinc-900 to-emerald-900 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative neon-pulse">
-              <p className="text-emerald-200 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
+            <div className="bg-gradient-to-br from-zinc-900 to-slate-700/60 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative neon-pulse neon-pulse-platinum">
+              <p className="text-slate-300 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
               <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length}</h2>
-              <button onClick={() => setShowArchives(!showArchives)} className="absolute top-8 right-8 bg-black/20 p-3 rounded-2xl text-emerald-200 hover:bg-black/40 transition-all flex items-center gap-2">
+              <button onClick={() => setShowArchives(!showArchives)} className="absolute top-8 right-8 bg-black/20 p-3 rounded-2xl text-slate-200 hover:bg-black/40 transition-all flex items-center gap-2">
                 <Archive size={18} />
                 <span className="text-[10px] font-bold uppercase">{showArchives ? "Actifs" : "Archives"}</span>
               </button>
@@ -1117,14 +1141,14 @@ export default function NexusUltimateCloud() {
                         </div>
                         <div className="flex gap-2 items-center bg-black/20 p-2 w-max rounded-xl border border-white/5">
                           <button onClick={() => handleArchiveHistory(h)} className="text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
-                          {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-emerald-400"><Pencil size={16} /></button>}
+                          {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-slate-200"><Pencil size={16} /></button>}
                           <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 relative z-10">
                       <span className={`font-black italic text-xl ${h.type === 'payment' ? 'text-red-500' : h.type === 'reimb' ? 'text-emerald-500' : 'text-teal-400'}`}>
-                        {h.type === 'payment' ? '-' : '+'}{h.amount}€
+                        {h.type === 'payment' ? '-' : '+'}{Number(h.amount).toLocaleString()}€
                       </span>
                       <DragHandle />
                     </div>
@@ -1150,8 +1174,8 @@ export default function NexusUltimateCloud() {
                   <div className="space-y-6">
                     {modal.type === 'expense' && (
                       <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
-                        <button type="button" onClick={() => setForm({ ...form, cat: 'fixed' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-emerald-600 text-white' : 'text-zinc-600'}`}>Mensuel</button>
-                        <button type="button" onClick={() => setForm({ ...form, cat: 'annual' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-emerald-600 text-white' : 'text-zinc-600'}`}>Annuel</button>
+                        <button type="button" onClick={() => setForm({ ...form, cat: 'fixed' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-pink-600 text-white' : 'text-zinc-600'}`}>Mensuel</button>
+                        <button type="button" onClick={() => setForm({ ...form, cat: 'annual' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-amber-500 text-black' : 'text-zinc-600'}`}>Annuel</button>
                       </div>
                     )}
                     <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-emerald-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
@@ -1287,11 +1311,11 @@ export default function NexusUltimateCloud() {
         {/* NAV BAR (Avec icones couleurs corrigées) */}
         <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 px-6 py-5 rounded-[2.5rem] flex justify-between items-center z-50 shadow-2xl">
           <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-pink-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-rose-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('crypto')} className={activeTab === 'crypto' ? 'text-orange-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Bitcoin size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-slate-200 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
           <div className="w-px h-8 bg-white/10 mx-1" />
           <button onClick={handleLogout} className="text-zinc-600 hover:text-red-500 transition-colors"><LogOut size={22} /></button>
         </nav>
