@@ -4,7 +4,7 @@ import {
   TrendingUp, Users, Wallet, Plus, Check, X, Trash2, Pencil,
   History as HistoryIcon, Zap, HeartPulse,
   Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame,
-  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical
+  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw
 } from 'lucide-react';
 import { supabase } from './supabase';
 import { Reorder, useDragControls } from 'framer-motion';
@@ -42,6 +42,14 @@ const DragHandle = ({ className }) => {
   );
 };
 
+// Fonds du Plan d'Épargne BoursoBank : code Boursorama (OPCVM) + ISIN.
+// Table extensible aux 6 autres fonds (Europe, France, Luxe, Santé, Tech, Climat).
+const BOURSO_FUNDS = [
+  { id: '0P0001US9F', name: 'Bourso Monde', isin: 'FR001400RWK6' },
+  { id: '0P0001US9I', name: 'Bourso US', isin: 'FR001400RWL4' },
+];
+const fundName = (id) => BOURSO_FUNDS.find(f => f.id === id)?.name || id;
+
 export default function NexusUltimateCloud() {
   // --- AUTH STATE ---
   const [session, setSession] = useState(null);
@@ -71,6 +79,9 @@ export default function NexusUltimateCloud() {
   const [showArchives, setShowArchives] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [saveError, setSaveError] = useState(false);
+  const [vlMap, setVlMap] = useState({});          // { symbol: { vl, at } } — VL live
+  const [vlLoading, setVlLoading] = useState(false);
+  const [portfolioDraft, setPortfolioDraft] = useState({}); // { fundId: "parts" } dans la modale
 
   const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'history'];
 
@@ -256,9 +267,97 @@ export default function NexusUltimateCloud() {
   }, [fixedExpenses, annualExpenses, reimbursements, exceptionalPaid, pending]);
 
   // --- 4. LOGIQUES INDÉPENDANTES ---
+  // Prix d'une ligne de fonds : VL live si dispo, sinon dernière VL en cache.
+  const fundPrice = (h) => (vlMap[h.fundId]?.vl ?? h.lastVL ?? 0);
+  // Valeur d'un compte : portefeuille = Σ(parts × VL) arrondi à l'euro ; sinon solde saisi.
+  const accountValue = (acc) => acc.isPortfolio
+    ? Math.round((acc.holdings || []).reduce((s, h) => s + (Number(h.shares) || 0) * fundPrice(h), 0))
+    : (Number(acc.balance) || 0);
+
   const savingsTotal = useMemo(() => {
-    return savingsAccounts.reduce((acc, c) => acc + (Number(c.balance) || 0), 0);
+    return savingsAccounts.reduce((sum, acc) => {
+      if (acc.isPortfolio) {
+        const v = (acc.holdings || []).reduce((s, h) => s + (Number(h.shares) || 0) * (vlMap[h.fundId]?.vl ?? h.lastVL ?? 0), 0);
+        return sum + Math.round(v);
+      }
+      return sum + (Number(acc.balance) || 0);
+    }, 0);
+  }, [savingsAccounts, vlMap]);
+
+  // Symboles des fonds détenus (pour savoir quelles VL rafraîchir).
+  const portfolioSymbols = useMemo(() => {
+    const s = new Set();
+    savingsAccounts.forEach(a => { if (a.isPortfolio) (a.holdings || []).forEach(h => s.add(h.fundId)); });
+    return Array.from(s);
   }, [savingsAccounts]);
+
+  // Récupère les VL via la fonction serverless /api/vl (same-origin, sans CORS).
+  const fetchVLs = async (symbols) => {
+    const list = symbols && symbols.length ? symbols : portfolioSymbols;
+    if (!list.length) return;
+    setVlLoading(true);
+    try {
+      const results = await Promise.all(list.map(async (sym) => {
+        try {
+          const r = await fetch(`/api/vl?symbol=${encodeURIComponent(sym)}`);
+          if (!r.ok) return null;
+          const j = await r.json();
+          return (typeof j.vl === 'number' && isFinite(j.vl)) ? { sym, vl: j.vl } : null;
+        } catch { return null; }
+      }));
+      const now = Date.now();
+      const updates = {};
+      results.forEach(res => { if (res) updates[res.sym] = { vl: res.vl, at: now }; });
+      if (Object.keys(updates).length) {
+        setVlMap(prev => ({ ...prev, ...updates }));
+        // Cache la dernière VL dans les lignes (reste lisible hors-ligne / si échec futur).
+        setSavingsAccounts(prev => prev.map(a => a.isPortfolio ? {
+          ...a,
+          holdings: (a.holdings || []).map(h => updates[h.fundId]
+            ? { ...h, lastVL: updates[h.fundId].vl, vlAt: now } : h)
+        } : a));
+      }
+    } finally {
+      setVlLoading(false);
+    }
+  };
+
+  // Rafraîchit les VL au chargement et quand la liste des fonds détenus change.
+  useEffect(() => {
+    if (loading || !session) return;
+    if (portfolioSymbols.length) fetchVLs(portfolioSymbols);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolioSymbols.join(','), loading]);
+
+  const openPortfolio = (acc) => {
+    const draft = {};
+    BOURSO_FUNDS.forEach(f => {
+      const h = (acc.holdings || []).find(x => x.fundId === f.id);
+      draft[f.id] = h ? String(h.shares) : '';
+    });
+    setPortfolioDraft(draft);
+    setModal({ open: true, type: 'portfolio', data: acc });
+    fetchVLs(BOURSO_FUNDS.map(f => f.id)); // VL fraîches pour l'aperçu
+  };
+
+  const handlePortfolioSave = () => {
+    const acc = modal.data;
+    const holdings = BOURSO_FUNDS.map(f => {
+      const shares = parseFloat(String(portfolioDraft[f.id] ?? '').replace(',', '.'));
+      const existing = (acc.holdings || []).find(h => h.fundId === f.id);
+      return {
+        fundId: f.id,
+        shares: isFinite(shares) ? shares : 0,
+        lastVL: existing?.lastVL ?? vlMap[f.id]?.vl ?? null,
+        vlAt: existing?.vlAt ?? vlMap[f.id]?.at ?? null,
+      };
+    }).filter(h => h.shares > 0);
+    setSavingsAccounts(savingsAccounts.map(a => a.id === acc.id ? { ...a, isPortfolio: true, holdings } : a));
+    setModal({ open: false, type: '', data: null });
+    setPortfolioDraft({});
+    const syms = holdings.map(h => h.fundId);
+    if (syms.length) fetchVLs(syms);
+  };
 
   const personalTotal = useMemo(() => {
     return personalExpenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
@@ -580,22 +679,43 @@ export default function NexusUltimateCloud() {
             <Reorder.Group axis="y" values={savingsAccounts} onReorder={(newList) => setSavingsAccounts(newList)} className="space-y-4">
               {savingsAccounts.map(acc => (
                 <DraggableItem key={acc.id} value={acc}>
-                  <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
+                  <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden">
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500" />
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400"><Wallet size={20} /></div>
-                      <div>
-                        <p className="text-sm font-black italic uppercase text-left text-zinc-200">{acc.name}</p>
-                        <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Disponible</p>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-400">
+                          {acc.isPortfolio ? <LineChart size={20} /> : <Wallet size={20} />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-black italic uppercase text-left text-zinc-200">{acc.name}</p>
+                          <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">{acc.isPortfolio ? 'Portefeuille · parts' : 'Disponible'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex flex-col items-end">
+                          <span className="text-xl font-black italic text-cyan-500">{accountValue(acc).toLocaleString()}€</span>
+                          <div className="flex gap-2 items-center mt-0.5">
+                            <button onClick={() => openPortfolio(acc)} className="text-zinc-600 hover:text-cyan-400" title="Gérer les parts"><Pencil size={13} /></button>
+                            {acc.isPortfolio && <button onClick={() => fetchVLs(portfolioSymbols)} className="text-zinc-600 hover:text-white" title="Rafraîchir la VL"><RefreshCw size={12} className={vlLoading ? 'animate-spin' : ''} /></button>}
+                            <button onClick={() => { if (window.confirm('Supprimer ce compte épargne ?')) setSavingsAccounts(savingsAccounts.filter(a => a.id !== acc.id)) }} className="text-zinc-700 hover:text-red-500"><Trash2 size={12} /></button>
+                          </div>
+                        </div>
+                        <DragHandle />
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex flex-col items-end">
-                        <span className="text-xl font-black italic text-cyan-500">{acc.balance}€</span>
-                        <button onClick={() => { if (window.confirm('Supprimer ce compte épargne ?')) setSavingsAccounts(savingsAccounts.filter(a => a.id !== acc.id)) }} className="text-zinc-700 hover:text-red-500"><Trash2 size={12} /></button>
+                    {acc.isPortfolio && (acc.holdings || []).length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-white/5 space-y-1.5">
+                        {(acc.holdings || []).map(h => (
+                          <div key={h.fundId} className="flex justify-between items-center text-[10px]">
+                            <span className="font-bold text-zinc-400 uppercase">{fundName(h.fundId)}</span>
+                            <span className="font-mono text-zinc-500">
+                              {Number(h.shares).toLocaleString('fr-FR', { maximumFractionDigits: 4 })} × {fundPrice(h) ? fundPrice(h).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}€
+                              <span className="text-cyan-500 font-black"> = {Math.round((Number(h.shares) || 0) * fundPrice(h)).toLocaleString()}€</span>
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                      <DragHandle />
-                    </div>
+                    )}
                   </div>
                 </DraggableItem>
               ))}
@@ -831,13 +951,13 @@ export default function NexusUltimateCloud() {
             <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">
-                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : 'Opération'}
+                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : 'Opération'}
                 </h2>
                 <button onClick={() => { setModal({ open: false, type: '', data: null }); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
               </div>
 
               <form onSubmit={handleForm} className="space-y-8">
-                {modal.type !== 'repay_partial' && modal.type !== 'repay_savings_advance' && modal.type !== 'savings_transaction' && (
+                {modal.type !== 'repay_partial' && modal.type !== 'repay_savings_advance' && modal.type !== 'savings_transaction' && modal.type !== 'portfolio' && (
                   <div className="space-y-6">
                     {modal.type === 'expense' && (
                       <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
@@ -867,12 +987,44 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
 
-                <div className="relative flex items-center gap-3">
-                  <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
-                  {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
-                    <button type="button" onClick={() => setForm({ ...form, amount: modal.data.amount })} className="px-4 py-8 bg-indigo-600/20 text-indigo-400 font-black uppercase text-xl rounded-2xl border border-indigo-500/20 hover:bg-indigo-600/40 transition-colors">MAX</button>
-                  )}
-                </div>
+                {modal.type === 'portfolio' && (
+                  <div className="space-y-4">
+                    <p className="text-[10px] font-black uppercase text-cyan-500 pl-2">Parts détenues par fonds</p>
+                    {BOURSO_FUNDS.map(f => {
+                      const shares = parseFloat(String(portfolioDraft[f.id] ?? '').replace(',', '.')) || 0;
+                      const vl = vlMap[f.id]?.vl ?? null;
+                      return (
+                        <div key={f.id} className="bg-black/40 border border-white/10 rounded-2xl p-4 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-black italic uppercase text-zinc-200">{f.name}</span>
+                            <span className="text-[10px] font-mono text-zinc-500">VL {vl ? vl.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€' : (vlLoading ? '…' : '—')}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="text" inputMode="decimal"
+                              className="flex-1 bg-black/50 border border-white/10 rounded-xl p-3 outline-none focus:border-cyan-500 font-bold text-white text-center"
+                              placeholder="0"
+                              value={portfolioDraft[f.id] ?? ''}
+                              onChange={e => setPortfolioDraft({ ...portfolioDraft, [f.id]: e.target.value })}
+                            />
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase whitespace-nowrap">parts</span>
+                            <span className="text-sm font-black italic text-cyan-500 whitespace-nowrap w-20 text-right">{vl ? Math.round(shares * vl).toLocaleString() + '€' : '—'}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Valeur = parts × dernière VL, arrondie à l'euro. VL récupérée automatiquement sur Boursorama.</p>
+                  </div>
+                )}
+
+                {modal.type !== 'portfolio' && (
+                  <div className="relative flex items-center gap-3">
+                    <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-indigo-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+                    {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
+                      <button type="button" onClick={() => setForm({ ...form, amount: modal.data.amount })} className="px-4 py-8 bg-indigo-600/20 text-indigo-400 font-black uppercase text-xl rounded-2xl border border-indigo-500/20 hover:bg-indigo-600/40 transition-colors">MAX</button>
+                    )}
+                  </div>
+                )}
 
                 {modal.type === 'savings_transaction' ? (
                   <div className="flex gap-4">
@@ -882,6 +1034,8 @@ export default function NexusUltimateCloud() {
                 ) : modal.type === 'savings_advance' ? (
                   /* CORRECTION BOUTON "CRÉER AVANCE" */
                   <button type="button" onClick={handleSavingsAdvance} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">Créer Avance</button>
+                ) : modal.type === 'portfolio' ? (
+                  <button type="button" onClick={handlePortfolioSave} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">Enregistrer</button>
                 ) : (
                   <div className="flex flex-col gap-3">
                     <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all bg-indigo-600`}>Confirmer</button>
