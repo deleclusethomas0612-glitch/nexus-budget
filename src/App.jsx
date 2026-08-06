@@ -68,11 +68,13 @@ const DragHandle = ({ className }) => {
 // est encodée par la place des items kind:'crypto' dans savings_accounts.
 const CRYPTO_ROW = { id: 'crypto-row' };
 
-// Fonds du Plan d'Épargne BoursoBank : code Boursorama (OPCVM) + ISIN.
-// Table extensible aux 6 autres fonds (Europe, France, Luxe, Santé, Tech, Climat).
+// Supports détenus dans le PEA : code Boursorama + ISIN. Fonds du Plan d'Épargne
+// BoursoBank (page OPCVM, table extensible aux 6 autres : Europe, France, Luxe,
+// Santé, Tech, Climat) et trackers/ETF cotés (page trackers, code « 1r… »).
 const BOURSO_FUNDS = [
   { id: '0P0001US9F', name: 'Bourso Monde', isin: 'FR001400RWK6' },
   { id: '0P0001US9I', name: 'Bourso US', isin: 'FR001400RWL4' },
+  { id: '1rTGPEA', name: 'Amundi PEA Global ACWI', isin: 'FR0014017NX3', ticker: 'GPEA' },
 ];
 const fundName = (id) => BOURSO_FUNDS.find(f => f.id === id)?.name || id;
 
@@ -902,9 +904,9 @@ export default function NexusUltimateCloud() {
                     {acc.isPortfolio && ((acc.holdings || []).length > 0 || (Number(acc.cash) || 0) > 0) && (
                       <div className="mt-3 pt-3 border-t border-white/5 space-y-1.5">
                         {(acc.holdings || []).map(h => (
-                          <div key={h.fundId} className="flex justify-between items-center text-[10px]">
-                            <span className="font-bold text-zinc-400 uppercase">{fundName(h.fundId)}</span>
-                            <span className="font-mono text-zinc-500">
+                          <div key={h.fundId} className="flex justify-between items-center gap-2 text-[10px]">
+                            <span className="font-bold text-zinc-400 uppercase truncate">{fundName(h.fundId)}</span>
+                            <span className="font-mono text-zinc-500 whitespace-nowrap shrink-0">
                               {Number(h.shares).toLocaleString('fr-FR', { maximumFractionDigits: 4 })} × {fundPrice(h) ? fundPrice(h).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}€
                               <span className="text-cyan-500 font-black"> = {Math.round((Number(h.shares) || 0) * fundPrice(h)).toLocaleString()}€</span>
                             </span>
@@ -1256,9 +1258,12 @@ export default function NexusUltimateCloud() {
                       const vl = vlMap[f.id]?.vl ?? null;
                       return (
                         <div key={f.id} className="bg-black/40 border border-white/10 rounded-2xl p-4 space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-black italic uppercase text-zinc-200">{f.name}</span>
-                            <span className="text-[10px] font-mono text-zinc-500">VL {vl ? vl.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€' : (vlLoading ? '…' : '—')}</span>
+                          <div className="flex justify-between items-baseline gap-2">
+                            <span className="text-sm font-black italic uppercase text-zinc-200 leading-tight">
+                              {f.name}
+                              {f.ticker && <span className="ml-1.5 text-[9px] not-italic font-bold text-cyan-600 tracking-wider">ETF · {f.ticker}</span>}
+                            </span>
+                            <span className="text-[10px] font-mono text-zinc-500 whitespace-nowrap shrink-0">VL {vl ? vl.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€' : (vlLoading ? '…' : '—')}</span>
                           </div>
                           <div className="flex items-center gap-3">
                             <input
@@ -1287,7 +1292,7 @@ export default function NexusUltimateCloud() {
                         <span className="text-sm font-black text-zinc-500">€</span>
                       </div>
                     </div>
-                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Valeur = (parts × VL) + liquidités, arrondie à l'euro. VL récupérée automatiquement sur Boursorama.</p>
+                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Valeur = (parts × VL/cours) + liquidités, arrondie à l'euro. VL des fonds et cours des ETF récupérés automatiquement sur Boursorama.</p>
                   </div>
                 )}
 

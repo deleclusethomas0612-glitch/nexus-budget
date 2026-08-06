@@ -58,12 +58,13 @@ Tout est dans le `useMemo` `totals` de [`src/App.jsx`](src/App.jsx).
 ### PEA / valorisation live (VL)
 
 - **Seuls le PEA et un compte-titres peuvent détenir des parts** (`canHoldTitles` : `isPortfolio` déjà actif ou nom contenant « pea »/« titre », insensible à la casse). Les autres comptes épargne sont **monétaires** (argent qui dort, saisi ~1×/an) : leur crayon ouvre un modal **Renommer** (`rename_savings`, change uniquement l'intitulé), jamais le portefeuille. L'assurance-vie est gérée à part, sans détail.
-- Fonds du Plan d'Épargne BoursoBank, table `BOURSO_FUNDS` (portée module) :
-  - Bourso Monde — code Boursorama `0P0001US9F`, ISIN `FR001400RWK6`.
-  - Bourso US — code `0P0001US9I`, ISIN `FR001400RWL4`.
-  - (6 autres fonds existent : Europe, France, Luxe, Santé, Tech, Climat — table extensible.)
-- Ce sont des **fonds à VL quotidienne** (pas d'intraday temps réel).
-- [`api/vl.js`](api/vl.js) : récupère la VL sur la page Boursorama `bourse/opcvm/cours/<code>/` côté serveur (same-origin `/api/vl?symbol=…`, **pas de CORS**, pas de clé). Parse la 1re occurrence de `data-ist-last` (format FR : espace = milliers, virgule = décimale).
+- Supports détenables, table `BOURSO_FUNDS` (portée module) :
+  - Bourso Monde — code Boursorama `0P0001US9F`, ISIN `FR001400RWK6` (fonds).
+  - Bourso US — code `0P0001US9I`, ISIN `FR001400RWL4` (fonds).
+  - Amundi PEA Global ACWI — code `1rTGPEA`, ISIN `FR0014017NX3`, ticker `GPEA` (**tracker/ETF** coté Euronext Paris ; champ `ticker` → badge « ETF · GPEA » dans le modal).
+  - (6 autres fonds Bourso existent : Europe, France, Luxe, Santé, Tech, Climat — table extensible.)
+- Les fonds Bourso sont à **VL quotidienne** (pas d'intraday) ; l'ETF a un **cours coté** (dernier cours de la séance).
+- [`api/vl.js`](api/vl.js) : récupère la valeur sur la page Boursorama côté serveur (same-origin `/api/vl?symbol=…`, **pas de CORS**, pas de clé). Deux chemins selon le support : `bourse/opcvm/cours/<code>/` (codes `0P…`) ou `bourse/trackers/cours/<code>/` (codes `1r…`) — le handler tente le plus probable puis l'autre en repli. Parse la 1re occurrence de `data-ist-last` (format FR : espace = milliers, virgule = décimale).
 - Client : `fetchVLs` appelle l'endpoint, remplit `vlMap`, et **met en cache** `lastVL` dans chaque ligne (reste lisible si la source échoue). Rafraîchi au chargement + bouton MAJ.
 
 ### Crypto (page dédiée)
