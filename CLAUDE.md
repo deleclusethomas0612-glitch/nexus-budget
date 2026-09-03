@@ -23,7 +23,7 @@ Une seule table Supabase `nexus_data`, une ligne par utilisateur (`user_id`). Ch
 | State / colonne | Forme des items |
 |---|---|
 | `fixedExpenses` / `fixed_expenses` | `{ id, name, amount }` (charges communes mensuelles) |
-| `annualExpenses` / `annual_expenses` | `{ id, name, amount, startDate\|null }` (provisions annuelles) |
+| `annualExpenses` / `annual_expenses` | `{ id, name, amount, startDate\|null, dueDate\|null, dueAmount\|null }` (provisions annuelles ; `dueDate`/`dueAmount` = échéance armée, cf. ci-dessous) |
 | `pending` / `pending` | `{ id, label, amount }` (avances en cours, onglet dashboard) |
 | `reimbursements` / `reimbursements` | `{ id, label, amount }` (recettes) |
 | `exceptionalPaid` / `exceptional_paid` | `{ id, label, amount }` (dépenses exceptionnelles) |
@@ -54,6 +54,13 @@ Tout est dans le `useMemo` `totals` de [`src/App.jsx`](src/App.jsx).
 - **`realCash`** (Cash Dispo) = `round(accProvision(maintenant) + totalReimbursed − totalPaid − totalPending)`. `startCash = 0`.
 - **Projection** = 12 barres Jan→Déc de l'année en cours.
 - **Total épargne** = Σ valeur des comptes. **Portefeuille** = `round(Σ(parts × VL) + cash)`, arrondi à l'euro (pas de centimes ; les parts sont fractionnées).
+
+### Échéances datées sur les provisions annuelles
+
+Une provision annuelle peut porter une **échéance armée** : le jour exact du prélèvement (`dueDate`, `YYYY-MM-DD`) et le **montant réel** de l'avis reçu (`dueAmount`, qui peut différer du prévisionnel `amount`). Saisie via l'icône `CalendarClock` de la bulle → modal `due_date` (réutilise `form.startDate` + `form.amount`, pas de nouveau champ de `form`).
+
+- **Au jour J** : un `useEffect` (même garde `loading || !session` que l'auto-save) balaie `annualExpenses`, crée une **dépense** dans `exceptionalPaid` + une ligne `payment` dans `history` (datée du jour de prélèvement), puis **efface `dueDate`/`dueAmount`**. La provision reste en place et continue de cumuler ; elle se réarme manuellement l'année suivante à réception de l'avis. L'effacement rend l'opération **non rejouable** (pas de double débit).
+- **Avant le jour J** : l'échéance ne touche **ni `realCash` ni le virement** — l'argent n'est pas encore sorti. Elle n'apparaît que sur le **graphe de projection**, où elle creuse le mois concerné **et tous les suivants** (`cumulDue`). La barre du mois devient **empilée** : vert = solde restant après l'échéance, **rouge (`gDue`, `stackId="p"`) = la part consommée**. Seules les échéances de **l'année en cours** sont tracées. Tooltip dédié : `ProjectionTooltip` (portée module).
 
 ### PEA / valorisation live (VL)
 
