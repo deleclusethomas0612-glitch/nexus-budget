@@ -23,10 +23,10 @@ Une seule table Supabase `nexus_data`, une ligne par utilisateur (`user_id`). Ch
 | State / colonne | Forme des items |
 |---|---|
 | `fixedExpenses` / `fixed_expenses` | `{ id, name, amount }` (charges communes mensuelles) |
-| `annualExpenses` / `annual_expenses` | `{ id, name, amount, startDate\|null, dueSchedule: [{ id, date, amount }] }` (provisions annuelles ; `dueSchedule` = échéances armées, cf. ci-dessous. Ancien format scalaire `dueDate`/`dueAmount` encore relu par `dueList`) |
+| `annualExpenses` / `annual_expenses` | `{ id, name, amount, startDate\|null, dueSchedule: [{ id, date, amount }], noProvision? }` (provisions annuelles ; `dueSchedule` = échéances armées et `noProvision:true` = **dépense programmée** du dashboard, cf. ci-dessous. Ancien format scalaire `dueDate`/`dueAmount` encore relu par `dueList`) |
 | `pending` / `pending` | `{ id, label, amount }` (avances en cours, onglet dashboard) |
-| `reimbursements` / `reimbursements` | `{ id, label, amount }` (recettes) |
-| `exceptionalPaid` / `exceptional_paid` | `{ id, label, amount }` (dépenses exceptionnelles) |
+| `reimbursements` / `reimbursements` | `{ id, label, amount, paidOn }` (recettes ; `paidOn` = jour ISO, cf. datation des flux) |
+| `exceptionalPaid` / `exceptional_paid` | `{ id, label, amount, paidOn }` (dépenses exceptionnelles ; `paidOn` = jour ISO, cf. datation des flux) |
 | `history` / `history` | `{ id, label, amount, type: 'payment'\|'reimb'\|…, date, isArchived? }` |
 | `savingsAccounts` / `savings_accounts` | compte simple `{ id, name, balance }`, portefeuille `{ id, name, isPortfolio:true, holdings:[{ fundId, shares, lastVL, vlAt }], cash }`, **ou crypto** `{ id, kind:'crypto', sym, qty, lastPrice, priceAt }` (affiché sur la page Crypto, **exclu** de la page/total Épargne via `kind !== 'crypto'`) |
 | `savingsPending` / `savings_pending` | `{ id, label, amount, targetAccountId }` (avances sur épargne) |
@@ -61,8 +61,24 @@ Une provision annuelle peut porter une ou **plusieurs échéances armées** (pai
 
 - **`dueList(e)`** (portée module) normalise les échéances en liste et assure la **rétrocompatibilité** : les provisions armées avant le multi-échéances portent encore `dueDate`/`dueAmount` scalaires, relus comme une liste à une ligne. Toujours passer par `dueList` / `dueTotal`, jamais lire `dueDate` directement.
 - **Au jour J** : un `useEffect` (même garde `loading || !session` que l'auto-save) balaie les échéances de chaque provision ; celles dont la date est atteinte créent une **dépense** dans `exceptionalPaid` + une ligne `payment` dans `history` (datée du prélèvement, libellé numéroté `(n/total)` s'il y en a plusieurs), puis sont **retirées de `dueSchedule`** — les échéances suivantes restent armées. La provision reste en place et continue de cumuler ; elle se réarme manuellement l'année suivante. Le retrait rend l'opération **non rejouable** (pas de double débit).
-- **Avant le jour J** : les échéances ne touchent **ni `realCash` ni le virement** — l'argent n'est pas encore sorti. Elles n'apparaissent que sur le **graphe de projection**, où chacune creuse son mois **et tous les suivants** (`cumulDue`). La barre du mois devient **empilée** : vert = solde restant après l'échéance, **rouge (`gDue`, `stackId="p"`) = la part consommée**. Seules les échéances de **l'année en cours** sont tracées. Tooltip dédié : `ProjectionTooltip` (portée module).
+- **Avant le jour J** : les échéances ne touchent **ni `realCash` ni le virement** — l'argent n'est pas encore sorti. Elles n'apparaissent que sur le **graphe de projection** (cf. section suivante), en rouge sur leur mois.
 - La carte du modal est `max-h-[88vh] overflow-y-auto` : sans ça, une liste de 4 échéances déborde l'écran mobile et le bouton Enregistrer devient inaccessible.
+
+### Dépenses programmées (dashboard)
+
+Une facture connue d'avance mais **hors prévisionnel** (régularisation, avis ponctuel…) se saisit depuis le dashboard : quick action **Dépenses** → bouton « Prélèvement à venir ? », qui déplie la **même liste d'échéances** que les provisions (`dueDraft`, une ou plusieurs dates). Sans échéance saisie → dépense immédiate, comme avant.
+
+- Rangées dans `annualExpenses` avec **`noProvision: true`** : elles réutilisent toute la mécanique des échéances (jour J, graphe) mais sont **exclues de `totalAnnual`, de la provision mensuelle, du virement et de `accProvisionAt`** (filtre `provisions` dans `totals`). Aucune colonne ajoutée.
+- Affichées sur le **dashboard** en section « Prélèvements à venir » (rose), éditables / supprimables ; `provisionItems` les tient **hors** de la liste Provisions Annuelles de l'onglet Charges communes (le `Reorder.Group` y réinjecte les `noProvision` à la fin pour ne pas les perdre).
+
+### Datation des flux et graphe de projection
+
+Chaque flux porte son jour réel, ce qui le place sur le **bon mois** du graphe — y compris quand il est saisi après coup.
+
+- **`paidOn`** (`YYYY-MM-DD`) est écrit à la création de chaque dépense / recette. Pour une échéance posée au jour J, `paidOn` = **le jour du prélèvement**, pas le jour de la saisie : une échéance datée du passé creuse bien son mois d'origine.
+- **`flowOn(x)`** (portée module) rend la date d'un flux : `paidOn` s'il existe, sinon repli sur `x.id` (un `Date.now()` de création) — ce qui **date correctement tout l'historique antérieur**. Sans repli exploitable → `null` : le flux est appliqué sur les 12 mois, comme avant la datation.
+- **Projection** : pour chaque mois, `solde` = provisions cumulées + recettes du mois et des précédentes − dépenses des mois précédents − avances, moins ce que le mois consomme. La barre est **empilée** : vert = solde restant, **rouge (`gDue`, `stackId="p"`) = ce que le mois consomme** (dépenses réelles + échéances encore armées). Un flux antérieur à l'année en cours est acquis dès janvier ; un flux postérieur est hors graphe. Tooltip dédié : `ProjectionTooltip` (portée module).
+- **`realCash` est inchangé** (il somme tout, sans regarder les dates) et **coïncide désormais avec la barre du mois courant**, aux échéances non encore échues près.
 
 ### PEA / valorisation live (VL)
 

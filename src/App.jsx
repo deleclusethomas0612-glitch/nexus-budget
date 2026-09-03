@@ -104,6 +104,25 @@ const dueList = (e) => {
 };
 const dueTotal = (e) => dueList(e).reduce((s, d) => s + (Number(d.amount) || 0), 0);
 
+// Date du jour au format ISO (YYYY-MM-DD), en heure locale.
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Date réelle d'un flux (dépense / recette), qui sert à le placer sur le bon mois
+// du graphe. Les flux enregistrés avant la datation n'ont pas de `paidOn` : on
+// retombe sur leur `id`, qui est un `Date.now()` de création. Sans repli
+// exploitable → null : le flux est alors appliqué sur tout le graphe, comme avant.
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const MIN_TS = Date.UTC(2020, 0, 1), MAX_TS = Date.UTC(2100, 0, 1);
+const flowOn = (x) => {
+  if (typeof x.paidOn === 'string' && ISO_DAY.test(x.paidOn)) return new Date(`${x.paidOn}T12:00:00`);
+  const n = Number(x.id);
+  if (Number.isFinite(n) && n > MIN_TS && n < MAX_TS) return new Date(n);
+  return null;
+};
+
 // Tooltip du graphe de projection : solde restant + éventuelle échéance datée du mois.
 const ProjectionTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
@@ -289,14 +308,17 @@ export default function NexusUltimateCloud() {
           // Plusieurs échéances : on numérote pour distinguer les lignes du Journal.
           label: dueList(e).length > 1 ? `${e.name} (${stamped.length + 1}/${dueList(e).length})` : e.name,
           amount: Math.round(Number(d.amount) || 0),
+          // `on` = jour réel du prélèvement : c'est lui qui place la dépense sur le
+          // bon mois du graphe, même quand l'échéance est saisie après coup.
+          on: d.date,
           date: new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
         });
       });
     });
     if (!touched) return;
 
-    setExceptionalPaid(prev => [...stamped.map(({ id, label, amount }) => ({ id, label, amount })), ...prev]);
-    setHistory(prev => [...stamped.map(x => ({ ...x, type: 'payment' })), ...prev]);
+    setExceptionalPaid(prev => [...stamped.map(({ id, label, amount, on }) => ({ id, label, amount, paidOn: on })), ...prev]);
+    setHistory(prev => [...stamped.map(({ id, label, amount, date }) => ({ id, label, amount, date, type: 'payment' })), ...prev]);
     setAnnualExpenses(prev => prev.map(e => {
       const rest = dueList(e).filter(d => !isDue(d));
       if (rest.length === dueList(e).length) return e;
@@ -328,7 +350,11 @@ export default function NexusUltimateCloud() {
   // --- 3. LOGIQUE MÉTIER ---
   const totals = useMemo(() => {
     const totalFixed = fixedExpenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
-    const totalAnnual = annualExpenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
+    // `annualExpenses` héberge deux choses : les vraies provisions annuelles, et les
+    // dépenses programmées depuis le dashboard (`noProvision`), qui portent seulement
+    // des échéances datées et n'alimentent NI la provision mensuelle NI le virement.
+    const provisions = annualExpenses.filter(e => !e.noProvision);
+    const totalAnnual = provisions.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
     // La mensualité (montant/12) est TOUJOURS pleine, quelle que soit la date de démarrage.
     const provision = Math.round(totalAnnual / 12);
     // Charges communes partagées simplement par 2 (foyer à deux), sans exception.
@@ -358,7 +384,7 @@ export default function NexusUltimateCloud() {
       return Math.max(0, target - absMonth(d.getFullYear(), d.getMonth()) + 1);
     };
 
-    const accProvisionAt = (target) => annualExpenses.reduce(
+    const accProvisionAt = (target) => provisions.reduce(
       (acc, e) => acc + ((Number(e.amount) || 0) / 12) * monthsFor(e, target),
       0
     );
@@ -367,12 +393,34 @@ export default function NexusUltimateCloud() {
       startCash + accProvisionAt(absMonth(currentYear, currentMonthIndex)) + totalReimbursed - totalPaid - totalPending
     );
 
-    const baseForProjection = startCash + totalReimbursed - totalPaid - totalPending;
+    // --- GRAPHE DE PROJECTION ---
+    // Chaque flux est placé sur SON mois : une dépense de juin ne creuse que juin et
+    // les mois suivants, jamais janvier à mai — y compris si elle est saisie plus tard.
+    // Les flux sans date exploitable (ni `paidOn` ni `id` timestamp) restent appliqués
+    // sur les 12 mois, ce qui reproduit le comportement d'avant la datation.
+    const paidByMonth = Array(12).fill(0);
+    const reimbByMonth = Array(12).fill(0);
+    const paidLabels = Array.from({ length: 12 }, () => []);
+    let paidBefore = 0, reimbBefore = 0;
 
-    // Échéances armées (date de prélèvement saisie sur une provision annuelle) de
-    // l'année en cours : elles creusent le graphe PAR ANTICIPATION. Elles ne touchent
-    // ni realCash ni le virement — l'argent ne sort qu'au jour J, où l'échéance
-    // devient une vraie dépense (voir l'effet « échéances échues »).
+    // Répartit un flux sur son mois. Antérieur à l'année en cours ou non datable
+    // → déjà acquis, appliqué dès janvier. Postérieur → hors de ce graphe.
+    const spread = (list, byMonth, onBefore, labels) => {
+      list.forEach(x => {
+        const v = Number(x.amount) || 0;
+        const d = flowOn(x);
+        if (!d || d.getFullYear() < currentYear) { onBefore(v); return; }
+        if (d.getFullYear() > currentYear) return;
+        byMonth[d.getMonth()] += v;
+        if (labels && x.label && !labels[d.getMonth()].includes(x.label)) labels[d.getMonth()].push(x.label);
+      });
+    };
+    spread(exceptionalPaid, paidByMonth, v => { paidBefore += v; }, paidLabels);
+    spread(reimbursements, reimbByMonth, v => { reimbBefore += v; }, null);
+
+    // Échéances armées (prélèvements à venir, provisions ET dépenses programmées) :
+    // elles creusent le graphe PAR ANTICIPATION. Elles ne touchent ni realCash ni le
+    // virement — l'argent ne sort qu'au jour J, où elles deviennent de vraies dépenses.
     const dueByMonth = Array(12).fill(0);
     const dueLabels = Array.from({ length: 12 }, () => []);
     annualExpenses.forEach(e => {
@@ -384,16 +432,25 @@ export default function NexusUltimateCloud() {
       });
     });
 
-    let cumulDue = 0;
+    let cumulReimb = 0, cumulOut = 0;
     const projection = Array.from({ length: 12 }, (_, i) => {
-      cumulDue += dueByMonth[i];
-      const brut = Math.round(baseForProjection + accProvisionAt(absMonth(currentYear, i)));
+      cumulReimb += reimbByMonth[i];
+      // Ce que le mois consomme : dépenses réellement payées + échéances encore armées.
+      const consomme = paidByMonth[i] + dueByMonth[i];
+      // Solde AVANT la consommation du mois = sommet de la barre empilée.
+      const avant = Math.round(
+        startCash + accProvisionAt(absMonth(currentYear, i))
+        + reimbBefore + cumulReimb
+        - paidBefore - cumulOut
+        - totalPending
+      );
+      cumulOut += consomme;
       return {
         name: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][i],
-        // Barre verte = ce qui reste APRÈS l'échéance ; segment rouge empilé = sa part.
-        solde: brut - cumulDue,
-        due: Math.round(dueByMonth[i]),
-        dueLabel: dueLabels[i].join(' · ')
+        // Barre verte = ce qui reste APRÈS ; segment rouge empilé = la part consommée.
+        solde: avant - Math.round(consomme),
+        due: Math.round(consomme),
+        dueLabel: [...paidLabels[i], ...dueLabels[i]].join(' · ')
       };
     });
 
@@ -595,6 +652,15 @@ export default function NexusUltimateCloud() {
     fetchCryptoPrices([cryptoDraft.sym]);
   };
 
+  // Vraies provisions annuelles (onglet Charges communes), hors dépenses programmées.
+  const provisionItems = useMemo(() => annualExpenses.filter(e => !e.noProvision), [annualExpenses]);
+
+  // Dépenses programmées (factures datées hors prévisionnel), affichées sur le dashboard.
+  const scheduledExpenses = useMemo(
+    () => annualExpenses.filter(e => e.noProvision && dueList(e).length > 0),
+    [annualExpenses]
+  );
+
   const personalTotal = useMemo(() => {
     return personalExpenses.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
   }, [personalExpenses]);
@@ -636,12 +702,37 @@ export default function NexusUltimateCloud() {
     setDueDraft([]);
   };
 
-  // Enregistre la liste d'échéances saisie dans la modale (lignes incomplètes ignorées).
+  // Lignes valides du brouillon d'échéances, triées (incomplètes ignorées).
+  const cleanDueDraft = () => dueDraft
+    .map(d => ({ id: d.id, date: d.date, amount: parseFloat(String(d.amount).replace(',', '.')) }))
+    .filter(d => d.date && !isNaN(d.amount) && d.amount > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Dépense programmée depuis le dashboard : une facture connue d'avance, hors
+  // prévisionnel. Rangée dans `annualExpenses` avec `noProvision` — elle réutilise
+  // toute la mécanique des échéances (jour J, graphe) sans alimenter la provision.
+  const handleScheduledSave = () => {
+    const sched = cleanDueDraft();
+    const name = (form.label || '').trim();
+    if (!sched.length || !name) return;
+    const total = Math.round(sched.reduce((a, d) => a + d.amount, 0));
+    const editing = modal.data;
+    if (editing) {
+      setAnnualExpenses(annualExpenses.map(x => x.id === editing.id
+        ? { ...x, name, amount: total, dueSchedule: sched } : x));
+    } else {
+      setAnnualExpenses([...annualExpenses, {
+        id: Date.now(), name, amount: total, startDate: null, noProvision: true, dueSchedule: sched
+      }]);
+    }
+    setModal({ open: false, type: '', data: null });
+    setDueDraft([]);
+    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
+  };
+
+  // Enregistre la liste d'échéances saisie dans la modale.
   const handleDueSave = () => {
-    const clean = dueDraft
-      .map(d => ({ id: d.id, date: d.date, amount: parseFloat(String(d.amount).replace(',', '.')) }))
-      .filter(d => d.date && !isNaN(d.amount) && d.amount > 0)
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const clean = cleanDueDraft();
     setAnnualExpenses(annualExpenses.map(x => x.id === modal.data.id
       ? { ...x, dueSchedule: clean, dueDate: null, dueAmount: null }
       : x));
@@ -684,7 +775,7 @@ export default function NexusUltimateCloud() {
       addEntry(sharedId, `Absorbé Épargne: ${debt.label}`, debt.amount, 'payment');
     } else {
       setPending(pending.filter(p => p.id !== debt.id));
-      setExceptionalPaid([...exceptionalPaid, { id: sharedId, label: debt.label, amount: debt.amount }]);
+      setExceptionalPaid([...exceptionalPaid, { id: sharedId, label: debt.label, amount: debt.amount, paidOn: todayISO() }]);
       addEntry(sharedId, `Absorbé: ${debt.label}`, debt.amount, 'payment');
     }
 
@@ -715,6 +806,9 @@ export default function NexusUltimateCloud() {
     if (modal.type === 'portfolio') { handlePortfolioSave(); return; }
     if (modal.type === 'add_crypto' || modal.type === 'edit_crypto') { handleCryptoSave(); return; }
     if (modal.type === 'due_date') { handleDueSave(); return; }
+    // Dépense du dashboard avec des échéances saisies → dépense PROGRAMMÉE : rien ne
+    // sort avant le jour J, donc pas de montant global à valider ici.
+    if (modal.type === 'exceptional' && cleanDueDraft().length) { handleScheduledSave(); return; }
     if (modal.type === 'rename_savings') {
       const name = (form.label || '').trim();
       if (name) setSavingsAccounts(savingsAccounts.map(a => a.id === modal.data.id ? { ...a, name } : a));
@@ -747,11 +841,11 @@ export default function NexusUltimateCloud() {
       setPending([{ id: sharedId, label: form.label, amount: val }, ...pending]);
     }
     else if (modal.type === 'exceptional') {
-      setExceptionalPaid([{ id: sharedId, label: form.label, amount: val }, ...exceptionalPaid]);
+      setExceptionalPaid([{ id: sharedId, label: form.label, amount: val, paidOn: todayISO() }, ...exceptionalPaid]);
       addEntry(sharedId, form.label, val, 'payment');
     }
     else if (modal.type === 'reimbursement') {
-      setReimbursements([{ id: sharedId, label: form.label, amount: val }, ...reimbursements]);
+      setReimbursements([{ id: sharedId, label: form.label, amount: val, paidOn: todayISO() }, ...reimbursements]);
       addEntry(sharedId, form.label, val, 'reimb');
     }
     else if (modal.type === 'expense') {
@@ -898,7 +992,7 @@ export default function NexusUltimateCloud() {
 
             {/* QUICK ACTIONS */}
             <div className="grid grid-cols-3 gap-4">
-              <button onClick={() => setModal({ open: true, type: 'exceptional' })} className="bg-zinc-900/50 border border-white/5 p-5 rounded-[2rem] flex flex-col items-center transition-all">
+              <button onClick={() => { setDueDraft([]); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setModal({ open: true, type: 'exceptional', data: null }); }} className="bg-zinc-900/50 border border-white/5 p-5 rounded-[2rem] flex flex-col items-center transition-all">
                 <ArrowUpRight size={22} className="mb-2 text-red-500" /><span className="text-[8px] font-black uppercase text-red-400 text-center tracking-tighter leading-tight">Dépenses</span>
               </button>
               <button onClick={() => setModal({ open: true, type: 'reimbursement' })} className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-[2rem] flex flex-col items-center transition-all">
@@ -908,6 +1002,44 @@ export default function NexusUltimateCloud() {
                 <Plus size={22} className="mb-2" /><span className="text-[8px] font-black uppercase text-center tracking-tighter leading-tight">Avance</span>
               </button>
             </div>
+
+            {/* PRÉLÈVEMENTS PROGRAMMÉS */}
+            {scheduledExpenses.length > 0 && (
+              <section className="space-y-4">
+                <div className="flex justify-between px-4 items-end">
+                  <p className="text-[10px] font-black text-rose-400 uppercase tracking-[0.4em] italic leading-none">Prélèvements à venir</p>
+                  <p className="text-xl font-black italic text-rose-400 leading-none">
+                    {scheduledExpenses.reduce((a, e) => a + dueTotal(e), 0).toLocaleString()}€
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {scheduledExpenses.map(e => (
+                    <div key={e.id} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center relative overflow-hidden">
+                      <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-rose-500" />
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-10 h-10 shrink-0 bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-400"><CalendarClock size={18} /></div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black italic uppercase text-left truncate">{e.name}</p>
+                          <p className="text-[8px] text-rose-400/80 font-black uppercase tracking-widest text-left">
+                            {dueList(e).length > 1
+                              ? `${dueList(e).length} prélèvements · dès ${new Date(dueList(e)[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}`
+                              : `Le ${new Date(dueList(e)[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0 pl-2">
+                        <span className="text-xl font-black italic text-rose-400">{Math.round(dueTotal(e)).toLocaleString()}€</span>
+                        <div className="flex gap-2">
+                          <button onClick={() => { setForm({ label: e.name, amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setDueDraft(dueList(e).map((d, i) => ({ id: d.id ?? Date.now() + i, date: d.date, amount: String(d.amount ?? '') }))); setModal({ open: true, type: 'exceptional', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
+                          <button onClick={() => setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id))} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[9px] text-zinc-600 font-bold px-4 leading-tight">Rien n'est débité avant la date : le Cash Dispo ne bouge qu'au jour J. Le graphe, lui, anticipe déjà le creux.</p>
+              </section>
+            )}
 
             {/* FLUX */}
             <section className="space-y-5">
@@ -1241,8 +1373,10 @@ export default function NexusUltimateCloud() {
                     <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">≈ {totals.provision.toLocaleString()}€ /mois</p>
                   </div>
                 </div>
-                <Reorder.Group axis="y" values={annualExpenses} onReorder={(newList) => setAnnualExpenses(newList)} className="bg-zinc-900/20 border border-amber-500/20 rounded-[3rem] p-2 space-y-2">
-                  {annualExpenses.map(e => (
+                {/* Les dépenses programmées (`noProvision`) partagent ce tableau mais
+                    s'affichent sur le dashboard : on les garde hors de cette liste. */}
+                <Reorder.Group axis="y" values={provisionItems} onReorder={(newList) => setAnnualExpenses([...newList, ...annualExpenses.filter(e => e.noProvision)])} className="bg-zinc-900/20 border border-amber-500/20 rounded-[3rem] p-2 space-y-2">
+                  {provisionItems.map(e => (
                     <DraggableItem key={e.id} value={e}>
                       <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
                         <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-amber-400" />
@@ -1328,19 +1462,19 @@ export default function NexusUltimateCloud() {
             <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in max-h-[88vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">
-                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéances' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : 'Opération'}
+                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéances' : (modal.type === 'exceptional' && dueDraft.length > 0) ? 'Dépense programmée' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : 'Opération'}
                 </h2>
                 <button onClick={() => { setModal({ open: false, type: '', data: null }); setDueDraft([]); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
               </div>
 
               <form onSubmit={handleForm} className="space-y-8">
-                {modal.type === 'due_date' && (
+                {(modal.type === 'due_date' || (modal.type === 'exceptional' && dueDraft.length > 0)) && (
                   <div className="space-y-4">
-                    <div className="bg-black/40 border border-amber-500/20 rounded-2xl p-5">
+                    {modal.type === 'due_date' && <div className="bg-black/40 border border-amber-500/20 rounded-2xl p-5">
                       <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 leading-none mb-2">Provision annuelle</p>
                       <p className="text-lg font-black italic uppercase text-amber-400 leading-none">{modal.data?.name}</p>
                       <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mt-2">Prévisionnel {Number(modal.data?.amount || 0).toLocaleString()}€ /an</p>
-                    </div>
+                    </div>}
 
                     <p className="text-[10px] font-black uppercase text-amber-500 pl-2">Prélèvements prévus</p>
                     {dueDraft.map((d, i) => (
@@ -1375,7 +1509,7 @@ export default function NexusUltimateCloud() {
 
                     {dueDraft.length > 0 && (() => {
                       const tot = dueDraft.reduce((a, d) => a + (parseFloat(String(d.amount).replace(',', '.')) || 0), 0);
-                      const ecart = Math.round(tot - (Number(modal.data?.amount) || 0));
+                      const ecart = modal.type === 'due_date' ? Math.round(tot - (Number(modal.data?.amount) || 0)) : 0;
                       return (
                         <div className="flex justify-between items-baseline px-2 pt-1">
                           <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Total {dueDraft.length} échéance{dueDraft.length > 1 ? 's' : ''}</span>
@@ -1497,13 +1631,22 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
 
-                {modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && modal.type !== 'rename_savings' && modal.type !== 'due_date' && (
+                {modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && modal.type !== 'rename_savings' && modal.type !== 'due_date' && !(modal.type === 'exceptional' && dueDraft.length > 0) && (
                   <div className="relative flex items-center gap-3">
                     <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-emerald-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
                       <button type="button" onClick={() => setForm({ ...form, amount: modal.data.amount })} className="px-4 py-8 bg-emerald-600/20 text-emerald-400 font-black uppercase text-xl rounded-2xl border border-emerald-500/20 hover:bg-emerald-600/40 transition-colors">MAX</button>
                     )}
                   </div>
+                )}
+
+                {modal.type === 'exceptional' && dueDraft.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setDueDraft([{ id: Date.now(), date: '', amount: form.amount || '' }])}
+                    className="w-full py-4 rounded-2xl border border-dashed border-amber-500/40 text-amber-500 font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-amber-500/10 transition-colors">
+                    <CalendarClock size={16} /> Prélèvement à venir ?
+                  </button>
                 )}
 
                 {modal.type === 'savings_transaction' ? (
@@ -1528,7 +1671,7 @@ export default function NexusUltimateCloud() {
                   <button type="button" onClick={handleCryptoSave} className="w-full py-6 rounded-[2rem] bg-orange-600 font-black text-xl uppercase shadow-xl">{modal.type === 'edit_crypto' ? 'Enregistrer' : 'Ajouter'}</button>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all bg-emerald-600`}>Confirmer</button>
+                    <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'exceptional' && dueDraft.length > 0 ? 'bg-amber-600' : 'bg-emerald-600'}`}>{modal.type === 'exceptional' && dueDraft.length > 0 ? 'Programmer' : 'Confirmer'}</button>
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
                       <button type="button" onClick={handleAbsorb} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-amber-500 border border-amber-500/30 hover:bg-amber-500/10 flex items-center justify-center gap-2"><Flame size={16} /> Absorbé</button>
                     )}
