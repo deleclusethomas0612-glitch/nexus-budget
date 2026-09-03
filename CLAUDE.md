@@ -23,7 +23,7 @@ Une seule table Supabase `nexus_data`, une ligne par utilisateur (`user_id`). Ch
 | State / colonne | Forme des items |
 |---|---|
 | `fixedExpenses` / `fixed_expenses` | `{ id, name, amount }` (charges communes mensuelles) |
-| `annualExpenses` / `annual_expenses` | `{ id, name, amount, startDate\|null, dueDate\|null, dueAmount\|null }` (provisions annuelles ; `dueDate`/`dueAmount` = échéance armée, cf. ci-dessous) |
+| `annualExpenses` / `annual_expenses` | `{ id, name, amount, startDate\|null, dueSchedule: [{ id, date, amount }] }` (provisions annuelles ; `dueSchedule` = échéances armées, cf. ci-dessous. Ancien format scalaire `dueDate`/`dueAmount` encore relu par `dueList`) |
 | `pending` / `pending` | `{ id, label, amount }` (avances en cours, onglet dashboard) |
 | `reimbursements` / `reimbursements` | `{ id, label, amount }` (recettes) |
 | `exceptionalPaid` / `exceptional_paid` | `{ id, label, amount }` (dépenses exceptionnelles) |
@@ -57,10 +57,12 @@ Tout est dans le `useMemo` `totals` de [`src/App.jsx`](src/App.jsx).
 
 ### Échéances datées sur les provisions annuelles
 
-Une provision annuelle peut porter une **échéance armée** : le jour exact du prélèvement (`dueDate`, `YYYY-MM-DD`) et le **montant réel** de l'avis reçu (`dueAmount`, qui peut différer du prévisionnel `amount`). Saisie via l'icône `CalendarClock` de la bulle → modal `due_date` (réutilise `form.startDate` + `form.amount`, pas de nouveau champ de `form`).
+Une provision annuelle peut porter une ou **plusieurs échéances armées** (paiement en plusieurs fois : impôts en 4 fois, etc.), stockées dans `dueSchedule: [{ id, date, amount }]` — chaque ligne a **sa date et son montant**, qui peuvent varier d'une échéance à l'autre et différer du prévisionnel `amount`. Saisie via l'icône `CalendarClock` de la bulle → modal `due_date` : liste de lignes date + montant, bouton **« Ajouter une échéance »**, croix pour retirer une ligne, total + écart vs prévisionnel affichés. Brouillon dans le state `dueDraft` (comme `portfolioDraft`), enregistré par `handleDueSave` (lignes incomplètes ignorées, tri chronologique automatique).
 
-- **Au jour J** : un `useEffect` (même garde `loading || !session` que l'auto-save) balaie `annualExpenses`, crée une **dépense** dans `exceptionalPaid` + une ligne `payment` dans `history` (datée du jour de prélèvement), puis **efface `dueDate`/`dueAmount`**. La provision reste en place et continue de cumuler ; elle se réarme manuellement l'année suivante à réception de l'avis. L'effacement rend l'opération **non rejouable** (pas de double débit).
-- **Avant le jour J** : l'échéance ne touche **ni `realCash` ni le virement** — l'argent n'est pas encore sorti. Elle n'apparaît que sur le **graphe de projection**, où elle creuse le mois concerné **et tous les suivants** (`cumulDue`). La barre du mois devient **empilée** : vert = solde restant après l'échéance, **rouge (`gDue`, `stackId="p"`) = la part consommée**. Seules les échéances de **l'année en cours** sont tracées. Tooltip dédié : `ProjectionTooltip` (portée module).
+- **`dueList(e)`** (portée module) normalise les échéances en liste et assure la **rétrocompatibilité** : les provisions armées avant le multi-échéances portent encore `dueDate`/`dueAmount` scalaires, relus comme une liste à une ligne. Toujours passer par `dueList` / `dueTotal`, jamais lire `dueDate` directement.
+- **Au jour J** : un `useEffect` (même garde `loading || !session` que l'auto-save) balaie les échéances de chaque provision ; celles dont la date est atteinte créent une **dépense** dans `exceptionalPaid` + une ligne `payment` dans `history` (datée du prélèvement, libellé numéroté `(n/total)` s'il y en a plusieurs), puis sont **retirées de `dueSchedule`** — les échéances suivantes restent armées. La provision reste en place et continue de cumuler ; elle se réarme manuellement l'année suivante. Le retrait rend l'opération **non rejouable** (pas de double débit).
+- **Avant le jour J** : les échéances ne touchent **ni `realCash` ni le virement** — l'argent n'est pas encore sorti. Elles n'apparaissent que sur le **graphe de projection**, où chacune creuse son mois **et tous les suivants** (`cumulDue`). La barre du mois devient **empilée** : vert = solde restant après l'échéance, **rouge (`gDue`, `stackId="p"`) = la part consommée**. Seules les échéances de **l'année en cours** sont tracées. Tooltip dédié : `ProjectionTooltip` (portée module).
+- La carte du modal est `max-h-[88vh] overflow-y-auto` : sans ça, une liste de 4 échéances déborde l'écran mobile et le bouton Enregistrer devient inaccessible.
 
 ### PEA / valorisation live (VL)
 

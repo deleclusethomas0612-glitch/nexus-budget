@@ -94,6 +94,16 @@ const CRYPTOS = [
 ];
 const cryptoName = (sym) => CRYPTOS.find(c => c.sym === sym)?.name || sym;
 
+// Échéances d'une provision annuelle, normalisées en liste `[{ id, date, amount }]`.
+// Rétrocompatible : les provisions armées avant le multi-échéances portent encore
+// `dueDate`/`dueAmount` scalaires, relus ici comme une liste à une seule ligne.
+const dueList = (e) => {
+  if (Array.isArray(e.dueSchedule)) return e.dueSchedule.filter(d => d && d.date);
+  if (e.dueDate) return [{ id: e.id, date: e.dueDate, amount: Number(e.dueAmount ?? e.amount) || 0 }];
+  return [];
+};
+const dueTotal = (e) => dueList(e).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+
 // Tooltip du graphe de projection : solde restant + éventuelle échéance datée du mois.
 const ProjectionTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
@@ -144,6 +154,7 @@ export default function NexusUltimateCloud() {
   const [cryptoPrices, setCryptoPrices] = useState({}); // { sym: { price, at } } — cours EUR live
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [cryptoDraft, setCryptoDraft] = useState({});   // { sym, qty } dans la modale
+  const [dueDraft, setDueDraft] = useState([]);         // [{ id, date, amount }] dans la modale Échéances
 
   const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'crypto', 'history'];
 
@@ -254,31 +265,43 @@ export default function NexusUltimateCloud() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fixedExpenses, annualExpenses, pending, history, reimbursements, exceptionalPaid, savingsAccounts, savingsPending, personalExpenses]);
 
-  // Échéances échues : quand le jour de prélèvement saisi sur une provision annuelle
-  // est atteint, la provision devient une vraie Dépense (Cash Dispo + Journal), puis la
-  // date est effacée — la provision reste et continue de cumuler pour l'année suivante.
-  // L'effacement rend l'opération non rejouable (pas de double débit).
+  // Échéances échues : quand le jour d'un prélèvement armé sur une provision annuelle
+  // est atteint, cette échéance devient une vraie Dépense (Cash Dispo + Journal), puis
+  // elle est retirée de la liste — les échéances suivantes (paiement en plusieurs fois)
+  // restent armées. La provision, elle, reste en place et continue de cumuler.
+  // Le retrait rend l'opération non rejouable (pas de double débit).
   useEffect(() => {
     if (loading || !session) return;
     const now = new Date();
-    const isDue = (e) => {
-      if (!e.dueDate) return false;
-      const d = new Date(`${e.dueDate}T23:59:59`);
-      return !isNaN(d) && d <= now;
+    const isDue = (d) => {
+      const t = new Date(`${d.date}T23:59:59`);
+      return !isNaN(t) && t <= now;
     };
-    const due = annualExpenses.filter(isDue);
-    if (due.length === 0) return;
 
-    const stamped = due.map((e, i) => ({
-      id: Date.now() + i,
-      label: e.name,
-      amount: Math.round(Number(e.dueAmount ?? e.amount) || 0),
-      date: new Date(e.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
-    }));
+    const stamped = [];
+    let touched = false;
+    annualExpenses.forEach(e => {
+      dueList(e).forEach(d => {
+        if (!isDue(d)) return;
+        touched = true;
+        stamped.push({
+          id: Date.now() + stamped.length,
+          // Plusieurs échéances : on numérote pour distinguer les lignes du Journal.
+          label: dueList(e).length > 1 ? `${e.name} (${stamped.length + 1}/${dueList(e).length})` : e.name,
+          amount: Math.round(Number(d.amount) || 0),
+          date: new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+        });
+      });
+    });
+    if (!touched) return;
 
     setExceptionalPaid(prev => [...stamped.map(({ id, label, amount }) => ({ id, label, amount })), ...prev]);
     setHistory(prev => [...stamped.map(x => ({ ...x, type: 'payment' })), ...prev]);
-    setAnnualExpenses(prev => prev.map(e => (isDue(e) ? { ...e, dueDate: null, dueAmount: null } : e)));
+    setAnnualExpenses(prev => prev.map(e => {
+      const rest = dueList(e).filter(d => !isDue(d));
+      if (rest.length === dueList(e).length) return e;
+      return { ...e, dueSchedule: rest, dueDate: null, dueAmount: null };
+    }));
   }, [annualExpenses, loading, session]);
 
   // --- 2. AUTHENTIFICATION ---
@@ -353,11 +376,12 @@ export default function NexusUltimateCloud() {
     const dueByMonth = Array(12).fill(0);
     const dueLabels = Array.from({ length: 12 }, () => []);
     annualExpenses.forEach(e => {
-      if (!e.dueDate) return;
-      const d = new Date(e.dueDate);
-      if (isNaN(d) || d.getFullYear() !== currentYear) return;
-      dueByMonth[d.getMonth()] += Number(e.dueAmount ?? e.amount) || 0;
-      dueLabels[d.getMonth()].push(e.name);
+      dueList(e).forEach(x => {
+        const d = new Date(x.date);
+        if (isNaN(d) || d.getFullYear() !== currentYear) return;
+        dueByMonth[d.getMonth()] += Number(x.amount) || 0;
+        if (!dueLabels[d.getMonth()].includes(e.name)) dueLabels[d.getMonth()].push(e.name);
+      });
     });
 
     let cumulDue = 0;
@@ -605,11 +629,24 @@ export default function NexusUltimateCloud() {
     setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   };
 
-  // Retire l'échéance armée d'une provision (la provision elle-même est conservée).
+  // Retire toutes les échéances d'une provision (la provision elle-même est conservée).
   const clearDueDate = (id) => {
-    setAnnualExpenses(annualExpenses.map(x => x.id === id ? { ...x, dueDate: null, dueAmount: null } : x));
+    setAnnualExpenses(annualExpenses.map(x => x.id === id ? { ...x, dueSchedule: [], dueDate: null, dueAmount: null } : x));
     setModal({ open: false, type: '', data: null });
-    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
+    setDueDraft([]);
+  };
+
+  // Enregistre la liste d'échéances saisie dans la modale (lignes incomplètes ignorées).
+  const handleDueSave = () => {
+    const clean = dueDraft
+      .map(d => ({ id: d.id, date: d.date, amount: parseFloat(String(d.amount).replace(',', '.')) }))
+      .filter(d => d.date && !isNaN(d.amount) && d.amount > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    setAnnualExpenses(annualExpenses.map(x => x.id === modal.data.id
+      ? { ...x, dueSchedule: clean, dueDate: null, dueAmount: null }
+      : x));
+    setModal({ open: false, type: '', data: null });
+    setDueDraft([]);
   };
 
   const togglePersonalPaid = (id) => {
@@ -677,17 +714,7 @@ export default function NexusUltimateCloud() {
     // doit enregistrer au lieu d'être ignorée (form.amount y est vide).
     if (modal.type === 'portfolio') { handlePortfolioSave(); return; }
     if (modal.type === 'add_crypto' || modal.type === 'edit_crypto') { handleCryptoSave(); return; }
-    // Échéance d'une provision annuelle : jour de prélèvement + montant réel.
-    // On réutilise form.startDate (date) et form.amount (montant) — pas de nouveau champ.
-    if (modal.type === 'due_date') {
-      const day = form.startDate;
-      const v = parseFloat(String(form.amount).replace(',', '.'));
-      if (!day || isNaN(v) || v <= 0) return;
-      setAnnualExpenses(annualExpenses.map(x => x.id === modal.data.id ? { ...x, dueDate: day, dueAmount: v } : x));
-      setModal({ open: false, type: '', data: null });
-      setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
-      return;
-    }
+    if (modal.type === 'due_date') { handleDueSave(); return; }
     if (modal.type === 'rename_savings') {
       const name = (form.label || '').trim();
       if (name) setSavingsAccounts(savingsAccounts.map(a => a.id === modal.data.id ? { ...a, name } : a));
@@ -1223,8 +1250,12 @@ export default function NexusUltimateCloud() {
                           <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400"><Calendar size={18} /></div>
                           <div>
                             <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
-                            {e.dueDate
-                              ? <p className="text-[8px] text-amber-400 font-black uppercase tracking-widest text-left">Prélèvement {new Date(e.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · {Math.round(Number(e.dueAmount ?? e.amount) || 0).toLocaleString()}€</p>
+                            {dueList(e).length > 0
+                              ? <p className="text-[8px] text-amber-400 font-black uppercase tracking-widest text-left">
+                                  {dueList(e).length > 1
+                                    ? `${dueList(e).length} prélèvements · ${Math.round(dueTotal(e)).toLocaleString()}€ · dès ${new Date(dueList(e)[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}`
+                                    : `Prélèvement ${new Date(dueList(e)[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · ${Math.round(dueTotal(e)).toLocaleString()}€`}
+                                </p>
                               : <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">{e.startDate ? `Dès ${new Date(e.startDate).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })}` : 'Provision'}</p>}
                           </div>
                         </div>
@@ -1232,7 +1263,7 @@ export default function NexusUltimateCloud() {
                           <div className="flex flex-col items-end">
                             <span className="text-xl font-black italic text-amber-400">{Number(e.amount).toLocaleString()}€<span className="text-[10px] text-zinc-500 not-italic font-bold"> · {Math.round((Number(e.amount) || 0) / 12).toLocaleString()}€/m</span></span>
                             <div className="flex gap-2">
-                              <button onClick={() => { setForm({ label: e.name, amount: String(e.dueAmount ?? e.amount ?? ''), cat: 'annual', targetAccount: '', startDate: e.dueDate || '' }); setModal({ open: true, type: 'due_date', data: e }); }} className={e.dueDate ? 'text-amber-400' : 'text-zinc-600 hover:text-amber-400'}><CalendarClock size={14} /></button>
+                              <button onClick={() => { const l = dueList(e); setDueDraft(l.length ? l.map((d, i) => ({ id: d.id ?? Date.now() + i, date: d.date, amount: String(d.amount ?? '') })) : [{ id: Date.now(), date: '', amount: String(e.amount ?? '') }]); setModal({ open: true, type: 'due_date', data: e }); }} className={dueList(e).length ? 'text-amber-400' : 'text-zinc-600 hover:text-amber-400'}><CalendarClock size={14} /></button>
                               <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual', startDate: e.startDate || '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
                               <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
@@ -1294,27 +1325,67 @@ export default function NexusUltimateCloud() {
         {/* --- MODAL --- */}
         {modal.open && (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-            <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in">
+            <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in max-h-[88vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">
-                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéance' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : 'Opération'}
+                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéances' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : 'Opération'}
                 </h2>
-                <button onClick={() => { setModal({ open: false, type: '', data: null }); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
+                <button onClick={() => { setModal({ open: false, type: '', data: null }); setDueDraft([]); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
               </div>
 
               <form onSubmit={handleForm} className="space-y-8">
                 {modal.type === 'due_date' && (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="bg-black/40 border border-amber-500/20 rounded-2xl p-5">
                       <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 leading-none mb-2">Provision annuelle</p>
                       <p className="text-lg font-black italic uppercase text-amber-400 leading-none">{modal.data?.name}</p>
                       <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mt-2">Prévisionnel {Number(modal.data?.amount || 0).toLocaleString()}€ /an</p>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase text-amber-500 pl-4">Jour du prélèvement</p>
-                      <input type="date" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none focus:border-amber-500 font-bold text-white [color-scheme:dark]" value={form.startDate || ''} onChange={e => setForm({ ...form, startDate: e.target.value })} />
-                    </div>
-                    <p className="text-[10px] font-black uppercase text-amber-500 pl-4">Montant réel prélevé</p>
+
+                    <p className="text-[10px] font-black uppercase text-amber-500 pl-2">Prélèvements prévus</p>
+                    {dueDraft.map((d, i) => (
+                      <div key={d.id} className="bg-black/40 border border-white/10 rounded-2xl p-3 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0 w-5 text-center text-[10px] font-black text-amber-600">{i + 1}</span>
+                          <input
+                            type="date"
+                            className="flex-1 min-w-0 bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 outline-none focus:border-amber-500 font-bold text-white text-sm [color-scheme:dark]"
+                            value={d.date}
+                            onChange={ev => setDueDraft(dueDraft.map(x => x.id === d.id ? { ...x, date: ev.target.value } : x))} />
+                          <button type="button" onClick={() => setDueDraft(dueDraft.filter(x => x.id !== d.id))} className="shrink-0 text-zinc-700 hover:text-red-500 p-1" aria-label="Supprimer cette échéance"><X size={16} /></button>
+                        </div>
+                        <div className="flex items-center gap-2 pl-7">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Montant</span>
+                          <input
+                            type="number" step="0.01" inputMode="decimal" placeholder="0"
+                            className="flex-1 min-w-0 bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 outline-none focus:border-amber-500 font-black text-amber-400 text-sm text-right"
+                            value={d.amount}
+                            onChange={ev => setDueDraft(dueDraft.map(x => x.id === d.id ? { ...x, amount: ev.target.value } : x))} />
+                          <span className="text-sm font-black text-zinc-600 pr-1">EUR</span>
+                        </div>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => setDueDraft([...dueDraft, { id: Date.now(), date: '', amount: '' }])}
+                      className="w-full py-3 rounded-2xl border border-dashed border-amber-500/40 text-amber-500 font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-amber-500/10 transition-colors">
+                      <Plus size={16} /> Ajouter une échéance
+                    </button>
+
+                    {dueDraft.length > 0 && (() => {
+                      const tot = dueDraft.reduce((a, d) => a + (parseFloat(String(d.amount).replace(',', '.')) || 0), 0);
+                      const ecart = Math.round(tot - (Number(modal.data?.amount) || 0));
+                      return (
+                        <div className="flex justify-between items-baseline px-2 pt-1">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Total {dueDraft.length} échéance{dueDraft.length > 1 ? 's' : ''}</span>
+                          <span className="text-right">
+                            <span className="text-lg font-black italic text-amber-400">{Math.round(tot).toLocaleString()}€</span>
+                            {ecart !== 0 && <span className="block text-[9px] font-bold text-zinc-600">{ecart > 0 ? '+' : ''}{ecart.toLocaleString()}€ vs prévisionnel</span>}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -1426,7 +1497,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
 
-                {modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && modal.type !== 'rename_savings' && (
+                {modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && modal.type !== 'rename_savings' && modal.type !== 'due_date' && (
                   <div className="relative flex items-center gap-3">
                     <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-emerald-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
@@ -1445,6 +1516,14 @@ export default function NexusUltimateCloud() {
                   <button type="button" onClick={handleSavingsAdvance} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">Créer Avance</button>
                 ) : modal.type === 'portfolio' ? (
                   <button type="button" onClick={handlePortfolioSave} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">Enregistrer</button>
+                ) : modal.type === 'due_date' ? (
+                  <div className="flex flex-col gap-3">
+                    <button type="button" onClick={handleDueSave} className="w-full py-6 rounded-[2rem] bg-amber-600 font-black text-xl uppercase shadow-xl">Enregistrer</button>
+                    <p className="text-[9px] text-zinc-600 font-bold px-4 leading-tight text-center">Chaque échéance devient une dépense automatiquement le jour venu, puis disparaît de la liste. D'ici là, seul le graphe anticipe le creux.</p>
+                    {dueList(modal.data || {}).length > 0 && (
+                      <button type="button" onClick={() => clearDueDate(modal.data.id)} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-zinc-500 border border-white/10 hover:bg-white/5">Tout retirer</button>
+                    )}
+                  </div>
                 ) : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? (
                   <button type="button" onClick={handleCryptoSave} className="w-full py-6 rounded-[2rem] bg-orange-600 font-black text-xl uppercase shadow-xl">{modal.type === 'edit_crypto' ? 'Enregistrer' : 'Ajouter'}</button>
                 ) : (
@@ -1452,14 +1531,6 @@ export default function NexusUltimateCloud() {
                     <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all bg-emerald-600`}>Confirmer</button>
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
                       <button type="button" onClick={handleAbsorb} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-amber-500 border border-amber-500/30 hover:bg-amber-500/10 flex items-center justify-center gap-2"><Flame size={16} /> Absorbé</button>
-                    )}
-                    {modal.type === 'due_date' && (
-                      <>
-                        <p className="text-[9px] text-zinc-600 font-bold px-4 leading-tight text-center">Le jour venu, la dépense est créée automatiquement dans le Dashboard et la date s'efface. D'ici là, seul le graphe anticipe le creux.</p>
-                        {modal.data?.dueDate && (
-                          <button type="button" onClick={() => clearDueDate(modal.data.id)} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-zinc-500 border border-white/10 hover:bg-white/5">Retirer l'échéance</button>
-                        )}
-                      </>
                     )}
                   </div>
                 )}
