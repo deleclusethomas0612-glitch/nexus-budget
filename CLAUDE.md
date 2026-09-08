@@ -71,6 +71,14 @@ Une facture connue d'avance mais **hors prévisionnel** (régularisation, avis p
 - Rangées dans `annualExpenses` avec **`noProvision: true`** : elles réutilisent toute la mécanique des échéances (jour J, graphe) mais sont **exclues de `totalAnnual`, de la provision mensuelle, du virement et de `accProvisionAt`** (filtre `provisions` dans `totals`). Aucune colonne ajoutée.
 - Affichées sur le **dashboard** en section « Prélèvements à venir » (rose), éditables / supprimables ; `provisionItems` les tient **hors** de la liste Provisions Annuelles de l'onglet Charges communes (le `Reorder.Group` y réinjecte les `noProvision` à la fin pour ne pas les perdre).
 
+### Avances : nouvelle ou cumul
+
+Les deux modals d'avance (`pending` sur le dashboard, `savings_advance` sur l'épargne) s'ouvrent sur une rangée de puces : **`+ Nouvelle`** (sélection par défaut = comportement historique) puis une puce par avance déjà ouverte, avec son montant. Sélectionner une avance existante bascule le modal en **cumul** : le montant saisi s'**ajoute** à `amount` au lieu de créer une ligne.
+
+- État porté par `form.targetPending` (id de l'avance ciblée, `''` = nouvelle). Il n'est jamais persisté : les `setForm` remplacent l'objet entier, et les deux boutons d'ouverture réinitialisent le formulaire pour ne pas garder une cible collée.
+- En mode cumul, le champ **Libellé** est masqué (il vient de l'avance) et, côté épargne, le sélecteur **Compte Cible** aussi — le compte est déjà porté par `targetAccountId`, et c'est lui qui est re-débité du montant ajouté. Un bandeau ambre affiche `ancien → nouveau` en direct pendant la frappe.
+- Aucune écriture dans `history` : symétrique de la création d'avance, qui n'en produit pas non plus (seuls les remboursements sont journalisés).
+
 ### Datation des flux et graphe de projection
 
 Chaque flux porte son jour réel, ce qui le place sur le **bon mois** du graphe — y compris quand il est saisi après coup.

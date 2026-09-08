@@ -685,12 +685,18 @@ export default function NexusUltimateCloud() {
 
   const handleSavingsAdvance = () => {
     const val = parseFloat(form.amount);
-    if (!form.targetAccount || isNaN(val) || !form.label) return;
-    setSavingsPending([...savingsPending, { id: Date.now(), label: form.label, amount: val, targetAccountId: form.targetAccount }]);
-    setSavingsAccounts(savingsAccounts.map(acc => {
-      if (acc.id === form.targetAccount) return { ...acc, balance: acc.balance - val };
-      return acc;
-    }));
+    if (isNaN(val) || val <= 0) return;
+    // Cumul sur une avance existante : le compte cible est déjà porté par l'avance,
+    // on ne redemande donc ni le libellé ni le compte.
+    const existing = form.targetPending ? savingsPending.find(p => p.id === form.targetPending) : null;
+    if (existing) {
+      setSavingsPending(savingsPending.map(p => p.id === existing.id ? { ...p, amount: p.amount + val } : p));
+      setSavingsAccounts(savingsAccounts.map(acc => acc.id === existing.targetAccountId ? { ...acc, balance: acc.balance - val } : acc));
+    } else {
+      if (!form.targetAccount || !form.label) return;
+      setSavingsPending([...savingsPending, { id: Date.now(), label: form.label, amount: val, targetAccountId: form.targetAccount }]);
+      setSavingsAccounts(savingsAccounts.map(acc => acc.id === form.targetAccount ? { ...acc, balance: acc.balance - val } : acc));
+    }
     setModal({ open: false, type: '', data: null });
     setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   };
@@ -838,7 +844,12 @@ export default function NexusUltimateCloud() {
       else if (oldItem.type === 'reimb') setReimbursements(reimbursements.map(r => r.id === oldItem.id ? { ...r, label: form.label, amount: val } : r));
     }
     else if (modal.type === 'pending') {
-      setPending([{ id: sharedId, label: form.label, amount: val }, ...pending]);
+      // Avance existante sélectionnée → on cumule le montant, sinon nouvelle ligne.
+      if (form.targetPending) {
+        setPending(pending.map(p => p.id === form.targetPending ? { ...p, amount: p.amount + val } : p));
+      } else {
+        setPending([{ id: sharedId, label: form.label, amount: val }, ...pending]);
+      }
     }
     else if (modal.type === 'exceptional') {
       setExceptionalPaid([{ id: sharedId, label: form.label, amount: val, paidOn: todayISO() }, ...exceptionalPaid]);
@@ -998,7 +1009,7 @@ export default function NexusUltimateCloud() {
               <button onClick={() => setModal({ open: true, type: 'reimbursement' })} className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-[2rem] flex flex-col items-center transition-all">
                 <ArrowDownLeft size={22} className="mb-2 text-emerald-500" /><span className="text-[8px] font-black uppercase text-emerald-400 text-center tracking-tighter leading-tight text-emerald-400">Recette</span>
               </button>
-              <button onClick={() => setModal({ open: true, type: 'pending' })} className="bg-white text-black p-5 rounded-[2rem] flex flex-col items-center transition-all">
+              <button onClick={() => { setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '', targetPending: '' }); setModal({ open: true, type: 'pending' }); }} className="bg-white text-black p-5 rounded-[2rem] flex flex-col items-center transition-all">
                 <Plus size={22} className="mb-2" /><span className="text-[8px] font-black uppercase text-center tracking-tighter leading-tight">Avance</span>
               </button>
             </div>
@@ -1086,7 +1097,7 @@ export default function NexusUltimateCloud() {
             <div className="grid grid-cols-3 gap-3">
               <button onClick={() => setModal({ open: true, type: 'create_savings_account' })} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-white transition-colors">Nouveau Compte</button>
               <button onClick={() => setModal({ open: true, type: 'savings_transaction' })} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-emerald-400 transition-colors">Mouvement</button>
-              <button onClick={() => setModal({ open: true, type: 'savings_advance' })} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-amber-500 transition-colors">Créer Avance</button>
+              <button onClick={() => { setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '', targetPending: '' }); setModal({ open: true, type: 'savings_advance' }); }} className="bg-zinc-900 border border-white/10 py-4 rounded-2xl text-[10px] font-black uppercase text-zinc-400 hover:text-amber-500 transition-colors">Créer Avance</button>
             </div>
 
             {/* LISTE COMPTES */}
@@ -1523,7 +1534,33 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
 
-                {modal.type !== 'due_date' && modal.type !== 'repay_partial' && modal.type !== 'repay_savings_advance' && modal.type !== 'savings_transaction' && modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && (
+                {/* Nouvelle avance ou cumul sur une avance déjà ouverte (dashboard + épargne). */}
+                {(modal.type === 'pending' || modal.type === 'savings_advance') && (() => {
+                  const list = modal.type === 'pending' ? pending : savingsPending;
+                  if (list.length === 0) return null;
+                  const sel = list.find(p => p.id === form.targetPending);
+                  const add = parseFloat(String(form.amount).replace(',', '.')) || 0;
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase text-amber-500 pl-2">Avance</p>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => setForm({ ...form, targetPending: '' })} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase border ${!form.targetPending ? 'bg-amber-500 border-amber-500 text-black' : 'border-zinc-800 text-zinc-500'}`}>+ Nouvelle</button>
+                        {list.map(p => (
+                          <button type="button" key={p.id} onClick={() => setForm({ ...form, targetPending: p.id })} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase border ${form.targetPending === p.id ? 'bg-amber-500 border-amber-500 text-black' : 'border-zinc-800 text-zinc-500'}`}>{p.label} · {Number(p.amount).toLocaleString()}€</button>
+                        ))}
+                      </div>
+                      {sel && (
+                        <div className="bg-black/40 border border-amber-500/20 rounded-2xl p-5">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 leading-none mb-2">Cumul sur avance existante</p>
+                          <p className="text-lg font-black italic uppercase text-amber-400 leading-none">{sel.label}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-2">{Number(sel.amount).toLocaleString()}€ <span className="text-zinc-700">→</span> <span className="text-amber-400">{Math.round(sel.amount + add).toLocaleString()}€</span></p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {modal.type !== 'due_date' && modal.type !== 'repay_partial' && modal.type !== 'repay_savings_advance' && modal.type !== 'savings_transaction' && modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && !form.targetPending && (
                   <div className="space-y-6">
                     {modal.type === 'expense' && (
                       <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
@@ -1542,7 +1579,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
 
-                {(modal.type === 'savings_transaction' || modal.type === 'savings_advance') && (
+                {(modal.type === 'savings_transaction' || (modal.type === 'savings_advance' && !form.targetPending)) && (
                   <div className="space-y-2">
                     <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">Compte Cible</p>
                     <div className="flex flex-wrap gap-2">
@@ -1656,7 +1693,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 ) : modal.type === 'savings_advance' ? (
                   /* CORRECTION BOUTON "CRÉER AVANCE" */
-                  <button type="button" onClick={handleSavingsAdvance} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">Créer Avance</button>
+                  <button type="button" onClick={handleSavingsAdvance} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">{form.targetPending ? "Ajouter à l'avance" : 'Créer Avance'}</button>
                 ) : modal.type === 'portfolio' ? (
                   <button type="button" onClick={handlePortfolioSave} className="w-full py-6 rounded-[2rem] bg-cyan-600 font-black text-xl uppercase shadow-xl">Enregistrer</button>
                 ) : modal.type === 'due_date' ? (
@@ -1671,7 +1708,7 @@ export default function NexusUltimateCloud() {
                   <button type="button" onClick={handleCryptoSave} className="w-full py-6 rounded-[2rem] bg-orange-600 font-black text-xl uppercase shadow-xl">{modal.type === 'edit_crypto' ? 'Enregistrer' : 'Ajouter'}</button>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'exceptional' && dueDraft.length > 0 ? 'bg-amber-600' : 'bg-emerald-600'}`}>{modal.type === 'exceptional' && dueDraft.length > 0 ? 'Programmer' : 'Confirmer'}</button>
+                    <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'exceptional' && dueDraft.length > 0 ? 'bg-amber-600' : 'bg-emerald-600'}`}>{modal.type === 'exceptional' && dueDraft.length > 0 ? 'Programmer' : (modal.type === 'pending' && form.targetPending) ? "Ajouter à l'avance" : 'Confirmer'}</button>
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
                       <button type="button" onClick={handleAbsorb} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-amber-500 border border-amber-500/30 hover:bg-amber-500/10 flex items-center justify-center gap-2"><Flame size={16} /> Absorbé</button>
                     )}
