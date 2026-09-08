@@ -689,13 +689,16 @@ export default function NexusUltimateCloud() {
     // Cumul sur une avance existante : le compte cible est déjà porté par l'avance,
     // on ne redemande donc ni le libellé ni le compte.
     const existing = form.targetPending ? savingsPending.find(p => p.id === form.targetPending) : null;
+    const sharedId = Date.now();
     if (existing) {
       setSavingsPending(savingsPending.map(p => p.id === existing.id ? { ...p, amount: p.amount + val } : p));
       setSavingsAccounts(savingsAccounts.map(acc => acc.id === existing.targetAccountId ? { ...acc, balance: acc.balance - val } : acc));
+      addEntry(sharedId, `Ajout avance Épargne: ${existing.label}`, val, 'advance');
     } else {
       if (!form.targetAccount || !form.label) return;
-      setSavingsPending([...savingsPending, { id: Date.now(), label: form.label, amount: val, targetAccountId: form.targetAccount }]);
+      setSavingsPending([...savingsPending, { id: sharedId, label: form.label, amount: val, targetAccountId: form.targetAccount }]);
       setSavingsAccounts(savingsAccounts.map(acc => acc.id === form.targetAccount ? { ...acc, balance: acc.balance - val } : acc));
+      addEntry(sharedId, `Avance Épargne: ${form.label}`, val, 'advance');
     }
     setModal({ open: false, type: '', data: null });
     setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
@@ -845,10 +848,13 @@ export default function NexusUltimateCloud() {
     }
     else if (modal.type === 'pending') {
       // Avance existante sélectionnée → on cumule le montant, sinon nouvelle ligne.
-      if (form.targetPending) {
-        setPending(pending.map(p => p.id === form.targetPending ? { ...p, amount: p.amount + val } : p));
+      const existing = form.targetPending ? pending.find(p => p.id === form.targetPending) : null;
+      if (existing) {
+        setPending(pending.map(p => p.id === existing.id ? { ...p, amount: p.amount + val } : p));
+        addEntry(sharedId, `Ajout avance: ${existing.label}`, val, 'advance');
       } else {
         setPending([{ id: sharedId, label: form.label, amount: val }, ...pending]);
+        addEntry(sharedId, `Avance: ${form.label}`, val, 'advance');
       }
     }
     else if (modal.type === 'exceptional') {
@@ -1440,8 +1446,8 @@ export default function NexusUltimateCloud() {
                 <DraggableItem key={h.id} value={h}>
                   <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group transition-all active:scale-95 ${h.isArchived ? 'opacity-50' : ''}`}>
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className={`min-w-12 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-teal-500/10 text-teal-400'}`}>
-                        {h.type === 'payment' ? <ArrowUpRight size={20} /> : h.type === 'reimb' ? <ArrowDownLeft size={20} /> : <HistoryIcon size={20} />}
+                      <div className={`min-w-12 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : h.type === 'advance' ? 'bg-amber-500/10 text-amber-500' : 'bg-teal-500/10 text-teal-400'}`}>
+                        {h.type === 'payment' ? <ArrowUpRight size={20} /> : h.type === 'reimb' ? <ArrowDownLeft size={20} /> : h.type === 'advance' ? <Coins size={20} /> : <HistoryIcon size={20} />}
                       </div>
                       <div className="flex flex-col gap-2 min-w-0 pr-2">
                         <div>
@@ -1456,8 +1462,8 @@ export default function NexusUltimateCloud() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 relative z-10">
-                      <span className={`font-black italic text-xl ${h.type === 'payment' ? 'text-red-500' : h.type === 'reimb' ? 'text-emerald-500' : 'text-teal-400'}`}>
-                        {h.type === 'payment' ? '-' : '+'}{Number(h.amount).toLocaleString()}€
+                      <span className={`font-black italic text-xl ${h.type === 'payment' ? 'text-red-500' : h.type === 'reimb' ? 'text-emerald-500' : h.type === 'advance' ? 'text-amber-500' : 'text-teal-400'}`}>
+                        {h.type === 'payment' || h.type === 'advance' ? '-' : '+'}{Number(h.amount).toLocaleString()}€
                       </span>
                       <DragHandle />
                     </div>
@@ -1583,7 +1589,7 @@ export default function NexusUltimateCloud() {
                   <div className="space-y-2">
                     <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">Compte Cible</p>
                     <div className="flex flex-wrap gap-2">
-                      {savingsAccounts.map(acc => (
+                      {savingsAccounts.filter(acc => acc.kind !== 'crypto').map(acc => (
                         <button type="button" key={acc.id} onClick={() => setForm({ ...form, targetAccount: acc.id })} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase border ${form.targetAccount === acc.id ? 'bg-amber-500 border-amber-500 text-black' : 'border-zinc-800 text-zinc-500'}`}>{acc.name}</button>
                       ))}
                     </div>

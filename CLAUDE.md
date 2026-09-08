@@ -29,7 +29,7 @@ Une seule table Supabase `nexus_data`, une ligne par utilisateur (`user_id`). Ch
 | `exceptionalPaid` / `exceptional_paid` | `{ id, label, amount, paidOn }` (dépenses exceptionnelles ; `paidOn` = jour ISO, cf. datation des flux) |
 | `history` / `history` | `{ id, label, amount, type: 'payment'\|'reimb'\|…, date, isArchived? }` |
 | `savingsAccounts` / `savings_accounts` | compte simple `{ id, name, balance }`, portefeuille `{ id, name, isPortfolio:true, holdings:[{ fundId, shares, lastVL, vlAt }], cash }`, **ou crypto** `{ id, kind:'crypto', sym, qty, lastPrice, priceAt }` (affiché sur la page Crypto, **exclu** de la page/total Épargne via `kind !== 'crypto'`) |
-| `savingsPending` / `savings_pending` | `{ id, label, amount, targetAccountId }` (avances sur épargne) |
+| `savingsPending` / `savings_pending` | `{ id, label, amount, targetAccountId }` (avances sur épargne ; `targetAccountId` ne peut viser qu'un compte non-crypto — le sélecteur *Compte Cible* filtre `kind !== 'crypto'`) |
 | `personalExpenses` / `personal_expenses` | `{ id, label, amount, isPaid, comment }` (pointage mensuel ; **n'entre dans aucun calcul**) |
 
 Les `id` sont des `Date.now()`.
@@ -77,7 +77,7 @@ Les deux modals d'avance (`pending` sur le dashboard, `savings_advance` sur l'é
 
 - État porté par `form.targetPending` (id de l'avance ciblée, `''` = nouvelle). Il n'est jamais persisté : les `setForm` remplacent l'objet entier, et les deux boutons d'ouverture réinitialisent le formulaire pour ne pas garder une cible collée.
 - En mode cumul, le champ **Libellé** est masqué (il vient de l'avance) et, côté épargne, le sélecteur **Compte Cible** aussi — le compte est déjà porté par `targetAccountId`, et c'est lui qui est re-débité du montant ajouté. Un bandeau ambre affiche `ancien → nouveau` en direct pendant la frappe.
-- Aucune écriture dans `history` : symétrique de la création d'avance, qui n'en produit pas non plus (seuls les remboursements sont journalisés).
+- Création **et** cumul écrivent une ligne dans `history` avec le type **`advance`** (libellés `Avance:` / `Ajout avance:`, préfixe ` Épargne` côté épargne). Le Journal rend ce type en **ambre** avec l'icône `Coins` et un signe **négatif** (une avance sort du cash). Ce type n'est adossé à aucun tableau de flux : supprimer la ligne du Journal retire l'écriture sans toucher à l'avance elle-même (elle peut déjà avoir été remboursée en partie).
 
 ### Datation des flux et graphe de projection
 
