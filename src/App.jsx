@@ -1233,6 +1233,32 @@ export default function NexusUltimateCloud() {
               ))}
             </Reorder.Group>
 
+            {/* ACTIF NET IMMOBILIER — volontairement hors liste et tout en bas : l'Épargne
+                Totale ci-dessus reste la « vraie » épargne disponible sur les comptes. */}
+            {realEstate && reStats && (
+              <section className="space-y-4 pt-4 border-t border-white/5">
+                <h3 className="text-[10px] font-black text-violet-700 uppercase tracking-widest px-2">Patrimoine immobilier</h3>
+                <div onClick={() => setActiveTab('realestate')} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center cursor-pointer transition-all active:scale-95 relative overflow-hidden">
+                  <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-violet-500" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400"><Building2 size={20} /></div>
+                    <div>
+                      <p className="text-sm font-black italic uppercase text-left text-zinc-200">Actif net immobilier</p>
+                      <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">{Number(realEstate.value).toLocaleString()}€ − {Math.round(reStats.crd).toLocaleString()}€ restant dû</p>
+                    </div>
+                  </div>
+                  <span className="text-xl font-black italic text-violet-300">{reStats.netAsset.toLocaleString()}€</span>
+                </div>
+                <div className="bg-violet-500/10 border border-violet-500/30 rounded-[2rem] p-5 flex justify-between items-center shadow-lg shadow-violet-500/5 neon-pulse neon-pulse-amethyst">
+                  <div className="relative z-10">
+                    <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic">Patrimoine total</p>
+                    <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Épargne + crypto + actif net immo</p>
+                  </div>
+                  <p className="text-2xl font-black italic text-violet-200 relative z-10">{(savingsTotal + cryptoTotal + reStats.netAsset).toLocaleString()}€</p>
+                </div>
+              </section>
+            )}
+
             {/* AVANCE SUR EPARGNE (RENOMMÉ) */}
             {savingsPending.length > 0 && (
               <section className="space-y-4 pt-4 border-t border-white/5">
