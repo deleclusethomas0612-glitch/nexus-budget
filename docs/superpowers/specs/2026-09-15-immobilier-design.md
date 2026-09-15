@@ -112,12 +112,15 @@ croît (~326 €/mois) donc à valeur figée l'équilibre s'éloigne. Rendu : ca
 dédiée + 3e courbe émeraude sur le graphe, croisée par une `ReferenceLine`
 horizontale à la valeur du bien.
 
-**Loyer de référence (ajout du 15/09/2026)** : `item.rent` (€/mois, défaut =
-mensualité assurance comprise, 0 = désactivé) donne la lecture `seuilNet =
-seuil − rent × n`, soit « acheter plutôt que louer ». Sans lui, le calcul
-compare l'achat à se loger gratuitement et n'a pas de sens. La carte affiche
-cette lecture en principal et rappelle la lecture brute en pied ; le graphe
-trace `seuilNet` dès qu'un loyer est saisi.
+**Point d'équilibre achat / location (révision du 15/09/2026)** : la question
+posée est la « règle des 7 ans », donc une **durée de détention**, pas un prix
+de vente minimum — ce cadrage-là a été retiré. `avantage(n)` = (valeur − CRD −
+IRA − mainlevée) + `rent × n` − apport − Σintérêts − Σassurance −
+`ownerCosts/12 × n` − principal. `breakEven` = 1re échéance où l'avantage
+passe positif. `item.rent` est le **loyer de marché** (défaut 1 000 €/mois,
+jamais la mensualité : avec `rent = payment + insurance` le calcul dégénère en
+« actif net − apport ») et `item.ownerCosts` les charges propriétaire en €/an
+(défaut 2 400). Défauts appliqués via `??` pour les biens déjà enregistrés.
 
 **Frais de vente (ajout du 15/09/2026, après livraison)** : `netAsset` devient
 `value − crd − ira − releaseFees`, le « net vendeur ». `ira = iraFor(loan, crd, paid)`

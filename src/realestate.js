@@ -13,9 +13,15 @@ export const REALESTATE_DEFAULTS = {
   value: 300000,
   apport: 15486.41,
   releaseFees: 1055,
-  // Loyer de référence : ce qu'il aurait fallu payer pour se loger sans acheter.
-  // Défaut = la mensualité assurance comprise (1 170,47 + 77,38).
-  rent: 1247.85,
+  // Loyer de MARCHÉ du même logement : ce qu'il aurait fallu payer pour se loger
+  // sans acheter. Surtout pas la mensualité, dont une partie est du capital, donc
+  // de l'épargne et non un coût. ~1 000 € ≈ 4,1 % de rendement brut sur 290 000 €,
+  // ordre de grandeur en grande couronne : à ajuster au vrai loyer local.
+  rent: 1000,
+  // Charges payées par le propriétaire et pas par un locataire, en €/an :
+  // taxe foncière + part non récupérable des charges de copropriété + provision
+  // travaux. Estimation à ajuster.
+  ownerCosts: 2400,
   loan: { principal: 301500, rate: 1.2, payment: 1170.47, insurance: 77.38, deferred: 2, months: 300, firstDue: '2022-03-07', iraFreeAfter: 180 },
 };
 
@@ -97,41 +103,38 @@ export const realEstateStats = (item, today = new Date()) => {
   // remboursé n'y figure pas : ce n'est pas une perte mais de l'épargne, et il
   // s'annule entre le net vendeur et l'argent investi. Ne restent que l'apport, les
   // intérêts et l'assurance déjà payés, plus les frais de sortie.
-  // `seuilNet` déduit en plus les loyers qu'on n'a pas payés en étant propriétaire :
-  // c'est la comparaison « acheter plutôt que louer », la seule qui ait un sens, car
-  // se loger coûte de toute façon. `seuil` garde la lecture brute (placement pur).
-  const rent = Number(item.rent) || 0;
+  // « Règle des 7 ans » : au bout de combien de temps de détention l'achat devient-il
+  // plus avantageux que la location ? C'est une DURÉE, pas un prix de vente.
+  //   avantage(n) = ce qu'on récupère en revendant  (valeur − CRD − IRA − mainlevée)
+  //               + les loyers qu'on n'a pas payés  (rent × n)
+  //               − ce qui est sorti sans retour     (apport + intérêts + assurance
+  //                 + charges propriétaire + le capital emprunté non couvert par la valeur)
+  // Le capital remboursé n'est pas un coût : c'est de l'épargne, il revient dans le
+  // prix de revente, et il s'annule des deux côtés.
+  const rent = Number(item.rent ?? REALESTATE_DEFAULTS.rent) || 0;
+  const ownerMonthly = round2((Number(item.ownerCosts ?? REALESTATE_DEFAULTS.ownerCosts) || 0) / 12);
   let cumI = 0, cumS = 0;
   const chart = schedule.map(r => {
     cumI = round2(cumI + r.interest);
     cumS = round2(cumS + r.insurance);
     const rowIra = iraFor(loan, r.crd, r.n);
-    const seuil = Math.round(principal + apport + cumI + cumS + rowIra + releaseFees);
     return {
       n: r.n, date: dueDate(loan, r.n),
       net: Math.round(value - r.crd - rowIra - releaseFees),
       crd: Math.round(r.crd),
-      seuil,
-      seuilNet: Math.round(seuil - rent * r.n),
+      avantage: Math.round(value - principal - apport - cumI - cumS - rowIra - releaseFees + (rent - ownerMonthly) * r.n),
     };
   });
 
-  // Équilibre évalué au prix de vente saisi, sans hypothèse de revalorisation.
-  // `since` = 1re échéance où la vente couvre tout ce qui a été investi (null = jamais).
+  // Point d'équilibre : 1re échéance où l'avantage devient positif (null = jamais).
   const here = chart.length ? chart[Math.min(chart.length, Math.max(1, paid)) - 1] : null;
-  const readAt = (key) => {
-    const threshold = here ? here[key] : 0;
-    return { threshold, gain: Math.round(value - threshold), missing: Math.max(0, Math.round(threshold - value)), since: chart.find(p => value >= p[key]) || null };
-  };
-  const gross = readAt('seuil');
-  const withRent = readAt('seuilNet');
 
   return {
-    rent,
+    rent, ownerMonthly,
     rentAvoided: Math.round(rent * paid),
-    // Lecture brute (placement pur) et lecture nette du loyer de référence.
-    threshold: gross.threshold, gain: gross.gain, missing: gross.missing, since: gross.since,
-    thresholdNet: withRent.threshold, gainNet: withRent.gain, missingNet: withRent.missing, sinceNet: withRent.since,
+    ownerPaid: Math.round(ownerMonthly * paid),
+    advantage: here ? here.avantage : 0,
+    breakEven: chart.find(p => p.avantage >= 0) || null,
     schedule, paid, crd, capitalPaid, interestPaid, insurancePaid,
     // Actif net « dans la poche » si vente aujourd'hui : valeur − CRD − IRA − mainlevée.
     grossEquity: Math.round(value - crd),
