@@ -100,6 +100,7 @@ button:active,
 .neon-pulse-pink     { --neon-1: #fbcfe8; --neon-2: #f472b6; --neon-glow: rgba(244, 114, 182, 0.20); }
 .neon-pulse-ruby     { --neon-1: #fb7185; --neon-2: #e11d48; --neon-glow: rgba(225, 29, 72, 0.32); }
 .neon-pulse-platinum { --neon-1: #f8fafc; --neon-2: #94a3b8; --neon-glow: rgba(226, 232, 240, 0.25); }
+.neon-pulse-amethyst { --neon-1: #c4b5fd; --neon-2: #8b5cf6; --neon-glow: rgba(139, 92, 246, 0.30); }
 
 /* Lueur douce qui dérive lentement (bloom flou, pas un anneau dur) */
 .neon-pulse::before {

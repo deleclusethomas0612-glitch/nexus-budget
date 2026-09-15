@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, AreaChart, Area, ReferenceLine } from 'recharts';
 import {
   TrendingUp, Users, Wallet, Plus, Check, X, Trash2, Pencil,
   History as HistoryIcon, Zap, HeartPulse,
   Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame,
-  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw, Bitcoin, CalendarClock
+  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw, Bitcoin, CalendarClock, Building2
 } from 'lucide-react';
 import { supabase } from './supabase';
+import { REALESTATE_DEFAULTS, isRealEstate, isMoneyAccount, realEstateStats } from './realestate';
 import { Reorder, useDragControls } from 'framer-motion';
 
 // --- CONTEXTE POUR LES CONTRÔLES DE DRAG ---
@@ -138,6 +139,19 @@ const ProjectionTooltip = ({ active, payload, label }) => {
   );
 };
 
+// Tooltip du graphe Immobilier : actif net + capital restant dû à une échéance donnée.
+const RealEstateTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="bg-zinc-950 border border-white/10 rounded-[20px] px-4 py-2.5 shadow-2xl">
+      <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.date ? d.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : `#${d.n}`}</p>
+      <p className="text-sm font-black text-violet-300">{Number(d.net).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Actif net</span></p>
+      <p className="text-sm font-black text-zinc-400 mt-0.5">{Number(d.crd).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Restant dû</span></p>
+    </div>
+  );
+};
+
 export default function NexusUltimateCloud() {
   // --- AUTH STATE ---
   const [session, setSession] = useState(null);
@@ -175,7 +189,7 @@ export default function NexusUltimateCloud() {
   const [cryptoDraft, setCryptoDraft] = useState({});   // { sym, qty } dans la modale
   const [dueDraft, setDueDraft] = useState([]);         // [{ id, date, amount }] dans la modale Échéances
 
-  const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'crypto', 'history'];
+  const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'crypto', 'realestate', 'history'];
 
   const handleTouchStart = (e) => {
     setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
@@ -470,7 +484,7 @@ export default function NexusUltimateCloud() {
   const canHoldTitles = (acc) => acc.isPortfolio || /pea|titre/i.test(acc.name || '');
 
   const savingsTotal = useMemo(() => {
-    return savingsAccounts.filter(a => a.kind !== 'crypto').reduce((sum, acc) => {
+    return savingsAccounts.filter(isMoneyAccount).reduce((sum, acc) => {
       if (acc.isPortfolio) {
         const v = (acc.holdings || []).reduce((s, h) => s + (Number(h.shares) || 0) * (vlMap[h.fundId]?.vl ?? h.lastVL ?? 0), 0) + (Number(acc.cash) || 0);
         return sum + Math.round(v);
@@ -573,9 +587,13 @@ export default function NexusUltimateCloud() {
   savingsAccounts.forEach(a => {
     if (a.kind === 'crypto') {
       if (!savingsDisplay.includes(CRYPTO_ROW)) savingsDisplay.push(CRYPTO_ROW);
-    } else savingsDisplay.push(a);
+    } else if (!isRealEstate(a)) savingsDisplay.push(a);
   });
-  const reorderSavings = (newList) => setSavingsAccounts(newList.flatMap(item => (item === CRYPTO_ROW ? cryptoAssets : [item])));
+  // Le bien immobilier (page Immobilier) n'est pas dans la liste : on le réinjecte pour ne pas le perdre.
+  const reorderSavings = (newList) => setSavingsAccounts([
+    ...newList.flatMap(item => (item === CRYPTO_ROW ? cryptoAssets : [item])),
+    ...savingsAccounts.filter(isRealEstate),
+  ]);
   // Réordonner les cryptos (page Crypto) sans toucher à la position du bloc dans l'épargne.
   const reorderCryptos = (newList) => {
     let i = 0;
@@ -651,6 +669,39 @@ export default function NexusUltimateCloud() {
     setCryptoDraft({});
     fetchCryptoPrices([cryptoDraft.sym]);
   };
+
+  // --- IMMOBILIER (stocké dans savings_accounts avec kind:'realestate', page dédiée) ---
+  // Un seul bien ; tout est dérivé au rendu depuis les paramètres du prêt (cf. src/realestate.js).
+  const realEstate = savingsAccounts.find(isRealEstate) || null;
+  const reStats = useMemo(() => (realEstate ? realEstateStats(realEstate) : null), [realEstate]);
+  const openRealEstate = () => {
+    const src = realEstate || REALESTATE_DEFAULTS;
+    const loan = { ...REALESTATE_DEFAULTS.loan, ...(src.loan || {}) };
+    setForm({
+      label: src.name || '', amount: String(src.value ?? ''), apport: String(src.apport ?? ''),
+      principal: String(loan.principal), rate: String(loan.rate), payment: String(loan.payment),
+      insurance: String(loan.insurance), deferred: String(loan.deferred), months: String(loan.months),
+      firstDue: loan.firstDue || '', cat: 'fixed', targetAccount: '', startDate: '',
+    });
+    setModal({ open: true, type: 'realestate', data: realEstate });
+  };
+  const handleRealEstateSave = () => {
+    const num = (k) => parseFloat(String(form[k] ?? '').replace(',', '.'));
+    const value = num('amount'), principal = num('principal'), payment = num('payment'), months = Math.floor(num('months'));
+    if (!(value > 0) || !(principal > 0) || !(payment > 0) || !(months > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(form.firstDue || '')) return;
+    const item = {
+      id: realEstate?.id ?? Date.now(), kind: 'realestate', name: (form.label || '').trim() || 'Bien immobilier',
+      value, apport: num('apport') || 0,
+      loan: {
+        principal, rate: num('rate') || 0, payment, insurance: num('insurance') || 0,
+        deferred: Math.max(0, Math.floor(num('deferred') || 0)), months, firstDue: form.firstDue,
+      },
+    };
+    setSavingsAccounts(realEstate ? savingsAccounts.map(a => (a.id === realEstate.id ? item : a)) : [...savingsAccounts, item]);
+    setModal({ open: false, type: '', data: null });
+    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
+  };
+  const fmtDate = (d) => (d ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 
   // Vraies provisions annuelles (onglet Charges communes), hors dépenses programmées.
   const provisionItems = useMemo(() => annualExpenses.filter(e => !e.noProvision), [annualExpenses]);
@@ -814,6 +865,7 @@ export default function NexusUltimateCloud() {
     // doit enregistrer au lieu d'être ignorée (form.amount y est vide).
     if (modal.type === 'portfolio') { handlePortfolioSave(); return; }
     if (modal.type === 'add_crypto' || modal.type === 'edit_crypto') { handleCryptoSave(); return; }
+    if (modal.type === 'realestate') { handleRealEstateSave(); return; }
     if (modal.type === 'due_date') { handleDueSave(); return; }
     // Dépense du dashboard avec des échéances saisies → dépense PROGRAMMÉE : rien ne
     // sort avant le jour J, donc pas de montant global à valider ici.
@@ -1261,6 +1313,131 @@ export default function NexusUltimateCloud() {
           </div>
         )}
 
+        {/* --- PAGE IMMOBILIER (actif net = valeur du bien − capital restant dû) --- */}
+        {activeTab === 'realestate' && (
+          <div className="space-y-8 page-transition">
+            {!realEstate || !reStats ? (
+              <div className="bg-gradient-to-br from-violet-900/40 to-purple-600/10 border border-violet-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-amethyst text-center space-y-5">
+                <div className="w-14 h-14 mx-auto bg-violet-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-violet-500/30"><Building2 size={28} strokeWidth={2.5} /></div>
+                <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic">Patrimoine immobilier</p>
+                <p className="text-xs text-zinc-400 font-bold leading-relaxed">Renseigne la valeur du bien et les paramètres du crédit. L'actif net se recalcule ensuite tout seul à chaque prélèvement.</p>
+                <button onClick={openRealEstate} className="w-full py-5 rounded-[2rem] bg-violet-600 font-black text-lg uppercase shadow-xl">Configurer</button>
+              </div>
+            ) : (
+              <>
+                {/* HÉRO ACTIF NET */}
+                <div className="bg-gradient-to-br from-violet-900/40 to-purple-600/10 border border-violet-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-amethyst">
+                  <div className="flex justify-between items-center relative z-10">
+                    <div>
+                      <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic mb-1">Actif net immobilier</p>
+                      <h2 className="text-5xl font-black tracking-tighter italic text-violet-100">{reStats.netAsset.toLocaleString()}€</h2>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mt-2">{Number(realEstate.value).toLocaleString()}€ − {Math.round(reStats.crd).toLocaleString()}€ restant dû</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-violet-400/70 mt-1">À jour au {fmtDate(reStats.lastPaidDate)} · échéance {reStats.paid}/{reStats.schedule.length}</p>
+                    </div>
+                    <div className="w-14 h-14 shrink-0 bg-violet-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-violet-500/30"><Building2 size={28} strokeWidth={2.5} /></div>
+                  </div>
+                </div>
+
+                {/* PROGRESSION DU REMBOURSEMENT */}
+                <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-6 space-y-3">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Capital remboursé</p>
+                      <p className="text-2xl font-black italic text-violet-300">{Math.round(reStats.capitalPaid).toLocaleString()}€<span className="text-xs text-zinc-500 ml-2">/ {Number(realEstate.loan.principal).toLocaleString()}€</span></p>
+                    </div>
+                    <p className="text-xl font-black italic text-white">{reStats.progress.toFixed(1)}%</p>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-black/50 overflow-hidden border border-white/5">
+                    <div className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-500 shadow-[0_0_12px_rgba(139,92,246,0.6)]" style={{ width: `${Math.min(100, Math.max(0, reStats.progress))}%` }} />
+                  </div>
+                </div>
+
+                {/* STATS */}
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    ['Restant dû', `${Math.round(reStats.crd).toLocaleString()}€`, `fin ${fmtDate(reStats.endDate)}`],
+                    ['LTV', `${reStats.ltv.toFixed(1)}%`, 'dette / valeur du bien'],
+                    ['Fonds propres investis', `${Math.round(reStats.equityInvested).toLocaleString()}€`, 'apport + capital remboursé'],
+                    ["Part de l'apport", `${reStats.apportShare.toFixed(1)}%`, `${Math.round(Number(realEstate.apport) || 0).toLocaleString()}€ sur ${Math.round(Number(realEstate.loan.principal) + (Number(realEstate.apport) || 0)).toLocaleString()}€`],
+                    ['Intérêts payés', `${Math.round(reStats.interestPaid).toLocaleString()}€`, `sur ${Math.round(reStats.totalCost - reStats.schedule.length * (Number(realEstate.loan.insurance) || 0)).toLocaleString()}€ au total`],
+                    ['Assurance payée', `${Math.round(reStats.insurancePaid).toLocaleString()}€`, `${Number(realEstate.loan.insurance).toLocaleString('fr-FR')}€ /mois`],
+                    ['Mensualité', `${(Number(realEstate.loan.payment) + Number(realEstate.loan.insurance || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€`, 'assurance comprise'],
+                    ['Échéances restantes', `${reStats.remaining}`, `${Math.floor(reStats.remaining / 12)} ans ${reStats.remaining % 12} mois`],
+                  ].map(([lbl, val, sub]) => (
+                    <div key={lbl} className="bg-zinc-900/30 border border-white/5 rounded-[2rem] p-5">
+                      <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest leading-tight">{lbl}</p>
+                      <p className="text-lg font-black italic text-white mt-1 leading-none">{val}</p>
+                      <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">{sub}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* PROCHAINE ÉCHÉANCE */}
+                {reStats.next ? (
+                  <div className="bg-zinc-900/30 border border-violet-500/20 rounded-[2.5rem] p-6 flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-violet-400 tracking-widest">Prochain prélèvement</p>
+                      <p className="text-sm font-black italic text-white mt-1">{fmtDate(reStats.next.date)}</p>
+                      <p className="text-[9px] text-zinc-500 font-bold mt-1">{reStats.next.capital.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ capital · {reStats.next.interest.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ intérêts · {reStats.next.insurance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ assurance</p>
+                    </div>
+                    <p className="text-2xl font-black italic text-violet-300">{(reStats.next.capital + reStats.next.interest + reStats.next.insurance).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</p>
+                  </div>
+                ) : (
+                  <div className="bg-zinc-900/30 border border-emerald-500/20 rounded-[2.5rem] p-6 text-center">
+                    <p className="text-[10px] font-black uppercase text-emerald-400 tracking-widest">Crédit soldé</p>
+                  </div>
+                )}
+
+                {/* GRAPHE SUR LA DURÉE DU PRÊT */}
+                <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-5">
+                  <div className="flex justify-between items-center px-2 mb-3">
+                    <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Actif net vs restant dû</p>
+                    <div className="flex gap-3 text-[9px] font-black uppercase">
+                      <span className="text-violet-300">● Actif net</span>
+                      <span className="text-zinc-500">● Restant dû</span>
+                    </div>
+                  </div>
+                  <div className="h-52">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={reStats.chart} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="reNet" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.5} />
+                            <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
+                        <XAxis dataKey="n" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={35} tickFormatter={(n) => { const d = reStats.chart[n - 1]?.date; return d ? String(d.getFullYear()) : ''; }} />
+                        <YAxis tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
+                        <Tooltip content={<RealEstateTooltip />} cursor={{ stroke: '#ffffff20' }} />
+                        <ReferenceLine x={reStats.paid || 1} stroke="#c4b5fd" strokeDasharray="4 4" />
+                        <Area type="monotone" dataKey="crd" stroke="#71717a" strokeWidth={1.5} fill="none" dot={false} isAnimationActive={false} />
+                        <Area type="monotone" dataKey="net" stroke="#a78bfa" strokeWidth={2} fill="url(#reNet)" dot={false} isAnimationActive={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* MON BIEN */}
+                <div className="bg-zinc-900/30 border border-white/5 p-5 rounded-[2.8rem] flex justify-between items-center relative overflow-hidden">
+                  <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-violet-500" />
+                  <div className="flex items-center gap-4 pl-2">
+                    <div className="w-11 h-11 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400"><Building2 size={20} /></div>
+                    <div>
+                      <p className="text-sm font-black italic uppercase text-zinc-200">{realEstate.name}</p>
+                      <p className="text-[9px] text-zinc-500 font-mono">{Number(realEstate.loan.principal).toLocaleString()}€ · {Number(realEstate.loan.rate)}% · {realEstate.loan.months} mois · dès {fmtDate(reStats.schedule.length ? reStats.chart[0].date : null)}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-xl font-black italic text-violet-300">{Number(realEstate.value).toLocaleString()}€</span>
+                    <button onClick={openRealEstate} className="text-zinc-600 hover:text-violet-400 mt-0.5"><Pencil size={13} /></button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* --- PAGE PERSO (AVEC TOTAL MENSUEL AJOUTÉ) --- */}
         {activeTab === 'personal' && (
           <div className="space-y-8 page-transition">
@@ -1479,7 +1656,7 @@ export default function NexusUltimateCloud() {
             <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in max-h-[88vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">
-                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéances' : (modal.type === 'exceptional' && dueDraft.length > 0) ? 'Dépense programmée' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : 'Opération'}
+                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéances' : (modal.type === 'exceptional' && dueDraft.length > 0) ? 'Dépense programmée' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : modal.type === 'realestate' ? 'Mon bien' : 'Opération'}
                 </h2>
                 <button onClick={() => { setModal({ open: false, type: '', data: null }); setDueDraft([]); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
               </div>
@@ -1589,7 +1766,7 @@ export default function NexusUltimateCloud() {
                   <div className="space-y-2">
                     <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">Compte Cible</p>
                     <div className="flex flex-wrap gap-2">
-                      {savingsAccounts.filter(acc => acc.kind !== 'crypto').map(acc => (
+                      {savingsAccounts.filter(isMoneyAccount).map(acc => (
                         <button type="button" key={acc.id} onClick={() => setForm({ ...form, targetAccount: acc.id })} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase border ${form.targetAccount === acc.id ? 'bg-amber-500 border-amber-500 text-black' : 'border-zinc-800 text-zinc-500'}`}>{acc.name}</button>
                       ))}
                     </div>
@@ -1639,6 +1816,42 @@ export default function NexusUltimateCloud() {
                       </div>
                     </div>
                     <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Valeur = (parts × VL/cours) + liquidités, arrondie à l'euro. VL des fonds et cours des ETF récupérés automatiquement sur Boursorama.</p>
+                  </div>
+                )}
+
+                {modal.type === 'realestate' && (
+                  <div className="space-y-5">
+                    {[
+                      ['label', 'Nom du bien', 'text'],
+                      ['amount', 'Valeur du bien (€)', 'decimal'],
+                      ['apport', 'Apport / fonds propres (€)', 'decimal'],
+                    ].map(([k, lbl, mode]) => (
+                      <div key={k} className="space-y-2">
+                        <p className="text-[10px] font-black uppercase text-violet-400 pl-4">{lbl}</p>
+                        <input type="text" inputMode={mode} value={form[k] ?? ''} onChange={e => setForm({ ...form, [k]: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 font-bold outline-none focus:border-violet-500/50" />
+                      </div>
+                    ))}
+                    <p className="text-[10px] font-black uppercase text-zinc-500 pl-4 pt-2">Crédit</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        ['principal', 'Capital emprunté'],
+                        ['rate', 'Taux annuel (%)'],
+                        ['payment', 'Mensualité hors assur.'],
+                        ['insurance', 'Assurance / mois'],
+                        ['deferred', 'Mois de différé'],
+                        ['months', "Nb d'échéances"],
+                      ].map(([k, lbl]) => (
+                        <div key={k} className="space-y-1.5">
+                          <p className="text-[9px] font-black uppercase text-zinc-500 pl-2 leading-tight">{lbl}</p>
+                          <input type="text" inputMode="decimal" value={form[k] ?? ''} onChange={e => setForm({ ...form, [k]: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:border-violet-500/50" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">1re échéance (jour de prélèvement)</p>
+                      <input type="date" value={form.firstDue ?? ''} onChange={e => setForm({ ...form, firstDue: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 font-bold outline-none focus:border-violet-500/50 [color-scheme:dark]" />
+                    </div>
+                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Le tableau d'amortissement est recalculé depuis ces paramètres. Les échéances sont comptées à partir de cette date, une par mois, le même jour.</p>
                   </div>
                 )}
 
@@ -1712,6 +1925,8 @@ export default function NexusUltimateCloud() {
                   </div>
                 ) : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? (
                   <button type="button" onClick={handleCryptoSave} className="w-full py-6 rounded-[2rem] bg-orange-600 font-black text-xl uppercase shadow-xl">{modal.type === 'edit_crypto' ? 'Enregistrer' : 'Ajouter'}</button>
+                ) : modal.type === 'realestate' ? (
+                  <button type="button" onClick={handleRealEstateSave} className="w-full py-6 rounded-[2rem] bg-violet-600 font-black text-xl uppercase shadow-xl">Enregistrer</button>
                 ) : (
                   <div className="flex flex-col gap-3">
                     <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'exceptional' && dueDraft.length > 0 ? 'bg-amber-600' : 'bg-emerald-600'}`}>{modal.type === 'exceptional' && dueDraft.length > 0 ? 'Programmer' : (modal.type === 'pending' && form.targetPending) ? "Ajouter à l'avance" : 'Confirmer'}</button>
@@ -1731,6 +1946,7 @@ export default function NexusUltimateCloud() {
           <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-rose-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('crypto')} className={activeTab === 'crypto' ? 'text-orange-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Bitcoin size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('realestate')} className={activeTab === 'realestate' ? 'text-violet-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Building2 size={24} strokeWidth={3} /></button>
           <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-slate-200 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
           <div className="w-px h-8 bg-white/10 mx-1" />
           <button onClick={handleLogout} className="text-zinc-600 hover:text-red-500 transition-colors"><LogOut size={22} /></button>

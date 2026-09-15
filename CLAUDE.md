@@ -6,11 +6,11 @@ Guide de contexte pour Claude. À lire au début de chaque session sur ce projet
 
 App **perso** de suivi de budget pour un **couple (2 personnes)**. Usage privé, pas destinée à être vendue ou distribuée. UI en français, mobile-first (téléphone). Design sombre « néon », navigation par onglets avec swipe horizontal.
 
-6 onglets : `dashboard` (Cash Dispo + flux d'avances), `expenses` (Charges communes), `personal` (Mes Charges perso — **pointage seul, hors calculs**), `savings` (Épargne, dont PEA valorisé en direct), `crypto` (Portefeuille crypto valorisé via Coinbase), `history` (Journal des flux).
+7 onglets : `dashboard` (Cash Dispo + flux d'avances), `expenses` (Charges communes), `personal` (Mes Charges perso — **pointage seul, hors calculs**), `savings` (Épargne, dont PEA valorisé en direct), `crypto` (Portefeuille crypto valorisé via Coinbase), `realestate` (Immobilier : actif net = valeur du bien − capital restant dû), `history` (Journal des flux).
 
 ## Stack
 
-- **React 19** + **Vite 7**, un seul gros composant : [`src/App.jsx`](src/App.jsx) (~900 lignes).
+- **React 19** + **Vite 7**, un seul gros composant : [`src/App.jsx`](src/App.jsx) (~1900 lignes). Seule exception : [`src/realestate.js`](src/realestate.js), fonctions pures (sans React) du tableau d'amortissement, vérifiables par script node.
 - **Tailwind v4** (classes utilitaires inline), **framer-motion** (drag & reorder), **recharts** (graphe projection), **lucide-react** (icônes).
 - **Supabase** : auth (email/mot de passe) + stockage. Client dans [`src/supabase.js`](src/supabase.js).
 - **Fonction serverless Vercel** : [`api/vl.js`](api/vl.js).
@@ -28,8 +28,8 @@ Une seule table Supabase `nexus_data`, une ligne par utilisateur (`user_id`). Ch
 | `reimbursements` / `reimbursements` | `{ id, label, amount, paidOn }` (recettes ; `paidOn` = jour ISO, cf. datation des flux) |
 | `exceptionalPaid` / `exceptional_paid` | `{ id, label, amount, paidOn }` (dépenses exceptionnelles ; `paidOn` = jour ISO, cf. datation des flux) |
 | `history` / `history` | `{ id, label, amount, type: 'payment'\|'reimb'\|…, date, isArchived? }` |
-| `savingsAccounts` / `savings_accounts` | compte simple `{ id, name, balance }`, portefeuille `{ id, name, isPortfolio:true, holdings:[{ fundId, shares, lastVL, vlAt }], cash }`, **ou crypto** `{ id, kind:'crypto', sym, qty, lastPrice, priceAt }` (affiché sur la page Crypto, **exclu** de la page/total Épargne via `kind !== 'crypto'`) |
-| `savingsPending` / `savings_pending` | `{ id, label, amount, targetAccountId }` (avances sur épargne ; `targetAccountId` ne peut viser qu'un compte non-crypto — le sélecteur *Compte Cible* filtre `kind !== 'crypto'`) |
+| `savingsAccounts` / `savings_accounts` | compte simple `{ id, name, balance }`, portefeuille `{ id, name, isPortfolio:true, holdings:[{ fundId, shares, lastVL, vlAt }], cash }`, **crypto** `{ id, kind:'crypto', sym, qty, lastPrice, priceAt }` (page Crypto), **ou bien immobilier** `{ id, kind:'realestate', name, value, apport, loan:{ principal, rate, payment, insurance, deferred, months, firstDue } }` (page Immobilier, un seul). Crypto et immobilier sont **exclus** de la page/total Épargne et du sélecteur *Compte Cible* via `isMoneyAccount` ; `reorderSavings` réinjecte le bien immobilier après un réordonnancement |
+| `savingsPending` / `savings_pending` | `{ id, label, amount, targetAccountId }` (avances sur épargne ; `targetAccountId` ne peut viser qu'un compte « argent » — le sélecteur *Compte Cible* filtre via `isMoneyAccount`) |
 | `personalExpenses` / `personal_expenses` | `{ id, label, amount, isPaid, comment }` (pointage mensuel ; **n'entre dans aucun calcul**) |
 
 Les `id` sont des `Date.now()`.
@@ -106,6 +106,15 @@ Chaque flux porte son jour réel, ce qui le place sur le **bon mois** du graphe 
 - Stockées dans `savings_accounts` avec `kind:'crypto'` → filtrées hors Épargne (`savingsView` / `cryptoAssets`). Registre `CRYPTOS` (portée module) : nom → ticker Coinbase. **ASI = ticker `FET`** sur Coinbase (`ASI-EUR` n'existe pas). 11 cryptos suivies (BTC, ADA, FET, ONDO, DOT, ICP, JASMY, ENJ, ATOM, IMX, GRT).
 - [`api/crypto.js`](api/crypto.js) : `?symbols=BTC,ADA,…` → interroge `api.coinbase.com/v2/prices/<SYM>-EUR/spot` côté serveur (un seul appel groupé). Liste blanche `ALLOWED` = les 11 tickers. Client : `fetchCryptoPrices` remplit `cryptoPrices`, cache `lastPrice` dans chaque ligne. Rafraîchi au chargement + bouton MAJ.
 
+### Immobilier (page dédiée)
+
+- **Actif net** = `value − CRD`, où le capital restant dû (CRD) vient d'un **tableau d'amortissement régénéré** par `buildSchedule(loan)` ([`src/realestate.js`](src/realestate.js)) : intérêts `round2(crd × taux/12)`, différé = intérêts seuls, dernière ligne solde exactement. Vérifié **au centime** contre le tableau prévisionnel BNP (offre du 31/12/2021 : 301 500 € à 1,20 % sur 300 mois, 2 mois de différé, 1 170,47 €/mois + 77,38 € d'assurance). Les 300 lignes ne sont donc pas embarquées.
+- **Calendrier** : `firstDue` (`YYYY-MM-DD`) = date de l'échéance n° 1 **et** jour de prélèvement ; échéance n = `firstDue + (n − 1) mois`. `paidCount(loan, today)` compte les échéances atteintes (avant le jour de prélèvement, le mois courant n'est pas compté). Calage validé : **07/03/2022 = échéance 1** (différé) → premier amortissement 07/05/2022, fin 07/02/2047. Si ce calage est faux, changer la date dans le modal suffit.
+- Tout est dérivé au rendu (`realEstateStats`, dans un `useMemo`) : aucun `useEffect`, aucune écriture en base au fil des mois. **N'entre dans aucun autre calcul** (ni Cash Dispo, ni virement, ni Épargne, ni Crypto).
+- **Apport** (15 486,41 €, plan de financement) = stat seulement (« fonds propres investis » = apport + capital remboursé ; « part de l'apport » = apport / (capital + apport)). Il **n'est pas ajouté** à l'actif net.
+- Page : héro actif net, barre de progression du capital, grille de stats (CRD, LTV, fonds propres, part apport, intérêts et assurance payés, mensualité, échéances restantes), prochain prélèvement, graphe `AreaChart` sur les 300 échéances (actif net violet + CRD gris, `ReferenceLine` sur l'échéance courante, tooltip `RealEstateTooltip`), bloc « Mon bien » → modal `realestate` (10 champs, `form`), enregistré par `handleRealEstateSave` (édition en place). Sans bien : état vide + bouton Configurer pré-rempli avec `REALESTATE_DEFAULTS`.
+- Hors périmètre pour l'instant : plusieurs biens, remboursements anticipés / modulation (à ranger dans `loan.extra` le jour venu, pas de colonne).
+
 ## Commandes
 
 ```bash
@@ -129,9 +138,9 @@ npm run lint     # eslint . (le dossier api/ est ignoré)
 
 ## Effet néon (design)
 
-`neon-pulse` (dans [`src/index.css`](src/index.css)) = liseré lumineux qui tourne lentement (conic-gradient floutée, 7 s) + halo ambiant coloré + liseré de verre. Variantes de couleur via classe additionnelle : `neon-pulse-cyan` (Épargne), `neon-pulse-green` (pointage payé), `neon-pulse-orange` (Crypto), `neon-pulse-pink` (Charges communes), `neon-pulse-ruby` (Perso), `neon-pulse-platinum` (Journal) ; défaut = **émeraude → menthe** (thème « Émeraude » choisi en août 2026, tout l'ancien violet/indigo a été remplacé).
+`neon-pulse` (dans [`src/index.css`](src/index.css)) = liseré lumineux qui tourne lentement (conic-gradient floutée, 7 s) + halo ambiant coloré + liseré de verre. Variantes de couleur via classe additionnelle : `neon-pulse-cyan` (Épargne), `neon-pulse-green` (pointage payé), `neon-pulse-orange` (Crypto), `neon-pulse-pink` (Charges communes), `neon-pulse-ruby` (Perso), `neon-pulse-platinum` (Journal), `neon-pulse-amethyst` (Immobilier) ; défaut = **émeraude → menthe** (thème « Émeraude » choisi en août 2026, tout l'ancien violet/indigo a été remplacé).
 
-**Code couleur par page** (validé août 2026) : Dashboard = émeraude · Charges communes = **rose** (section Mensuel Fixe) + **or/ambre** (section Provisions Annuelles, avec équivalent `/mois` affiché) · Perso = **rubis** (check « payé » reste vert néon) · Épargne = cyan · Crypto = orange · Journal = **platine** (flux : rouge = paiement, émeraude = recette, teal = autre). La nav reflète la couleur de chaque page sur l'onglet actif. L'ambre reste aussi la couleur des Avances (partout). Couleurs pilotées par les vars `--neon-1/2/-glow`. Respecte `prefers-reduced-motion` (rotation figée). Pour un nouvel univers de couleur, ajouter une variante `.neon-pulse-xxx` plutôt que de bricoler inline.
+**Code couleur par page** (validé août 2026) : Dashboard = émeraude · Charges communes = **rose** (section Mensuel Fixe) + **or/ambre** (section Provisions Annuelles, avec équivalent `/mois` affiché) · Perso = **rubis** (check « payé » reste vert néon) · Épargne = cyan · Crypto = orange · Immobilier = **améthyste** (violet, seule teinte encore libre ; le bleu est exclu car trop proche du cyan) · Journal = **platine** (flux : rouge = paiement, émeraude = recette, teal = autre). La nav reflète la couleur de chaque page sur l'onglet actif. L'ambre reste aussi la couleur des Avances (partout). Couleurs pilotées par les vars `--neon-1/2/-glow`. Respecte `prefers-reduced-motion` (rotation figée). Pour un nouvel univers de couleur, ajouter une variante `.neon-pulse-xxx` plutôt que de bricoler inline.
 
 ## Pièges connus
 
