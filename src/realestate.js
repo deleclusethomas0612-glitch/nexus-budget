@@ -88,7 +88,37 @@ export const realEstateStats = (item, today = new Date()) => {
   const next = paid < schedule.length ? { ...schedule[paid], date: dueDate(loan, paid + 1) } : null;
   const releaseFees = Number(item.releaseFees) || 0;
   const ira = iraFor(loan, crd, paid);
+
+  // Points du graphe + seuil de rentabilité, en une passe.
+  // `seuil` = prix de vente minimum pour ne rien perdre à l'échéance n. Le capital
+  // remboursé n'y figure pas : ce n'est pas une perte mais de l'épargne, et il
+  // s'annule entre le net vendeur et l'argent investi. Ne restent que l'apport, les
+  // intérêts et l'assurance déjà payés, plus les frais de sortie.
+  let cumI = 0, cumS = 0;
+  const chart = schedule.map(r => {
+    cumI = round2(cumI + r.interest);
+    cumS = round2(cumS + r.insurance);
+    const rowIra = iraFor(loan, r.crd, r.n);
+    return {
+      n: r.n, date: dueDate(loan, r.n),
+      net: Math.round(value - r.crd - rowIra - releaseFees),
+      crd: Math.round(r.crd),
+      seuil: Math.round(principal + apport + cumI + cumS + rowIra + releaseFees),
+    };
+  });
+
+  // Équilibre évalué au prix de vente saisi, sans hypothèse de revalorisation.
+  const here = chart.length ? chart[Math.min(chart.length, Math.max(1, paid)) - 1] : null;
+  const threshold = here ? here.seuil : 0;
+  const gain = Math.round(value - threshold);
+  const profitable = chart.filter(p => value >= p.seuil);
+  const breakEven = chart.find(p => p.n >= Math.max(1, paid) && value >= p.seuil) || null;
+
   return {
+    threshold, gain,
+    breakEven,                                            // 1re échéance à l'équilibre (ou null)
+    lastProfitable: profitable.length ? profitable[profitable.length - 1] : null,
+    missing: Math.max(0, -gain),
     schedule, paid, crd, capitalPaid, interestPaid, insurancePaid,
     // Actif net « dans la poche » si vente aujourd'hui : valeur − CRD − IRA − mainlevée.
     grossEquity: Math.round(value - crd),
@@ -103,7 +133,6 @@ export const realEstateStats = (item, today = new Date()) => {
     lastPaidDate: paid > 0 ? dueDate(loan, paid) : null,
     endDate: schedule.length ? dueDate(loan, schedule.length) : null,
     totalCost: round2(schedule.reduce((s, r) => s + r.interest + r.insurance, 0)),
-    // Points du graphe sur toute la durée du prêt : un par échéance.
-    chart: schedule.map(r => ({ n: r.n, date: dueDate(loan, r.n), net: Math.round(value - r.crd - iraFor(loan, r.crd, r.n) - releaseFees), crd: Math.round(r.crd) })),
+    chart,
   };
 };

@@ -148,6 +148,7 @@ const RealEstateTooltip = ({ active, payload }) => {
       <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.date ? d.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : `#${d.n}`}</p>
       <p className="text-sm font-black text-violet-300">{Number(d.net).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Actif net</span></p>
       <p className="text-sm font-black text-zinc-400 mt-0.5">{Number(d.crd).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Restant dû</span></p>
+      <p className="text-sm font-black text-emerald-400 mt-0.5">{Number(d.seuil).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Seuil rentab.</span></p>
     </div>
   );
 };
@@ -705,6 +706,7 @@ export default function NexusUltimateCloud() {
     setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   };
   const fmtDate = (d) => (d ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+  const fmtDuration = (n) => `${Math.floor(n / 12)} an${Math.floor(n / 12) > 1 ? 's' : ''}${n % 12 ? ` ${n % 12} mois` : ''}`;
 
   // Vraies provisions annuelles (onglet Charges communes), hors dépenses programmées.
   const provisionItems = useMemo(() => annualExpenses.filter(e => !e.noProvision), [annualExpenses]);
@@ -1381,6 +1383,30 @@ export default function NexusUltimateCloud() {
                   </div>
                 </div>
 
+                {/* SEUIL DE RENTABILITÉ — évalué au prix de vente saisi, sans revalorisation */}
+                <div className={`rounded-[2.5rem] p-6 border ${reStats.gain >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-zinc-900/30 border-white/5'}`}>
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${reStats.gain >= 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>Seuil de rentabilité</p>
+                      <p className="text-2xl font-black italic text-white mt-1 leading-none">{reStats.threshold.toLocaleString()}€</p>
+                      <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">Prix de vente minimum pour ne rien perdre</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 leading-none mb-1">Écart</p>
+                      <p className={`text-2xl font-black italic leading-none ${reStats.gain >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{reStats.gain >= 0 ? '+' : ''}{reStats.gain.toLocaleString()}€</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-bold text-zinc-400 mt-4 leading-relaxed border-t border-white/5 pt-3">
+                    {reStats.gain >= 0 ? (
+                      <>Équilibre atteint à {Number(realEstate.value).toLocaleString()}€, après {fmtDuration(reStats.paid)} de détention.{reStats.lastProfitable && reStats.lastProfitable.n < reStats.schedule.length ? <> Il le reste jusqu'à l'échéance de {fmtDate(reStats.lastProfitable.date)} : au-delà, les intérêts et l'assurance accumulés repassent devant.</> : null}</>
+                    ) : reStats.breakEven ? (
+                      <>Équilibre atteint à partir de {fmtDate(reStats.breakEven.date)}, soit {fmtDuration(reStats.breakEven.n)} de détention.</>
+                    ) : (
+                      <>Jamais atteint à {Number(realEstate.value).toLocaleString()}€ : il manque {reStats.missing.toLocaleString()}€, et le seuil monte d'environ {Math.max(0, (reStats.chart[Math.min(reStats.chart.length - 1, Math.max(1, reStats.paid))]?.seuil ?? 0) - reStats.threshold).toLocaleString()}€ par mois. Le capital remboursé n'est pas compté comme une perte : seuls l'apport, les intérêts, l'assurance et les frais de vente le sont.</>
+                    )}
+                  </p>
+                </div>
+
                 {/* STATS */}
                 <div className="grid grid-cols-2 gap-3">
                   {[
@@ -1422,10 +1448,11 @@ export default function NexusUltimateCloud() {
                 {/* GRAPHE SUR LA DURÉE DU PRÊT */}
                 <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-5">
                   <div className="flex justify-between items-center px-2 mb-3">
-                    <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Actif net vs restant dû</p>
-                    <div className="flex gap-3 text-[9px] font-black uppercase">
-                      <span className="text-violet-300">● Actif net</span>
-                      <span className="text-zinc-500">● Restant dû</span>
+                    <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Projection</p>
+                    <div className="flex gap-2.5 text-[9px] font-black uppercase">
+                      <span className="text-violet-300">● Net</span>
+                      <span className="text-zinc-500">● Dû</span>
+                      <span className="text-emerald-400">● Seuil</span>
                     </div>
                   </div>
                   <div className="h-52">
@@ -1442,7 +1469,9 @@ export default function NexusUltimateCloud() {
                         <YAxis tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
                         <Tooltip content={<RealEstateTooltip />} cursor={{ stroke: '#ffffff20' }} />
                         <ReferenceLine x={reStats.paid || 1} stroke="#c4b5fd" strokeDasharray="4 4" />
+                        <ReferenceLine y={Number(realEstate.value) || 0} stroke="#e4e4e7" strokeDasharray="2 5" strokeWidth={1} label={{ value: 'valeur', position: 'insideTopLeft', fill: '#a1a1aa', fontSize: 8, fontWeight: 700 }} />
                         <Area type="monotone" dataKey="crd" stroke="#71717a" strokeWidth={1.5} fill="none" dot={false} isAnimationActive={false} />
+                        <Area type="monotone" dataKey="seuil" stroke="#34d399" strokeWidth={1.5} fill="none" dot={false} isAnimationActive={false} />
                         <Area type="monotone" dataKey="net" stroke="#a78bfa" strokeWidth={2} fill="url(#reNet)" dot={false} isAnimationActive={false} />
                       </AreaChart>
                     </ResponsiveContainer>

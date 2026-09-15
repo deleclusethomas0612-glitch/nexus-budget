@@ -102,6 +102,16 @@ Même patron que la crypto : un item dans `savingsAccounts` (colonne
 | `endDate` | `dueDate(loan, months)` |
 | `totalCost` | Σ intérêts + Σ assurance sur 300 lignes (info) |
 
+**Seuil de rentabilité (ajout du 15/09/2026)** : `threshold(n) = principal +
+apport + Σintérêts(n) + Σassurance(n) + ira(n) + releaseFees`, le prix de vente
+minimum pour ne rien perdre. Le capital remboursé en est absent (épargne, pas
+perte : il s'annule entre le net vendeur et l'argent investi). `gain = value −
+threshold` au prix **saisi**, sans revalorisation ; `breakEven` = 1re échéance
+future à l'équilibre, `lastProfitable` = dernière, `missing` = manque. Le seuil
+croît (~326 €/mois) donc à valeur figée l'équilibre s'éloigne. Rendu : carte
+dédiée + 3e courbe émeraude sur le graphe, croisée par une `ReferenceLine`
+horizontale à la valeur du bien.
+
 **Frais de vente (ajout du 15/09/2026, après livraison)** : `netAsset` devient
 `value − crd − ira − releaseFees`, le « net vendeur ». `ira = iraFor(loan, crd, paid)`
 = min(semestre d'intérêts au taux du prêt, 3 % du CRD), 0 dès `loan.iraFreeAfter`
