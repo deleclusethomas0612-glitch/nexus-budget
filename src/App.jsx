@@ -679,8 +679,10 @@ export default function NexusUltimateCloud() {
     const loan = { ...REALESTATE_DEFAULTS.loan, ...(src.loan || {}) };
     setForm({
       label: src.name || '', amount: String(src.value ?? ''), apport: String(src.apport ?? ''),
+      releaseFees: String(src.releaseFees ?? REALESTATE_DEFAULTS.releaseFees),
       principal: String(loan.principal), rate: String(loan.rate), payment: String(loan.payment),
       insurance: String(loan.insurance), deferred: String(loan.deferred), months: String(loan.months),
+      iraFreeAfter: String(loan.iraFreeAfter ?? ''),
       firstDue: loan.firstDue || '', cat: 'fixed', targetAccount: '', startDate: '',
     });
     setModal({ open: true, type: 'realestate', data: realEstate });
@@ -691,10 +693,11 @@ export default function NexusUltimateCloud() {
     if (!(value > 0) || !(principal > 0) || !(payment > 0) || !(months > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(form.firstDue || '')) return;
     const item = {
       id: realEstate?.id ?? Date.now(), kind: 'realestate', name: (form.label || '').trim() || 'Bien immobilier',
-      value, apport: num('apport') || 0,
+      value, apport: num('apport') || 0, releaseFees: num('releaseFees') || 0,
       loan: {
         principal, rate: num('rate') || 0, payment, insurance: num('insurance') || 0,
         deferred: Math.max(0, Math.floor(num('deferred') || 0)), months, firstDue: form.firstDue,
+        iraFreeAfter: Math.max(0, Math.floor(num('iraFreeAfter') || 0)),
       },
     };
     setSavingsAccounts(realEstate ? savingsAccounts.map(a => (a.id === realEstate.id ? item : a)) : [...savingsAccounts, item]);
@@ -1163,7 +1166,7 @@ export default function NexusUltimateCloud() {
               {savingsDisplay.map(acc => acc === CRYPTO_ROW ? (
                 /* Ligne Crypto : même thème que les comptes, réordonnable, mais lecture seule */
                 <DraggableItem key="crypto-row" value={CRYPTO_ROW}>
-                  <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden">
+                  <div onClick={() => setActiveTab('crypto')} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden cursor-pointer">
                     <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-cyan-500" />
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
@@ -1244,7 +1247,7 @@ export default function NexusUltimateCloud() {
                     <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400"><Building2 size={20} /></div>
                     <div>
                       <p className="text-sm font-black italic uppercase text-left text-zinc-200">Actif net immobilier</p>
-                      <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">{Number(realEstate.value).toLocaleString()}€ − {Math.round(reStats.crd).toLocaleString()}€ restant dû</p>
+                      <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Net vendeur : valeur − restant dû − frais de vente</p>
                     </div>
                   </div>
                   <span className="text-xl font-black italic text-violet-300">{reStats.netAsset.toLocaleString()}€</span>
@@ -1357,7 +1360,7 @@ export default function NexusUltimateCloud() {
                     <div>
                       <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic mb-1">Actif net immobilier</p>
                       <h2 className="text-5xl font-black tracking-tighter italic text-violet-100">{reStats.netAsset.toLocaleString()}€</h2>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mt-2">{Number(realEstate.value).toLocaleString()}€ − {Math.round(reStats.crd).toLocaleString()}€ restant dû</p>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mt-2">{Number(realEstate.value).toLocaleString()}€ − {Math.round(reStats.crd).toLocaleString()}€ restant dû − {Math.round(reStats.ira + reStats.releaseFees).toLocaleString()}€ frais de vente</p>
                       <p className="text-[9px] font-bold uppercase tracking-widest text-violet-400/70 mt-1">À jour au {fmtDate(reStats.lastPaidDate)} · échéance {reStats.paid}/{reStats.schedule.length}</p>
                     </div>
                     <div className="w-14 h-14 shrink-0 bg-violet-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-violet-500/30"><Building2 size={28} strokeWidth={2.5} /></div>
@@ -1383,6 +1386,8 @@ export default function NexusUltimateCloud() {
                   {[
                     ['Restant dû', `${Math.round(reStats.crd).toLocaleString()}€`, `fin ${fmtDate(reStats.endDate)}`],
                     ['LTV', `${reStats.ltv.toFixed(1)}%`, 'dette / valeur du bien'],
+                    ['Indemnité de RA', `${Math.round(reStats.ira).toLocaleString()}€`, reStats.ira > 0 ? 'semestre d\'intérêts, plafond 3 % du CRD' : 'gratuite (15 ans de remboursement)'],
+                    ['Mainlevée hypothèque', `${Math.round(reStats.releaseFees).toLocaleString()}€`, 'estimation, éditable'],
                     ['Fonds propres investis', `${Math.round(reStats.equityInvested).toLocaleString()}€`, 'apport + capital remboursé'],
                     ["Part de l'apport", `${reStats.apportShare.toFixed(1)}%`, `${Math.round(Number(realEstate.apport) || 0).toLocaleString()}€ sur ${Math.round(Number(realEstate.loan.principal) + (Number(realEstate.apport) || 0)).toLocaleString()}€`],
                     ['Intérêts payés', `${Math.round(reStats.interestPaid).toLocaleString()}€`, `sur ${Math.round(reStats.totalCost - reStats.schedule.length * (Number(realEstate.loan.insurance) || 0)).toLocaleString()}€ au total`],
@@ -1851,6 +1856,7 @@ export default function NexusUltimateCloud() {
                       ['label', 'Nom du bien', 'text'],
                       ['amount', 'Valeur du bien (€)', 'decimal'],
                       ['apport', 'Apport / fonds propres (€)', 'decimal'],
+                      ['releaseFees', "Frais de mainlevée d'hypothèque (€)", 'decimal'],
                     ].map(([k, lbl, mode]) => (
                       <div key={k} className="space-y-2">
                         <p className="text-[10px] font-black uppercase text-violet-400 pl-4">{lbl}</p>
@@ -1866,6 +1872,7 @@ export default function NexusUltimateCloud() {
                         ['insurance', 'Assurance / mois'],
                         ['deferred', 'Mois de différé'],
                         ['months', "Nb d'échéances"],
+                        ['iraFreeAfter', 'IRA gratuite après (échéances)'],
                       ].map(([k, lbl]) => (
                         <div key={k} className="space-y-1.5">
                           <p className="text-[9px] font-black uppercase text-zinc-500 pl-2 leading-tight">{lbl}</p>
@@ -1877,7 +1884,7 @@ export default function NexusUltimateCloud() {
                       <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">1re échéance (jour de prélèvement)</p>
                       <input type="date" value={form.firstDue ?? ''} onChange={e => setForm({ ...form, firstDue: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 font-bold outline-none focus:border-violet-500/50 [color-scheme:dark]" />
                     </div>
-                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Le tableau d'amortissement est recalculé depuis ces paramètres. Les échéances sont comptées à partir de cette date, une par mois, le même jour.</p>
+                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Le tableau d'amortissement est recalculé depuis ces paramètres. Les échéances sont comptées à partir de cette date, une par mois, le même jour. L'actif net déduit l'indemnité de remboursement anticipé (un semestre d'intérêts, plafonné à 3 % du restant dû) et les frais de mainlevée : c'est le net en poche si tu vendais aujourd'hui.</p>
                   </div>
                 )}
 

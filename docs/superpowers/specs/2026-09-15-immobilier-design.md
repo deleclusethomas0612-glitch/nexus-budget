@@ -102,6 +102,14 @@ Même patron que la crypto : un item dans `savingsAccounts` (colonne
 | `endDate` | `dueDate(loan, months)` |
 | `totalCost` | Σ intérêts + Σ assurance sur 300 lignes (info) |
 
+**Frais de vente (ajout du 15/09/2026, après livraison)** : `netAsset` devient
+`value − crd − ira − releaseFees`, le « net vendeur ». `ira = iraFor(loan, crd, paid)`
+= min(semestre d'intérêts au taux du prêt, 3 % du CRD), 0 dès `loan.iraFreeAfter`
+échéances payées (180). `releaseFees` = frais de mainlevée d'hypothèque, montant
+éditable (défaut 1 055 €). Le graphe applique la même déduction à chaque point.
+`grossEquity` conserve `value − crd`. La page Épargne affiche aussi ce net
+vendeur dans une section « Patrimoine immobilier » sous la liste des comptes.
+
 L'apport **n'entre pas** dans `netAsset` (décision validée : stat seulement).
 Aucun `useEffect`, aucune écriture en base : tout se recalcule au rendu à
 partir de `new Date()`.

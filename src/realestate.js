@@ -4,11 +4,25 @@
 
 // Valeurs de l'offre de prêt BNP (31/12/2021) + plan de financement (14/12/2021).
 // Premier prélèvement constaté le 07/03/2022 = échéance n° 1 (différé).
+// Frais de sortie en cas de vente : indemnité de remboursement anticipé (IRA, offre
+// p.7 : un semestre d'intérêts au taux du crédit, plafonné à 3 % du CRD, gratuite à
+// l'issue de la 15e année de remboursement) + mainlevée de l'hypothèque de rang 1
+// (offre p.8), estimée ~0,35 % du capital emprunté (ordre de grandeur, éditable).
 export const REALESTATE_DEFAULTS = {
   name: 'Appartement',
   value: 300000,
   apport: 15486.41,
-  loan: { principal: 301500, rate: 1.2, payment: 1170.47, insurance: 77.38, deferred: 2, months: 300, firstDue: '2022-03-07' },
+  releaseFees: 1055,
+  loan: { principal: 301500, rate: 1.2, payment: 1170.47, insurance: 77.38, deferred: 2, months: 300, firstDue: '2022-03-07', iraFreeAfter: 180 },
+};
+
+// Indemnité de remboursement anticipé sur un CRD donné après `paid` échéances :
+// min(semestre d'intérêts, 3 % du CRD), nulle une fois `iraFreeAfter` échéances payées.
+export const iraFor = (loan, crd, paid) => {
+  const freeAfter = Number(loan.iraFreeAfter);
+  if (Number.isFinite(freeAfter) && freeAfter > 0 && paid >= freeAfter) return 0;
+  const semester = crd * ((Number(loan.rate) || 0) / 100) / 2;
+  return Math.round(Math.min(semester, crd * 0.03) * 100) / 100;
 };
 
 export const isRealEstate = (a) => a?.kind === 'realestate';
@@ -72,9 +86,14 @@ export const realEstateStats = (item, today = new Date()) => {
   const insurancePaid = round2(done.reduce((s, r) => s + r.insurance, 0));
   const capitalPaid = round2(principal - crd);
   const next = paid < schedule.length ? { ...schedule[paid], date: dueDate(loan, paid + 1) } : null;
+  const releaseFees = Number(item.releaseFees) || 0;
+  const ira = iraFor(loan, crd, paid);
   return {
     schedule, paid, crd, capitalPaid, interestPaid, insurancePaid,
-    netAsset: Math.round(value - crd),
+    // Actif net « dans la poche » si vente aujourd'hui : valeur − CRD − IRA − mainlevée.
+    grossEquity: Math.round(value - crd),
+    ira, releaseFees,
+    netAsset: Math.round(value - crd - ira - releaseFees),
     ltv: value > 0 ? (crd / value) * 100 : 0,
     progress: principal > 0 ? (capitalPaid / principal) * 100 : 0,
     equityInvested: round2(apport + capitalPaid),
@@ -85,6 +104,6 @@ export const realEstateStats = (item, today = new Date()) => {
     endDate: schedule.length ? dueDate(loan, schedule.length) : null,
     totalCost: round2(schedule.reduce((s, r) => s + r.interest + r.insurance, 0)),
     // Points du graphe sur toute la durée du prêt : un par échéance.
-    chart: schedule.map(r => ({ n: r.n, date: dueDate(loan, r.n), net: Math.round(value - r.crd), crd: Math.round(r.crd) })),
+    chart: schedule.map(r => ({ n: r.n, date: dueDate(loan, r.n), net: Math.round(value - r.crd - iraFor(loan, r.crd, r.n) - releaseFees), crd: Math.round(r.crd) })),
   };
 };
