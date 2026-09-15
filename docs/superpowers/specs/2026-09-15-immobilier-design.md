@@ -112,6 +112,13 @@ croît (~326 €/mois) donc à valeur figée l'équilibre s'éloigne. Rendu : ca
 dédiée + 3e courbe émeraude sur le graphe, croisée par une `ReferenceLine`
 horizontale à la valeur du bien.
 
+**Loyer de référence (ajout du 15/09/2026)** : `item.rent` (€/mois, défaut =
+mensualité assurance comprise, 0 = désactivé) donne la lecture `seuilNet =
+seuil − rent × n`, soit « acheter plutôt que louer ». Sans lui, le calcul
+compare l'achat à se loger gratuitement et n'a pas de sens. La carte affiche
+cette lecture en principal et rappelle la lecture brute en pied ; le graphe
+trace `seuilNet` dès qu'un loyer est saisi.
+
 **Frais de vente (ajout du 15/09/2026, après livraison)** : `netAsset` devient
 `value − crd − ira − releaseFees`, le « net vendeur ». `ira = iraFor(loan, crd, paid)`
 = min(semestre d'intérêts au taux du prêt, 3 % du CRD), 0 dès `loan.iraFreeAfter`

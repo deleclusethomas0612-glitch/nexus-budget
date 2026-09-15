@@ -13,6 +13,9 @@ export const REALESTATE_DEFAULTS = {
   value: 300000,
   apport: 15486.41,
   releaseFees: 1055,
+  // Loyer de référence : ce qu'il aurait fallu payer pour se loger sans acheter.
+  // Défaut = la mensualité assurance comprise (1 170,47 + 77,38).
+  rent: 1247.85,
   loan: { principal: 301500, rate: 1.2, payment: 1170.47, insurance: 77.38, deferred: 2, months: 300, firstDue: '2022-03-07', iraFreeAfter: 180 },
 };
 
@@ -94,31 +97,41 @@ export const realEstateStats = (item, today = new Date()) => {
   // remboursé n'y figure pas : ce n'est pas une perte mais de l'épargne, et il
   // s'annule entre le net vendeur et l'argent investi. Ne restent que l'apport, les
   // intérêts et l'assurance déjà payés, plus les frais de sortie.
+  // `seuilNet` déduit en plus les loyers qu'on n'a pas payés en étant propriétaire :
+  // c'est la comparaison « acheter plutôt que louer », la seule qui ait un sens, car
+  // se loger coûte de toute façon. `seuil` garde la lecture brute (placement pur).
+  const rent = Number(item.rent) || 0;
   let cumI = 0, cumS = 0;
   const chart = schedule.map(r => {
     cumI = round2(cumI + r.interest);
     cumS = round2(cumS + r.insurance);
     const rowIra = iraFor(loan, r.crd, r.n);
+    const seuil = Math.round(principal + apport + cumI + cumS + rowIra + releaseFees);
     return {
       n: r.n, date: dueDate(loan, r.n),
       net: Math.round(value - r.crd - rowIra - releaseFees),
       crd: Math.round(r.crd),
-      seuil: Math.round(principal + apport + cumI + cumS + rowIra + releaseFees),
+      seuil,
+      seuilNet: Math.round(seuil - rent * r.n),
     };
   });
 
   // Équilibre évalué au prix de vente saisi, sans hypothèse de revalorisation.
+  // `since` = 1re échéance où la vente couvre tout ce qui a été investi (null = jamais).
   const here = chart.length ? chart[Math.min(chart.length, Math.max(1, paid)) - 1] : null;
-  const threshold = here ? here.seuil : 0;
-  const gain = Math.round(value - threshold);
-  const profitable = chart.filter(p => value >= p.seuil);
-  const breakEven = chart.find(p => p.n >= Math.max(1, paid) && value >= p.seuil) || null;
+  const readAt = (key) => {
+    const threshold = here ? here[key] : 0;
+    return { threshold, gain: Math.round(value - threshold), missing: Math.max(0, Math.round(threshold - value)), since: chart.find(p => value >= p[key]) || null };
+  };
+  const gross = readAt('seuil');
+  const withRent = readAt('seuilNet');
 
   return {
-    threshold, gain,
-    breakEven,                                            // 1re échéance à l'équilibre (ou null)
-    lastProfitable: profitable.length ? profitable[profitable.length - 1] : null,
-    missing: Math.max(0, -gain),
+    rent,
+    rentAvoided: Math.round(rent * paid),
+    // Lecture brute (placement pur) et lecture nette du loyer de référence.
+    threshold: gross.threshold, gain: gross.gain, missing: gross.missing, since: gross.since,
+    thresholdNet: withRent.threshold, gainNet: withRent.gain, missingNet: withRent.missing, sinceNet: withRent.since,
     schedule, paid, crd, capitalPaid, interestPaid, insurancePaid,
     // Actif net « dans la poche » si vente aujourd'hui : valeur − CRD − IRA − mainlevée.
     grossEquity: Math.round(value - crd),

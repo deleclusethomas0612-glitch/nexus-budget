@@ -148,7 +148,7 @@ const RealEstateTooltip = ({ active, payload }) => {
       <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.date ? d.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : `#${d.n}`}</p>
       <p className="text-sm font-black text-violet-300">{Number(d.net).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Actif net</span></p>
       <p className="text-sm font-black text-zinc-400 mt-0.5">{Number(d.crd).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Restant dû</span></p>
-      <p className="text-sm font-black text-emerald-400 mt-0.5">{Number(d.seuil).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Seuil rentab.</span></p>
+      <p className="text-sm font-black text-emerald-400 mt-0.5">{Number(d.seuilNet ?? d.seuil).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Seuil rentab.</span></p>
     </div>
   );
 };
@@ -681,6 +681,7 @@ export default function NexusUltimateCloud() {
     setForm({
       label: src.name || '', amount: String(src.value ?? ''), apport: String(src.apport ?? ''),
       releaseFees: String(src.releaseFees ?? REALESTATE_DEFAULTS.releaseFees),
+      rent: String(src.rent ?? Math.round(((Number(loan.payment) || 0) + (Number(loan.insurance) || 0)) * 100) / 100),
       principal: String(loan.principal), rate: String(loan.rate), payment: String(loan.payment),
       insurance: String(loan.insurance), deferred: String(loan.deferred), months: String(loan.months),
       iraFreeAfter: String(loan.iraFreeAfter ?? ''),
@@ -694,7 +695,7 @@ export default function NexusUltimateCloud() {
     if (!(value > 0) || !(principal > 0) || !(payment > 0) || !(months > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(form.firstDue || '')) return;
     const item = {
       id: realEstate?.id ?? Date.now(), kind: 'realestate', name: (form.label || '').trim() || 'Bien immobilier',
-      value, apport: num('apport') || 0, releaseFees: num('releaseFees') || 0,
+      value, apport: num('apport') || 0, releaseFees: num('releaseFees') || 0, rent: num('rent') || 0,
       loan: {
         principal, rate: num('rate') || 0, payment, insurance: num('insurance') || 0,
         deferred: Math.max(0, Math.floor(num('deferred') || 0)), months, firstDue: form.firstDue,
@@ -1383,29 +1384,45 @@ export default function NexusUltimateCloud() {
                   </div>
                 </div>
 
-                {/* SEUIL DE RENTABILITÉ — évalué au prix de vente saisi, sans revalorisation */}
-                <div className={`rounded-[2.5rem] p-6 border ${reStats.gain >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-zinc-900/30 border-white/5'}`}>
-                  <div className="flex justify-between items-start gap-4">
-                    <div>
-                      <p className={`text-[10px] font-black uppercase tracking-widest ${reStats.gain >= 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>Seuil de rentabilité</p>
-                      <p className="text-2xl font-black italic text-white mt-1 leading-none">{reStats.threshold.toLocaleString()}€</p>
-                      <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">Prix de vente minimum pour ne rien perdre</p>
+                {/* SEUIL DE RENTABILITÉ — au prix de vente saisi, sans revalorisation.
+                    Lecture principale = nette du loyer de référence (acheter vs louer). */}
+                {(() => {
+                  const hasRent = reStats.rent > 0;
+                  const seuil = hasRent ? reStats.thresholdNet : reStats.threshold;
+                  const ecart = hasRent ? reStats.gainNet : reStats.gain;
+                  const since = hasRent ? reStats.sinceNet : reStats.since;
+                  const manque = hasRent ? reStats.missingNet : reStats.missing;
+                  return (
+                    <div className={`rounded-[2.5rem] p-6 border ${ecart >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-zinc-900/30 border-white/5'}`}>
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <p className={`text-[10px] font-black uppercase tracking-widest ${ecart >= 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>Seuil de rentabilité</p>
+                          <p className="text-2xl font-black italic text-white mt-1 leading-none">{seuil.toLocaleString()}€</p>
+                          <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">Prix de vente minimum{hasRent ? ', loyer de référence déduit' : ' pour ne rien perdre'}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 leading-none mb-1">Écart</p>
+                          <p className={`text-2xl font-black italic leading-none ${ecart >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{ecart >= 0 ? '+' : ''}{ecart.toLocaleString()}€</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-bold text-zinc-400 mt-4 leading-relaxed border-t border-white/5 pt-3">
+                        {since && since.n <= reStats.paid ? (
+                          <>Rentable depuis {fmtDate(since.date)}, soit après {fmtDuration(since.n)} de détention.</>
+                        ) : since ? (
+                          <>Rentable à partir de {fmtDate(since.date)}, soit après {fmtDuration(since.n)} de détention.</>
+                        ) : (
+                          <>Jamais atteint à {Number(realEstate.value).toLocaleString()}€ : il manque {manque.toLocaleString()}€.</>
+                        )}
+                        {hasRent && <> {reStats.rentAvoided.toLocaleString()}€ de loyers évités à ce jour, à {Math.round(reStats.rent).toLocaleString()}€ par mois.</>}
+                      </p>
+                      {hasRent && (
+                        <p className="text-[9px] font-bold text-zinc-600 mt-2.5 leading-relaxed border-t border-white/5 pt-2.5">
+                          Sans loyer de référence : seuil {reStats.threshold.toLocaleString()}€, écart {reStats.gain >= 0 ? '+' : ''}{reStats.gain.toLocaleString()}€. C'est la lecture « placement pur », qui ignore qu'il faut se loger de toute façon.
+                        </p>
+                      )}
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 leading-none mb-1">Écart</p>
-                      <p className={`text-2xl font-black italic leading-none ${reStats.gain >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{reStats.gain >= 0 ? '+' : ''}{reStats.gain.toLocaleString()}€</p>
-                    </div>
-                  </div>
-                  <p className="text-[10px] font-bold text-zinc-400 mt-4 leading-relaxed border-t border-white/5 pt-3">
-                    {reStats.gain >= 0 ? (
-                      <>Équilibre atteint à {Number(realEstate.value).toLocaleString()}€, après {fmtDuration(reStats.paid)} de détention.{reStats.lastProfitable && reStats.lastProfitable.n < reStats.schedule.length ? <> Il le reste jusqu'à l'échéance de {fmtDate(reStats.lastProfitable.date)} : au-delà, les intérêts et l'assurance accumulés repassent devant.</> : null}</>
-                    ) : reStats.breakEven ? (
-                      <>Équilibre atteint à partir de {fmtDate(reStats.breakEven.date)}, soit {fmtDuration(reStats.breakEven.n)} de détention.</>
-                    ) : (
-                      <>Jamais atteint à {Number(realEstate.value).toLocaleString()}€ : il manque {reStats.missing.toLocaleString()}€, et le seuil monte d'environ {Math.max(0, (reStats.chart[Math.min(reStats.chart.length - 1, Math.max(1, reStats.paid))]?.seuil ?? 0) - reStats.threshold).toLocaleString()}€ par mois. Le capital remboursé n'est pas compté comme une perte : seuls l'apport, les intérêts, l'assurance et les frais de vente le sont.</>
-                    )}
-                  </p>
-                </div>
+                  );
+                })()}
 
                 {/* STATS */}
                 <div className="grid grid-cols-2 gap-3">
@@ -1452,7 +1469,7 @@ export default function NexusUltimateCloud() {
                     <div className="flex gap-2.5 text-[9px] font-black uppercase">
                       <span className="text-violet-300">● Net</span>
                       <span className="text-zinc-500">● Dû</span>
-                      <span className="text-emerald-400">● Seuil</span>
+                      <span className="text-emerald-400">● Seuil{reStats.rent > 0 ? ' net' : ''}</span>
                     </div>
                   </div>
                   <div className="h-52">
@@ -1471,7 +1488,7 @@ export default function NexusUltimateCloud() {
                         <ReferenceLine x={reStats.paid || 1} stroke="#c4b5fd" strokeDasharray="4 4" />
                         <ReferenceLine y={Number(realEstate.value) || 0} stroke="#e4e4e7" strokeDasharray="2 5" strokeWidth={1} label={{ value: 'valeur', position: 'insideTopLeft', fill: '#a1a1aa', fontSize: 8, fontWeight: 700 }} />
                         <Area type="monotone" dataKey="crd" stroke="#71717a" strokeWidth={1.5} fill="none" dot={false} isAnimationActive={false} />
-                        <Area type="monotone" dataKey="seuil" stroke="#34d399" strokeWidth={1.5} fill="none" dot={false} isAnimationActive={false} />
+                        <Area type="monotone" dataKey={reStats.rent > 0 ? 'seuilNet' : 'seuil'} stroke="#34d399" strokeWidth={1.5} fill="none" dot={false} isAnimationActive={false} />
                         <Area type="monotone" dataKey="net" stroke="#a78bfa" strokeWidth={2} fill="url(#reNet)" dot={false} isAnimationActive={false} />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -1886,6 +1903,7 @@ export default function NexusUltimateCloud() {
                       ['amount', 'Valeur du bien (€)', 'decimal'],
                       ['apport', 'Apport / fonds propres (€)', 'decimal'],
                       ['releaseFees', "Frais de mainlevée d'hypothèque (€)", 'decimal'],
+                      ['rent', 'Loyer de référence (€/mois)', 'decimal'],
                     ].map(([k, lbl, mode]) => (
                       <div key={k} className="space-y-2">
                         <p className="text-[10px] font-black uppercase text-violet-400 pl-4">{lbl}</p>
@@ -1913,7 +1931,7 @@ export default function NexusUltimateCloud() {
                       <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">1re échéance (jour de prélèvement)</p>
                       <input type="date" value={form.firstDue ?? ''} onChange={e => setForm({ ...form, firstDue: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 font-bold outline-none focus:border-violet-500/50 [color-scheme:dark]" />
                     </div>
-                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Le tableau d'amortissement est recalculé depuis ces paramètres. Les échéances sont comptées à partir de cette date, une par mois, le même jour. L'actif net déduit l'indemnité de remboursement anticipé (un semestre d'intérêts, plafonné à 3 % du restant dû) et les frais de mainlevée : c'est le net en poche si tu vendais aujourd'hui.</p>
+                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Le tableau d'amortissement est recalculé depuis ces paramètres. Les échéances sont comptées à partir de cette date, une par mois, le même jour. L'actif net déduit l'indemnité de remboursement anticipé (un semestre d'intérêts, plafonné à 3 % du restant dû) et les frais de mainlevée : c'est le net en poche si tu vendais aujourd'hui. Le loyer de référence est ce que coûterait le même logement en location : il sert au seuil de rentabilité, mets 0 pour le désactiver.</p>
                   </div>
                 )}
 
