@@ -4,7 +4,7 @@ import {
   TrendingUp, Users, Wallet, Plus, Check, X, Trash2, Pencil,
   History as HistoryIcon, Zap, HeartPulse,
   Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame,
-  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw, Bitcoin, CalendarClock, Building2
+  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw, Bitcoin, CalendarClock, Building2, Settings
 } from 'lucide-react';
 import { supabase } from './supabase';
 import { REALESTATE_DEFAULTS, isRealEstate, isMoneyAccount, realEstateStats } from './realestate';
@@ -211,6 +211,9 @@ export default function NexusUltimateCloud() {
   const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'crypto', 'realestate', 'history'];
 
   const handleTouchStart = (e) => {
+    // Un geste qui démarre sur un curseur (ou une zone marquée data-no-swipe) le fait
+    // glisser : il ne doit pas être pris pour un swipe de changement d'onglet.
+    if (e.target.closest?.('input[type="range"], [data-no-swipe]')) { setTouchStart(null); return; }
     setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
   };
 
@@ -1377,8 +1380,9 @@ export default function NexusUltimateCloud() {
               </div>
             ) : (
               <>
-                {/* HÉRO ACTIF NET */}
+                {/* HÉRO ACTIF NET — l'engrenage ouvre les réglages du bien (modal `realestate`) */}
                 <div className="bg-gradient-to-br from-violet-900/40 to-purple-600/10 border border-violet-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-amethyst">
+                  <button onClick={openRealEstate} aria-label="Réglages du bien" className="absolute top-4 right-5 z-20 w-8 h-8 rounded-full flex items-center justify-center text-violet-300/60 hover:text-violet-200 hover:bg-violet-500/10 transition-all active:scale-90"><Settings size={16} strokeWidth={2.5} /></button>
                   <div className="flex justify-between items-center relative z-10">
                     <div>
                       <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic mb-1">Actif net immobilier</p>
@@ -1467,6 +1471,7 @@ export default function NexusUltimateCloud() {
                 {/* STATS */}
                 <div className="grid grid-cols-2 gap-3">
                   {[
+                    ['Valeur du bien', `${Math.round(Number(realEstate.value) || 0).toLocaleString()}€`, 'estimation actuelle, modifiable dans les réglages', true],
                     ['Restant dû', `${Math.round(reStats.crd).toLocaleString()}€`, `fin ${fmtDate(reStats.endDate)}`],
                     ['LTV', `${reStats.ltv.toFixed(1)}%`, 'dette / valeur du bien'],
                     ['Indemnité de RA', `${Math.round(reStats.ira).toLocaleString()}€`, reStats.ira > 0 ? 'semestre d\'intérêts, plafond 3 % du CRD' : 'gratuite (15 ans de remboursement)'],
@@ -1477,8 +1482,8 @@ export default function NexusUltimateCloud() {
                     ['Assurance payée', `${Math.round(reStats.insurancePaid).toLocaleString()}€`, `${Number(realEstate.loan.insurance).toLocaleString('fr-FR')}€ /mois`],
                     ['Mensualité', `${(Number(realEstate.loan.payment) + Number(realEstate.loan.insurance || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€`, 'assurance comprise'],
                     ['Échéances restantes', `${reStats.remaining}`, `${Math.floor(reStats.remaining / 12)} ans ${reStats.remaining % 12} mois`],
-                  ].map(([lbl, val, sub]) => (
-                    <div key={lbl} className="bg-zinc-900/30 border border-white/5 rounded-[2rem] p-5">
+                  ].map(([lbl, val, sub, wide]) => (
+                    <div key={lbl} className={`bg-zinc-900/30 border border-white/5 rounded-[2rem] p-5 ${wide ? 'col-span-2' : ''}`}>
                       <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest leading-tight">{lbl}</p>
                       <p className="text-lg font-black italic text-white mt-1 leading-none">{val}</p>
                       <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">{sub}</p>
@@ -1573,8 +1578,8 @@ export default function NexusUltimateCloud() {
                   )}
                 </div>
 
-                {/* SIMULATION DE REVALORISATION (non enregistrée) */}
-                <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-6 space-y-4">
+                {/* SIMULATION DE REVALORISATION (non enregistrée) — data-no-swipe : glisser le curseur ne change pas d'onglet */}
+                <div data-no-swipe className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Revalorisation du bien</p>
@@ -1582,7 +1587,7 @@ export default function NexusUltimateCloud() {
                     </div>
                     <p className={`text-2xl font-black italic ${reGrowth > 0 ? 'text-emerald-400' : reGrowth < 0 ? 'text-rose-400' : 'text-white'}`}>{reGrowth > 0 ? '+' : ''}{reGrowth.toLocaleString('fr-FR')}%<span className="text-xs text-zinc-500 ml-1">/an</span></p>
                   </div>
-                  <input type="range" min={-2} max={3} step={0.5} value={reGrowth} onChange={e => setReGrowth(Number(e.target.value))} className="w-full accent-violet-500" />
+                  <input type="range" min={-2} max={3} step={0.5} value={reGrowth} onChange={e => setReGrowth(Number(e.target.value))} className="w-full h-8 accent-violet-500 cursor-pointer" />
                   <div className="grid grid-cols-2 gap-3">
                     {[2030, 2035].map(y => {
                       const v = reStats.netInYear(y);
@@ -1595,22 +1600,6 @@ export default function NexusUltimateCloud() {
                     })}
                   </div>
                   <p className="text-[9px] text-zinc-600 font-bold leading-relaxed">S'applique à partir d'aujourd'hui : l'actif net du jour ne bouge pas. Modifie la « Propriété », les jalons et ces projections.</p>
-                </div>
-
-                {/* MON BIEN */}
-                <div className="bg-zinc-900/30 border border-white/5 p-5 rounded-[2.8rem] flex justify-between items-center relative overflow-hidden">
-                  <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-violet-500" />
-                  <div className="flex items-center gap-4 pl-2">
-                    <div className="w-11 h-11 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400"><Building2 size={20} /></div>
-                    <div>
-                      <p className="text-sm font-black italic uppercase text-zinc-200">{realEstate.name}</p>
-                      <p className="text-[9px] text-zinc-500 font-mono">{Number(realEstate.loan.principal).toLocaleString()}€ · {Number(realEstate.loan.rate)}% · {realEstate.loan.months} mois · dès {fmtDate(reStats.schedule.length ? reStats.chart[0].date : null)}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-xl font-black italic text-violet-300">{Number(realEstate.value).toLocaleString()}€</span>
-                    <button onClick={openRealEstate} className="text-zinc-600 hover:text-violet-400 mt-0.5"><Pencil size={13} /></button>
-                  </div>
                 </div>
               </>
             )}
