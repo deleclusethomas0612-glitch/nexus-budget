@@ -95,12 +95,15 @@ export const realEstateStats = (item, today = new Date(), growth = 0) => {
   const valueAt = (n) => value * Math.pow(1 + g, Math.max(0, n - paid) / 12);
 
   // Points mensuels : valeur (revalorisée), part possédée (valeur − CRD), actif net
-  // « net vendeur » (− IRA − mainlevée).
+  // « net vendeur » (− IRA − mainlevée). `ownPct` / `bankPct` = répartition du bien en %
+  // (somme 100, la banque plafonnée à 100 % tant que le CRD dépasse la valeur).
   const chart = schedule.map(r => {
     const v = valueAt(r.n);
+    const ownPct = v > 0 ? Math.round(Math.min(100, Math.max(0, (v - r.crd) / v * 100)) * 10) / 10 : 0;
     return {
       n: r.n, date: dueDate(loan, r.n),
       value: Math.round(v),
+      ownPct, bankPct: Math.round((100 - ownPct) * 10) / 10,
       owned: Math.round(Math.max(0, v - r.crd)),
       crd: Math.round(r.crd),
       net: Math.round(v - r.crd - iraFor(loan, r.crd, r.n) - releaseFees),

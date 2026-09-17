@@ -1547,35 +1547,47 @@ export default function NexusUltimateCloud() {
                       <p className="text-[9px] text-zinc-600 font-bold px-2 mt-2">Barre claire = année en cours. La première et la dernière année sont partielles.</p>
                     </>
                   ) : (
-                    <>
-                      <div className="flex justify-between items-center px-2 mb-3">
-                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Qui possède l'appart</p>
-                        <div className="flex gap-2.5 text-[9px] font-black uppercase">
-                          <span className="text-violet-300">● À vous</span>
-                          <span className="text-zinc-500">● Banque</span>
-                        </div>
-                      </div>
-                      <div className="h-52">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={reStats.chart} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="reOwn" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.6} />
-                                <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.15} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
-                            <XAxis dataKey="n" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={35} tickFormatter={(n) => { const d = reStats.chart[n - 1]?.date; return d ? String(d.getFullYear()) : ''; }} />
-                            <YAxis tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
-                            <Tooltip content={<RealEstateOwnTooltip />} cursor={{ stroke: '#ffffff20' }} />
-                            <Area type="monotone" dataKey="owned" stackId="o" stroke="#a78bfa" strokeWidth={2} fill="url(#reOwn)" dot={false} isAnimationActive={false} />
-                            <Area type="monotone" dataKey="crd" stackId="o" stroke="#71717a" strokeWidth={1} fill="#3f3f4640" dot={false} isAnimationActive={false} />
-                            <ReferenceLine x={reStats.paid || 1} stroke="#c4b5fd" strokeDasharray="4 4" label={{ value: 'auj.', position: 'insideTopLeft', fill: '#c4b5fd', fontSize: 8, fontWeight: 700 }} />
-                            {reStats.milestones[0].n && <ReferenceLine x={reStats.milestones[0].n} stroke="#e879f9" strokeDasharray="2 4" label={{ value: '50 %', position: 'insideTopRight', fill: '#e879f9', fontSize: 8, fontWeight: 700 }} />}
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </>
+                    (() => {
+                      // Lecture directe sans toucher : 100 % empilé, banque (rose, en haut) qui
+                      // rétrécit, part à vous (violet, en bas) qui grandit ; chiffres du jour en tête.
+                      const now = reStats.chart[Math.max(1, reStats.paid) - 1] || reStats.chart[0];
+                      const half = reStats.milestones[0];
+                      return (
+                        <>
+                          <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest px-2 mb-3">Qui possède l'appart</p>
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className="rounded-[1.25rem] border border-violet-500/30 bg-violet-500/10 px-3 py-2.5">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-violet-300">À vous aujourd'hui</p>
+                              <p className="text-xl font-black italic text-violet-200 leading-none mt-1">{Math.round(now.ownPct)}%</p>
+                              <p className="text-[9px] font-bold text-zinc-500 mt-1">{now.owned.toLocaleString()}€</p>
+                            </div>
+                            <div className="rounded-[1.25rem] border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-right">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-rose-300">Banque aujourd'hui</p>
+                              <p className="text-xl font-black italic text-rose-300 leading-none mt-1">{Math.round(now.bankPct)}%</p>
+                              <p className="text-[9px] font-bold text-zinc-500 mt-1">{now.crd.toLocaleString()}€</p>
+                            </div>
+                          </div>
+                          <div className="h-52 relative">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart data={reStats.chart} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                                <XAxis dataKey="n" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={35} tickFormatter={(n) => { const d = reStats.chart[n - 1]?.date; return d ? String(d.getFullYear()) : ''; }} />
+                                <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} width={38} />
+                                <Tooltip content={<RealEstateOwnTooltip />} cursor={{ stroke: '#ffffff40' }} />
+                                <Area type="monotone" dataKey="ownPct" stackId="o" stroke="#a78bfa" strokeWidth={2} fill="#8b5cf6" fillOpacity={0.55} dot={false} isAnimationActive={false} />
+                                <Area type="monotone" dataKey="bankPct" stackId="o" stroke="#fb7185" strokeWidth={0} fill="#f43f5e" fillOpacity={0.28} dot={false} isAnimationActive={false} />
+                                <ReferenceLine y={50} stroke="#ffffff30" strokeDasharray="3 3" />
+                                <ReferenceLine x={now.n} stroke="#ffffff" strokeOpacity={0.7} strokeDasharray="4 4" label={{ value: "aujourd'hui", position: 'insideTopRight', fill: '#e4e4e7', fontSize: 8, fontWeight: 800 }} />
+                                {half.n && <ReferenceLine x={half.n} stroke="#e879f9" strokeDasharray="2 4" label={{ value: `50/50 · ${half.date.getFullYear()}`, position: 'insideBottomLeft', fill: '#f5d0fe', fontSize: 8, fontWeight: 800 }} />}
+                              </AreaChart>
+                            </ResponsiveContainer>
+                            {/* Étiquettes posées dans les zones : la banque occupe le haut-gauche, vous le bas-droit */}
+                            <p className="pointer-events-none absolute left-12 top-3 text-[10px] font-black uppercase tracking-widest text-rose-200/90">Banque</p>
+                            <p className="pointer-events-none absolute right-3 bottom-8 text-[10px] font-black uppercase tracking-widest text-violet-100">À vous</p>
+                          </div>
+                          <p className="text-[9px] text-zinc-600 font-bold px-2 mt-2">La zone rose (dette) rétrécit à chaque prélèvement, la zone violette (votre part) grandit jusqu'à 100 % en {reStats.endDate ? reStats.endDate.getFullYear() : '—'}.</p>
+                        </>
+                      );
+                    })()
                   )}
                 </div>
 
