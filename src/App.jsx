@@ -139,16 +139,32 @@ const ProjectionTooltip = ({ active, payload, label }) => {
   );
 };
 
-// Tooltip du graphe Immobilier : actif net + capital restant dû à une échéance donnée.
-const RealEstateTooltip = ({ active, payload }) => {
+// Tooltips des graphes Immobilier.
+// « Mensualités » : répartition d'une année entre capital (à vous), intérêts et assurance.
+const RealEstateYearTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0].payload;
+  const total = d.capital + d.interest + d.insurance;
+  return (
+    <div className="bg-zinc-950 border border-white/10 rounded-[20px] px-4 py-2.5 shadow-2xl">
+      <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.year} · {total.toLocaleString()}€</p>
+      <p className="text-sm font-black text-violet-300">{d.capital.toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Capital · {total ? Math.round((d.capital / total) * 100) : 0}% à vous</span></p>
+      <p className="text-sm font-black text-rose-400 mt-0.5">{d.interest.toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Intérêts</span></p>
+      <p className="text-sm font-black text-zinc-400 mt-0.5">{d.insurance.toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Assurance</span></p>
+    </div>
+  );
+};
+
+// « Propriété » : part du bien à vous (valeur − CRD) face à la part de la banque.
+const RealEstateOwnTooltip = ({ active, payload }) => {
   if (!active || !payload || !payload.length) return null;
   const d = payload[0].payload;
   return (
     <div className="bg-zinc-950 border border-white/10 rounded-[20px] px-4 py-2.5 shadow-2xl">
-      <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.date ? d.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : `#${d.n}`}</p>
-      <p className="text-sm font-black text-violet-300">{Number(d.net).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Actif net</span></p>
-      <p className="text-sm font-black text-zinc-400 mt-0.5">{Number(d.crd).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Restant dû</span></p>
-      <p className={`text-sm font-black mt-0.5 ${d.avantage >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{d.avantage >= 0 ? '+' : ''}{Number(d.avantage).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">vs location</span></p>
+      <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.date ? d.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : `#${d.n}`} · {d.value ? Math.round((d.owned / d.value) * 100) : 0}% à vous</p>
+      <p className="text-sm font-black text-violet-300">{Number(d.owned).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">À vous</span></p>
+      <p className="text-sm font-black text-zinc-400 mt-0.5">{Number(d.crd).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">À la banque</span></p>
+      <p className="text-sm font-black text-emerald-400 mt-0.5">{Number(d.net).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Actif net (vente)</span></p>
     </div>
   );
 };
@@ -189,6 +205,8 @@ export default function NexusUltimateCloud() {
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [cryptoDraft, setCryptoDraft] = useState({});   // { sym, qty } dans la modale
   const [dueDraft, setDueDraft] = useState([]);         // [{ id, date, amount }] dans la modale Échéances
+  const [reView, setReView] = useState('years');       // graphe Immobilier : 'years' (mensualités) | 'own' (propriété)
+  const [reGrowth, setReGrowth] = useState(0);         // revalorisation annuelle simulée (%), non enregistrée
 
   const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'crypto', 'realestate', 'history'];
 
@@ -674,15 +692,13 @@ export default function NexusUltimateCloud() {
   // --- IMMOBILIER (stocké dans savings_accounts avec kind:'realestate', page dédiée) ---
   // Un seul bien ; tout est dérivé au rendu depuis les paramètres du prêt (cf. src/realestate.js).
   const realEstate = savingsAccounts.find(isRealEstate) || null;
-  const reStats = useMemo(() => (realEstate ? realEstateStats(realEstate) : null), [realEstate]);
+  const reStats = useMemo(() => (realEstate ? realEstateStats(realEstate, undefined, reGrowth) : null), [realEstate, reGrowth]);
   const openRealEstate = () => {
     const src = realEstate || REALESTATE_DEFAULTS;
     const loan = { ...REALESTATE_DEFAULTS.loan, ...(src.loan || {}) };
     setForm({
       label: src.name || '', amount: String(src.value ?? ''), apport: String(src.apport ?? ''),
       releaseFees: String(src.releaseFees ?? REALESTATE_DEFAULTS.releaseFees),
-      rent: String(src.rent ?? REALESTATE_DEFAULTS.rent),
-      ownerCosts: String(src.ownerCosts ?? REALESTATE_DEFAULTS.ownerCosts),
       principal: String(loan.principal), rate: String(loan.rate), payment: String(loan.payment),
       insurance: String(loan.insurance), deferred: String(loan.deferred), months: String(loan.months),
       iraFreeAfter: String(loan.iraFreeAfter ?? ''),
@@ -696,7 +712,7 @@ export default function NexusUltimateCloud() {
     if (!(value > 0) || !(principal > 0) || !(payment > 0) || !(months > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(form.firstDue || '')) return;
     const item = {
       id: realEstate?.id ?? Date.now(), kind: 'realestate', name: (form.label || '').trim() || 'Bien immobilier',
-      value, apport: num('apport') || 0, releaseFees: num('releaseFees') || 0, rent: num('rent') || 0, ownerCosts: num('ownerCosts') || 0,
+      value, apport: num('apport') || 0, releaseFees: num('releaseFees') || 0,
       loan: {
         principal, rate: num('rate') || 0, payment, insurance: num('insurance') || 0,
         deferred: Math.max(0, Math.floor(num('deferred') || 0)), months, firstDue: form.firstDue,
@@ -1388,39 +1404,65 @@ export default function NexusUltimateCloud() {
                   </div>
                 </div>
 
-                {/* SEUIL DE RENTABILITÉ — au prix de vente saisi, sans revalorisation.
-                    Lecture principale = nette du loyer de référence (acheter vs louer). */}
-                {(() => {
-                  const be = reStats.breakEven;
-                  const ok = reStats.advantage >= 0;
+                {/* ENRICHISSEMENT : ce que la prochaine mensualité met dans votre poche vs ce qu'elle coûte */}
+                {reStats.next && (() => {
+                  const tot = reStats.next.capital + reStats.next.interest + reStats.next.insurance;
+                  const pct = tot > 0 ? (reStats.next.capital / tot) * 100 : 0;
                   return (
-                    <div className={`rounded-[2.5rem] p-6 border ${ok ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-zinc-900/30 border-white/5'}`}>
+                    <div className="bg-zinc-900/30 border border-violet-500/20 rounded-[2.5rem] p-6 space-y-4">
                       <div className="flex justify-between items-start gap-4">
                         <div>
-                          <p className={`text-[10px] font-black uppercase tracking-widest ${ok ? 'text-emerald-400' : 'text-zinc-500'}`}>Achat rentable après</p>
-                          <p className="text-2xl font-black italic text-white mt-1 leading-none">{be ? fmtDuration(be.n) : 'jamais'}</p>
-                          <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">De détention, face à la location</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Vous vous enrichissez de</p>
+                          <p className="text-3xl font-black italic text-violet-200 mt-1 leading-none">{Math.round(reStats.next.capital).toLocaleString()}€<span className="text-xs text-zinc-500 ml-1.5">/mois</span></p>
+                          <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">capital remboursé, qui devient à vous</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 leading-none mb-1">Gagné à ce jour</p>
-                          <p className={`text-2xl font-black italic leading-none ${ok ? 'text-emerald-400' : 'text-rose-400'}`}>{ok ? '+' : ''}{reStats.advantage.toLocaleString()}€</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 leading-none mb-1">Coût réel</p>
+                          <p className="text-2xl font-black italic text-rose-400 leading-none">{Math.round(reStats.next.interest + reStats.next.insurance).toLocaleString()}€<span className="text-xs text-zinc-500 ml-1">/mois</span></p>
+                          <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">intérêts + assurance</p>
                         </div>
                       </div>
-                      <p className="text-[10px] font-bold text-zinc-400 mt-4 leading-relaxed border-t border-white/5 pt-3">
-                        {be && be.n <= reStats.paid ? (
-                          <>Seuil franchi en {fmtDate(be.date)}. Tu détiens depuis {fmtDuration(reStats.paid)} : revendre aujourd'hui laisse {reStats.advantage.toLocaleString()}€ de plus que si tu avais loué sur la même période.</>
-                        ) : be ? (
-                          <>Seuil prévu en {fmtDate(be.date)}. Tu détiens depuis {fmtDuration(reStats.paid)} : revendre aujourd'hui coûterait {Math.abs(reStats.advantage).toLocaleString()}€ de plus que d'avoir loué.</>
-                        ) : (
-                          <>Avec ces hypothèses, l'achat ne rattrape jamais la location sur la durée du prêt.</>
-                        )}
-                      </p>
-                      <p className="text-[9px] font-bold text-zinc-600 mt-2.5 leading-relaxed border-t border-white/5 pt-2.5">
-                        Hypothèses : loyer de marché {Math.round(reStats.rent).toLocaleString()}€/mois ({reStats.rentAvoided.toLocaleString()}€ évités à ce jour), charges de propriétaire {Math.round(reStats.ownerMonthly).toLocaleString()}€/mois ({reStats.ownerPaid.toLocaleString()}€ payés). Le capital remboursé n'est pas compté comme une perte. À ajuster dans la fiche du bien.
-                      </p>
+                      <div>
+                        <div className="h-2.5 rounded-full bg-rose-500/40 overflow-hidden border border-white/5">
+                          <div className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-500" style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-[9px] text-zinc-500 font-bold mt-2">{Math.round(pct)}% de la mensualité est de l'épargne</p>
+                      </div>
                     </div>
                   );
                 })()}
+
+                {/* JALONS */}
+                <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-6">
+                  <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-4">Jalons</p>
+                  <div className="space-y-3">
+                    {reStats.milestones.filter(m => m.date).map(m => (
+                      <div key={m.key} className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full shrink-0 border-2 ${m.done ? 'bg-violet-400 border-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.7)]' : 'border-zinc-600'}`} />
+                        <p className={`flex-1 text-xs font-black uppercase ${m.done ? 'text-violet-300' : 'text-zinc-300'}`}>{m.label}</p>
+                        <div className="text-right">
+                          <p className="text-xs font-black italic text-white">{m.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}</p>
+                          <p className="text-[9px] text-zinc-600 font-bold">{m.done ? 'atteint' : `dans ${fmtDuration(m.n - reStats.paid)}`}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* COÛT TOTAL DU CRÉDIT */}
+                <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-6 space-y-3">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Coût du crédit payé</p>
+                      <p className="text-2xl font-black italic text-rose-400">{Math.round(reStats.costPaid).toLocaleString()}€<span className="text-xs text-zinc-500 ml-2">/ {Math.round(reStats.totalCost).toLocaleString()}€</span></p>
+                      <p className="text-[9px] text-zinc-600 font-bold mt-1">intérêts + assurance sur toute la durée</p>
+                    </div>
+                    <p className="text-xl font-black italic text-white">{reStats.totalCost > 0 ? ((reStats.costPaid / reStats.totalCost) * 100).toFixed(1) : '0.0'}%</p>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-black/50 overflow-hidden border border-white/5">
+                    <div className="h-full rounded-full bg-rose-500/80" style={{ width: `${reStats.totalCost > 0 ? Math.min(100, (reStats.costPaid / reStats.totalCost) * 100) : 0}%` }} />
+                  </div>
+                </div>
 
                 {/* STATS */}
                 <div className="grid grid-cols-2 gap-3">
@@ -1460,38 +1502,99 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
 
-                {/* GRAPHE SUR LA DURÉE DU PRÊT */}
+                {/* GRAPHES : où part la mensualité / qui possède le bien */}
                 <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-5">
-                  <div className="flex justify-between items-center px-2 mb-3">
-                    <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Projection</p>
-                    <div className="flex gap-2.5 text-[9px] font-black uppercase">
-                      <span className="text-violet-300">● Net</span>
-                      <span className="text-zinc-500">● Dû</span>
-                      <span className="text-emerald-400">● vs Location</span>
+                  <div className="flex gap-2 mb-3">
+                    {[['years', 'Mensualités'], ['own', 'Propriété']].map(([k, lbl]) => (
+                      <button key={k} onClick={() => setReView(k)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${reView === k ? 'bg-violet-500/20 border-violet-500/50 text-violet-300' : 'border-white/5 text-zinc-500'}`}>{lbl}</button>
+                    ))}
+                  </div>
+                  {reView === 'years' ? (
+                    <>
+                      <div className="flex justify-between items-center px-2 mb-3">
+                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Où part ma mensualité</p>
+                        <div className="flex gap-2.5 text-[9px] font-black uppercase">
+                          <span className="text-violet-300">● Capital</span>
+                          <span className="text-rose-400">● Intérêts</span>
+                          <span className="text-zinc-500">● Assur.</span>
+                        </div>
+                      </div>
+                      <div className="h-52">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={reStats.years} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
+                            <XAxis dataKey="year" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={4} />
+                            <YAxis tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
+                            <Tooltip content={<RealEstateYearTooltip />} cursor={{ fill: '#ffffff08' }} />
+                            <Bar dataKey="capital" stackId="y" isAnimationActive={false}>
+                              {reStats.years.map(y => <Cell key={y.year} fill={y.year === new Date().getFullYear() ? '#c4b5fd' : '#8b5cf6'} />)}
+                            </Bar>
+                            <Bar dataKey="interest" stackId="y" isAnimationActive={false}>
+                              {reStats.years.map(y => <Cell key={y.year} fill={y.year === new Date().getFullYear() ? '#fb7185' : '#be123c'} />)}
+                            </Bar>
+                            <Bar dataKey="insurance" stackId="y" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                              {reStats.years.map(y => <Cell key={y.year} fill={y.year === new Date().getFullYear() ? '#a1a1aa' : '#52525b'} />)}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <p className="text-[9px] text-zinc-600 font-bold px-2 mt-2">Barre claire = année en cours. La première et la dernière année sont partielles.</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-center px-2 mb-3">
+                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Qui possède l'appart</p>
+                        <div className="flex gap-2.5 text-[9px] font-black uppercase">
+                          <span className="text-violet-300">● À vous</span>
+                          <span className="text-zinc-500">● Banque</span>
+                        </div>
+                      </div>
+                      <div className="h-52">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={reStats.chart} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="reOwn" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.6} />
+                                <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.15} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
+                            <XAxis dataKey="n" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={35} tickFormatter={(n) => { const d = reStats.chart[n - 1]?.date; return d ? String(d.getFullYear()) : ''; }} />
+                            <YAxis tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
+                            <Tooltip content={<RealEstateOwnTooltip />} cursor={{ stroke: '#ffffff20' }} />
+                            <Area type="monotone" dataKey="owned" stackId="o" stroke="#a78bfa" strokeWidth={2} fill="url(#reOwn)" dot={false} isAnimationActive={false} />
+                            <Area type="monotone" dataKey="crd" stackId="o" stroke="#71717a" strokeWidth={1} fill="#3f3f4640" dot={false} isAnimationActive={false} />
+                            <ReferenceLine x={reStats.paid || 1} stroke="#c4b5fd" strokeDasharray="4 4" label={{ value: 'auj.', position: 'insideTopLeft', fill: '#c4b5fd', fontSize: 8, fontWeight: 700 }} />
+                            {reStats.milestones[0].n && <ReferenceLine x={reStats.milestones[0].n} stroke="#e879f9" strokeDasharray="2 4" label={{ value: '50 %', position: 'insideTopRight', fill: '#e879f9', fontSize: 8, fontWeight: 700 }} />}
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* SIMULATION DE REVALORISATION (non enregistrée) */}
+                <div className="bg-zinc-900/30 border border-white/5 rounded-[2.5rem] p-6 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Revalorisation du bien</p>
+                      <p className="text-[9px] text-zinc-600 font-bold mt-1">simulation, n'est pas enregistrée</p>
                     </div>
+                    <p className={`text-2xl font-black italic ${reGrowth > 0 ? 'text-emerald-400' : reGrowth < 0 ? 'text-rose-400' : 'text-white'}`}>{reGrowth > 0 ? '+' : ''}{reGrowth.toLocaleString('fr-FR')}%<span className="text-xs text-zinc-500 ml-1">/an</span></p>
                   </div>
-                  <div className="h-52">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={reStats.chart} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="reNet" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.5} />
-                            <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.02} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
-                        <XAxis dataKey="n" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={35} tickFormatter={(n) => { const d = reStats.chart[n - 1]?.date; return d ? String(d.getFullYear()) : ''; }} />
-                        <YAxis tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
-                        <Tooltip content={<RealEstateTooltip />} cursor={{ stroke: '#ffffff20' }} />
-                        <ReferenceLine x={reStats.paid || 1} stroke="#c4b5fd" strokeDasharray="4 4" />
-                        <ReferenceLine y={0} stroke="#3f3f46" strokeWidth={1} />
-                        {reStats.breakEven && <ReferenceLine x={reStats.breakEven.n} stroke="#34d399" strokeDasharray="2 4" label={{ value: 'rentable', position: 'insideTopRight', fill: '#34d399', fontSize: 8, fontWeight: 700 }} />}
-                        <Area type="monotone" dataKey="crd" stroke="#71717a" strokeWidth={1.5} fill="none" dot={false} isAnimationActive={false} />
-                        <Area type="monotone" dataKey="avantage" stroke="#34d399" strokeWidth={1.5} fill="none" dot={false} isAnimationActive={false} />
-                        <Area type="monotone" dataKey="net" stroke="#a78bfa" strokeWidth={2} fill="url(#reNet)" dot={false} isAnimationActive={false} />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                  <input type="range" min={-2} max={3} step={0.5} value={reGrowth} onChange={e => setReGrowth(Number(e.target.value))} className="w-full accent-violet-500" />
+                  <div className="grid grid-cols-2 gap-3">
+                    {[2030, 2035].map(y => {
+                      const v = reStats.netInYear(y);
+                      return (
+                        <div key={y} className="bg-black/30 border border-white/5 rounded-[1.5rem] p-4">
+                          <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Actif net fin {y}</p>
+                          <p className="text-lg font-black italic text-violet-200 mt-1 leading-none">{v != null ? `${v.toLocaleString()}€` : '—'}</p>
+                        </div>
+                      );
+                    })}
                   </div>
+                  <p className="text-[9px] text-zinc-600 font-bold leading-relaxed">S'applique à partir d'aujourd'hui : l'actif net du jour ne bouge pas. Modifie la « Propriété », les jalons et ces projections.</p>
                 </div>
 
                 {/* MON BIEN */}
@@ -1902,8 +2005,6 @@ export default function NexusUltimateCloud() {
                       ['amount', 'Valeur du bien (€)', 'decimal'],
                       ['apport', 'Apport / fonds propres (€)', 'decimal'],
                       ['releaseFees', "Frais de mainlevée d'hypothèque (€)", 'decimal'],
-                      ['rent', 'Loyer de marché équivalent (€/mois)', 'decimal'],
-                      ['ownerCosts', 'Charges de propriétaire (€/an)', 'decimal'],
                     ].map(([k, lbl, mode]) => (
                       <div key={k} className="space-y-2">
                         <p className="text-[10px] font-black uppercase text-violet-400 pl-4">{lbl}</p>

@@ -13,15 +13,6 @@ export const REALESTATE_DEFAULTS = {
   value: 300000,
   apport: 15486.41,
   releaseFees: 1055,
-  // Loyer de MARCHÉ du même logement : ce qu'il aurait fallu payer pour se loger
-  // sans acheter. Surtout pas la mensualité, dont une partie est du capital, donc
-  // de l'épargne et non un coût. ~1 000 € ≈ 4,1 % de rendement brut sur 290 000 €,
-  // ordre de grandeur en grande couronne : à ajuster au vrai loyer local.
-  rent: 1000,
-  // Charges payées par le propriétaire et pas par un locataire, en €/an :
-  // taxe foncière + part non récupérable des charges de copropriété + provision
-  // travaux. Estimation à ajuster.
-  ownerCosts: 2400,
   loan: { principal: 301500, rate: 1.2, payment: 1170.47, insurance: 77.38, deferred: 2, months: 300, firstDue: '2022-03-07', iraFreeAfter: 180 },
 };
 
@@ -82,7 +73,10 @@ export const paidCount = (loan, today = new Date()) => {
   return Math.min(months, Math.max(0, k));
 };
 
-export const realEstateStats = (item, today = new Date()) => {
+// `growth` = revalorisation annuelle du bien en % (curseur de la page, non enregistré).
+// Elle ne s'applique qu'aux échéances futures : aujourd'hui la valeur reste celle
+// saisie, donc l'actif net du jour ne dépend pas du curseur.
+export const realEstateStats = (item, today = new Date(), growth = 0) => {
   const loan = item.loan || {};
   const schedule = buildSchedule(loan);
   const paid = paidCount(loan, today);
@@ -97,44 +91,51 @@ export const realEstateStats = (item, today = new Date()) => {
   const next = paid < schedule.length ? { ...schedule[paid], date: dueDate(loan, paid + 1) } : null;
   const releaseFees = Number(item.releaseFees) || 0;
   const ira = iraFor(loan, crd, paid);
+  const g = (Number(growth) || 0) / 100;
+  const valueAt = (n) => value * Math.pow(1 + g, Math.max(0, n - paid) / 12);
 
-  // Points du graphe + seuil de rentabilité, en une passe.
-  // `seuil` = prix de vente minimum pour ne rien perdre à l'échéance n. Le capital
-  // remboursé n'y figure pas : ce n'est pas une perte mais de l'épargne, et il
-  // s'annule entre le net vendeur et l'argent investi. Ne restent que l'apport, les
-  // intérêts et l'assurance déjà payés, plus les frais de sortie.
-  // « Règle des 7 ans » : au bout de combien de temps de détention l'achat devient-il
-  // plus avantageux que la location ? C'est une DURÉE, pas un prix de vente.
-  //   avantage(n) = ce qu'on récupère en revendant  (valeur − CRD − IRA − mainlevée)
-  //               + les loyers qu'on n'a pas payés  (rent × n)
-  //               − ce qui est sorti sans retour     (apport + intérêts + assurance
-  //                 + charges propriétaire + le capital emprunté non couvert par la valeur)
-  // Le capital remboursé n'est pas un coût : c'est de l'épargne, il revient dans le
-  // prix de revente, et il s'annule des deux côtés.
-  const rent = Number(item.rent ?? REALESTATE_DEFAULTS.rent) || 0;
-  const ownerMonthly = round2((Number(item.ownerCosts ?? REALESTATE_DEFAULTS.ownerCosts) || 0) / 12);
-  let cumI = 0, cumS = 0;
+  // Points mensuels : valeur (revalorisée), part possédée (valeur − CRD), actif net
+  // « net vendeur » (− IRA − mainlevée).
   const chart = schedule.map(r => {
-    cumI = round2(cumI + r.interest);
-    cumS = round2(cumS + r.insurance);
-    const rowIra = iraFor(loan, r.crd, r.n);
+    const v = valueAt(r.n);
     return {
       n: r.n, date: dueDate(loan, r.n),
-      net: Math.round(value - r.crd - rowIra - releaseFees),
+      value: Math.round(v),
+      owned: Math.round(Math.max(0, v - r.crd)),
       crd: Math.round(r.crd),
-      avantage: Math.round(value - principal - apport - cumI - cumS - rowIra - releaseFees + (rent - ownerMonthly) * r.n),
+      net: Math.round(v - r.crd - iraFor(loan, r.crd, r.n) - releaseFees),
     };
   });
 
-  // Point d'équilibre : 1re échéance où l'avantage devient positif (null = jamais).
-  const here = chart.length ? chart[Math.min(chart.length, Math.max(1, paid)) - 1] : null;
+  // Barres annuelles : où part la mensualité (capital = enrichissement, intérêts et
+  // assurance = coût du crédit).
+  const byYear = new Map();
+  schedule.forEach(r => {
+    const y = dueDate(loan, r.n)?.getFullYear() ?? 0;
+    const row = byYear.get(y) || { year: y, capital: 0, interest: 0, insurance: 0 };
+    row.capital += r.capital; row.interest += r.interest; row.insurance += r.insurance;
+    byYear.set(y, row);
+  });
+  const years = [...byYear.values()].map(r => ({
+    year: r.year, capital: Math.round(r.capital), interest: Math.round(r.interest), insurance: Math.round(r.insurance),
+  }));
+
+  // Jalons : moitié du bien à nous (au sens valeur − CRD), fin de l'IRA, fin du crédit.
+  const half = chart.find(p => p.owned >= p.value / 2) || null;
+  const freeAfter = Math.floor(Number(loan.iraFreeAfter) || 0);
+  const milestones = [
+    { key: 'half', label: 'Moitié du bien à vous', n: half?.n ?? null, date: half?.date ?? null },
+    { key: 'ira', label: "Plus d'indemnité de RA", n: freeAfter > 0 ? freeAfter : null, date: freeAfter > 0 ? dueDate(loan, freeAfter) : null },
+    { key: 'end', label: 'Fin du crédit', n: schedule.length || null, date: schedule.length ? dueDate(loan, schedule.length) : null },
+  ].map(m => ({ ...m, done: m.n != null && m.n <= paid }));
+
+  // Actif net projeté à une année donnée (dernière échéance de l'année, ou la fin).
+  const netInYear = (y) => {
+    const pts = chart.filter(p => p.date && p.date.getFullYear() === y);
+    return pts.length ? pts[pts.length - 1].net : null;
+  };
 
   return {
-    rent, ownerMonthly,
-    rentAvoided: Math.round(rent * paid),
-    ownerPaid: Math.round(ownerMonthly * paid),
-    advantage: here ? here.avantage : 0,
-    breakEven: chart.find(p => p.avantage >= 0) || null,
     schedule, paid, crd, capitalPaid, interestPaid, insurancePaid,
     // Actif net « dans la poche » si vente aujourd'hui : valeur − CRD − IRA − mainlevée.
     grossEquity: Math.round(value - crd),
@@ -149,6 +150,7 @@ export const realEstateStats = (item, today = new Date()) => {
     lastPaidDate: paid > 0 ? dueDate(loan, paid) : null,
     endDate: schedule.length ? dueDate(loan, schedule.length) : null,
     totalCost: round2(schedule.reduce((s, r) => s + r.interest + r.insurance, 0)),
-    chart,
+    costPaid: round2(interestPaid + insurancePaid),
+    chart, years, milestones, netInYear,
   };
 };
