@@ -207,6 +207,7 @@ export default function NexusUltimateCloud() {
   const [dueDraft, setDueDraft] = useState([]);         // [{ id, date, amount }] dans la modale Échéances
   const [reView, setReView] = useState('years');       // graphe Immobilier : 'years' (mensualités) | 'own' (propriété)
   const [reGrowth, setReGrowth] = useState(0);         // revalorisation annuelle simulée (%), non enregistrée
+  const [reYear, setReYear] = useState(2030);          // année choisie sur la mini-courbe d'actif net, non enregistrée
 
   const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'crypto', 'realestate', 'history'];
 
@@ -1588,18 +1589,52 @@ export default function NexusUltimateCloud() {
                     <p className={`text-2xl font-black italic ${reGrowth > 0 ? 'text-emerald-400' : reGrowth < 0 ? 'text-rose-400' : 'text-white'}`}>{reGrowth > 0 ? '+' : ''}{reGrowth.toLocaleString('fr-FR')}%<span className="text-xs text-zinc-500 ml-1">/an</span></p>
                   </div>
                   <input type="range" min={-2} max={3} step={0.5} value={reGrowth} onChange={e => setReGrowth(Number(e.target.value))} className="w-full h-8 accent-violet-500 cursor-pointer" />
-                  <div className="grid grid-cols-2 gap-3">
-                    {[2030, 2035].map(y => {
-                      const v = reStats.netInYear(y);
-                      return (
-                        <div key={y} className="bg-black/30 border border-white/5 rounded-[1.5rem] p-4">
-                          <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Actif net fin {y}</p>
-                          <p className="text-lg font-black italic text-violet-200 mt-1 leading-none">{v != null ? `${v.toLocaleString()}€` : '—'}</p>
+                  {/* MINI-COURBE : actif net fin d'année, on la parcourt du doigt pour choisir l'année */}
+                  {reStats.netYears.length > 0 && (() => {
+                    const pts = reStats.netYears;
+                    const sel = pts.find(p => p.year === reYear)
+                      || (reYear < pts[0].year ? pts[0] : pts[pts.length - 1]);
+                    const delta = sel.net - reStats.netAsset;
+                    const pick = (st) => {
+                      const i = Number(st?.activeTooltipIndex);
+                      if (Number.isInteger(i) && pts[i]) setReYear(pts[i].year);
+                    };
+                    return (
+                      <div className="bg-black/30 border border-white/5 rounded-[1.5rem] p-4">
+                        <div className="flex justify-between items-end gap-3">
+                          <div>
+                            <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Actif net fin {sel.year}</p>
+                            <p className="text-3xl font-black italic text-violet-200 mt-1 leading-none">{sel.net.toLocaleString()}€</p>
+                          </div>
+                          <p className={`text-xs font-black italic shrink-0 ${delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{delta >= 0 ? '+' : ''}{delta.toLocaleString()}€<span className="block text-[9px] not-italic font-bold text-zinc-600 text-right">vs aujourd'hui</span></p>
                         </div>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[9px] text-zinc-600 font-bold leading-relaxed">S'applique à partir d'aujourd'hui : l'actif net du jour ne bouge pas. Modifie la « Propriété », les jalons et ces projections.</p>
+                        <div className="h-28 mt-3 touch-none select-none cursor-crosshair">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={pts} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}
+                              onMouseDown={pick} onMouseMove={(st, e) => { if (e?.buttons === 1) pick(st); }} onClick={pick}
+                              onTouchStart={pick} onTouchMove={pick}>
+                              <defs>
+                                <linearGradient id="reYears" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.45} />
+                                  <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.02} />
+                                </linearGradient>
+                              </defs>
+                              <XAxis dataKey="year" type="category" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
+                              <YAxis hide domain={['dataMin', 'dataMax']} />
+                              <Tooltip content={() => null} cursor={false} />
+                              <ReferenceLine x={sel.year} stroke="#c4b5fd" strokeDasharray="3 3" />
+                              <Area type="monotone" dataKey="net" stroke="#a78bfa" strokeWidth={2} fill="url(#reYears)" isAnimationActive={false}
+                                dot={(p) => (p.payload.year === sel.year
+                                  ? <circle key={p.payload.year} cx={p.cx} cy={p.cy} r={5} fill="#c4b5fd" stroke="#18181b" strokeWidth={2} />
+                                  : <g key={p.payload.year} />)} />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <p className="text-[9px] text-zinc-600 font-bold mt-2 text-center">Glisse le doigt sur la courbe pour choisir l'année</p>
+                      </div>
+                    );
+                  })()}
+                  <p className="text-[9px] text-zinc-600 font-bold leading-relaxed">S'applique à partir d'aujourd'hui : l'actif net du jour ne bouge pas. Modifie la « Propriété », les jalons et la courbe.</p>
                 </div>
               </>
             )}

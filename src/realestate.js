@@ -129,11 +129,13 @@ export const realEstateStats = (item, today = new Date(), growth = 0) => {
     { key: 'end', label: 'Fin du crédit', n: schedule.length || null, date: schedule.length ? dueDate(loan, schedule.length) : null },
   ].map(m => ({ ...m, done: m.n != null && m.n <= paid }));
 
-  // Actif net projeté à une année donnée (dernière échéance de l'année, ou la fin).
-  const netInYear = (y) => {
-    const pts = chart.filter(p => p.date && p.date.getFullYear() === y);
-    return pts.length ? pts[pts.length - 1].net : null;
-  };
+  // Actif net projeté fin d'année (dernière échéance de l'année, ou la fin du crédit),
+  // de l'année en cours à la dernière : points de la mini-courbe de revalorisation.
+  const lastOfYear = new Map();
+  chart.forEach(p => { if (p.date) lastOfYear.set(p.date.getFullYear(), p.net); });
+  const netYears = [...lastOfYear.entries()]
+    .filter(([y]) => y >= today.getFullYear())
+    .map(([year, net]) => ({ year, net }));
 
   return {
     schedule, paid, crd, capitalPaid, interestPaid, insurancePaid,
@@ -151,6 +153,6 @@ export const realEstateStats = (item, today = new Date(), growth = 0) => {
     endDate: schedule.length ? dueDate(loan, schedule.length) : null,
     totalCost: round2(schedule.reduce((s, r) => s + r.interest + r.insurance, 0)),
     costPaid: round2(interestPaid + insurancePaid),
-    chart, years, milestones, netInYear,
+    chart, years, milestones, netYears,
   };
 };
