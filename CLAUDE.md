@@ -52,7 +52,7 @@ Tout est dans le `useMemo` `totals` de [`src/App.jsx`](src/App.jsx).
   - Avec date : `max(0, moisCible − moisDémarrage + 1)` (**mois de démarrage inclus**).
   - Au passage d'année le solde **continue** (ne repart pas à zéro). Les régularisations annuelles (paiement d'une charge annuelle, petits écarts) se font **manuellement via Dépenses / Recettes**.
 - **`realCash`** (Cash Dispo) = `round(accProvision(maintenant) + totalReimbursed − totalPaid − totalPending)`. `startCash = 0`.
-- **Projection** = 12 barres Jan→Déc de l'année en cours.
+- **Projection** = 12 barres Jan→Déc, avec **bascule année en cours / année suivante** (puces émeraude au-dessus du graphe, state `projYear` non persisté). `buildProjection(year)` dans `totals` → `totals.projections[year]`. Aucune estimation automatique des charges annuelles de l'année suivante : seules les échéances armées saisies la creusent (choix utilisateur, sept. 2026).
 - **Total épargne** = Σ valeur des comptes. **Portefeuille** = `round(Σ(parts × VL) + cash)`, arrondi à l'euro (pas de centimes ; les parts sont fractionnées).
 
 ### Échéances datées sur les provisions annuelles
@@ -85,7 +85,7 @@ Chaque flux porte son jour réel, ce qui le place sur le **bon mois** du graphe 
 
 - **`paidOn`** (`YYYY-MM-DD`) est écrit à la création de chaque dépense / recette. Pour une échéance posée au jour J, `paidOn` = **le jour du prélèvement**, pas le jour de la saisie : une échéance datée du passé creuse bien son mois d'origine.
 - **`flowOn(x)`** (portée module) rend la date d'un flux : `paidOn` s'il existe, sinon repli sur `x.id` (un `Date.now()` de création) — ce qui **date correctement tout l'historique antérieur**. Sans repli exploitable → `null` : le flux est appliqué sur les 12 mois, comme avant la datation.
-- **Projection** : pour chaque mois, `solde` = provisions cumulées + recettes du mois et des précédentes − dépenses des mois précédents − avances, moins ce que le mois consomme. La barre est **empilée** : vert = solde restant, **rouge (`gDue`, `stackId="p"`) = ce que le mois consomme** (dépenses réelles + échéances encore armées). Un flux antérieur à l'année en cours est acquis dès janvier ; un flux postérieur est hors graphe. Tooltip dédié : `ProjectionTooltip` (portée module).
+- **Projection** : pour chaque mois, `solde` = provisions cumulées + recettes du mois et des précédentes − dépenses des mois précédents − avances, moins ce que le mois consomme. La barre est **empilée** : vert = solde restant, **rouge (`gDue`, `stackId="p"`) = ce que le mois consomme** (dépenses réelles + échéances encore armées). Un flux (ou une échéance armée) antérieur à l'année affichée est acquis dès janvier ; un flux postérieur est hors graphe. Tooltip dédié : `ProjectionTooltip` (portée module).
 - **`realCash` est inchangé** (il somme tout, sans regarder les dates) et **coïncide désormais avec la barre du mois courant**, aux échéances non encore échues près.
 
 ### PEA / valorisation live (VL)

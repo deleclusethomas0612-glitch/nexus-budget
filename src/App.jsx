@@ -207,6 +207,7 @@ export default function NexusUltimateCloud() {
   const [dueDraft, setDueDraft] = useState([]);         // [{ id, date, amount }] dans la modale Échéances
   const [reView, setReView] = useState('years');       // graphe Immobilier : 'years' (mensualités) | 'own' (propriété)
   const [reGrowth, setReGrowth] = useState(0);         // revalorisation annuelle simulée (%), non enregistrée
+  const [projYear, setProjYear] = useState(() => new Date().getFullYear()); // graphe dashboard : année affichée, non enregistrée
   const [reYear, setReYear] = useState(2030);          // année choisie sur la mini-courbe d'actif net, non enregistrée
 
   const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'crypto', 'realestate', 'history'];
@@ -430,68 +431,75 @@ export default function NexusUltimateCloud() {
       startCash + accProvisionAt(absMonth(currentYear, currentMonthIndex)) + totalReimbursed - totalPaid - totalPending
     );
 
-    // --- GRAPHE DE PROJECTION ---
+    // --- GRAPHE DE PROJECTION (année `year`, Jan → Déc) ---
+    // Calculé pour l'année en cours ET la suivante (bascule sur le dashboard).
     // Chaque flux est placé sur SON mois : une dépense de juin ne creuse que juin et
     // les mois suivants, jamais janvier à mai — y compris si elle est saisie plus tard.
     // Les flux sans date exploitable (ni `paidOn` ni `id` timestamp) restent appliqués
     // sur les 12 mois, ce qui reproduit le comportement d'avant la datation.
-    const paidByMonth = Array(12).fill(0);
-    const reimbByMonth = Array(12).fill(0);
-    const paidLabels = Array.from({ length: 12 }, () => []);
-    let paidBefore = 0, reimbBefore = 0;
+    const buildProjection = (year) => {
+      const paidByMonth = Array(12).fill(0);
+      const reimbByMonth = Array(12).fill(0);
+      const paidLabels = Array.from({ length: 12 }, () => []);
+      let paidBefore = 0, reimbBefore = 0;
 
-    // Répartit un flux sur son mois. Antérieur à l'année en cours ou non datable
-    // → déjà acquis, appliqué dès janvier. Postérieur → hors de ce graphe.
-    const spread = (list, byMonth, onBefore, labels) => {
-      list.forEach(x => {
-        const v = Number(x.amount) || 0;
-        const d = flowOn(x);
-        if (!d || d.getFullYear() < currentYear) { onBefore(v); return; }
-        if (d.getFullYear() > currentYear) return;
-        byMonth[d.getMonth()] += v;
-        if (labels && x.label && !labels[d.getMonth()].includes(x.label)) labels[d.getMonth()].push(x.label);
+      // Répartit un flux sur son mois. Antérieur à `year` ou non datable
+      // → déjà acquis, appliqué dès janvier. Postérieur → hors de ce graphe.
+      const spread = (list, byMonth, onBefore, labels) => {
+        list.forEach(x => {
+          const v = Number(x.amount) || 0;
+          const d = flowOn(x);
+          if (!d || d.getFullYear() < year) { onBefore(v); return; }
+          if (d.getFullYear() > year) return;
+          byMonth[d.getMonth()] += v;
+          if (labels && x.label && !labels[d.getMonth()].includes(x.label)) labels[d.getMonth()].push(x.label);
+        });
+      };
+      spread(exceptionalPaid, paidByMonth, v => { paidBefore += v; }, paidLabels);
+      spread(reimbursements, reimbByMonth, v => { reimbBefore += v; }, null);
+
+      // Échéances armées (prélèvements à venir, provisions ET dépenses programmées) :
+      // elles creusent le graphe PAR ANTICIPATION. Elles ne touchent ni realCash ni le
+      // virement — l'argent ne sort qu'au jour J, où elles deviennent de vraies dépenses.
+      // Une échéance d'une année antérieure à `year` (ex. nov. 2026 vue depuis 2027)
+      // sera sortie d'ici là : déduite dès janvier. Postérieure → hors de ce graphe.
+      const dueByMonth = Array(12).fill(0);
+      const dueLabels = Array.from({ length: 12 }, () => []);
+      annualExpenses.forEach(e => {
+        dueList(e).forEach(x => {
+          const d = new Date(x.date);
+          if (isNaN(d) || d.getFullYear() > year) return;
+          if (d.getFullYear() < year) { paidBefore += Number(x.amount) || 0; return; }
+          dueByMonth[d.getMonth()] += Number(x.amount) || 0;
+          if (!dueLabels[d.getMonth()].includes(e.name)) dueLabels[d.getMonth()].push(e.name);
+        });
+      });
+
+      let cumulReimb = 0, cumulOut = 0;
+      return Array.from({ length: 12 }, (_, i) => {
+        cumulReimb += reimbByMonth[i];
+        // Ce que le mois consomme : dépenses réellement payées + échéances encore armées.
+        const consomme = paidByMonth[i] + dueByMonth[i];
+        // Solde AVANT la consommation du mois = sommet de la barre empilée.
+        const avant = Math.round(
+          startCash + accProvisionAt(absMonth(year, i))
+          + reimbBefore + cumulReimb
+          - paidBefore - cumulOut
+          - totalPending
+        );
+        cumulOut += consomme;
+        return {
+          name: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][i],
+          // Barre verte = ce qui reste APRÈS ; segment rouge empilé = la part consommée.
+          solde: avant - Math.round(consomme),
+          due: Math.round(consomme),
+          dueLabel: [...paidLabels[i], ...dueLabels[i]].join(' · ')
+        };
       });
     };
-    spread(exceptionalPaid, paidByMonth, v => { paidBefore += v; }, paidLabels);
-    spread(reimbursements, reimbByMonth, v => { reimbBefore += v; }, null);
+    const projections = { [currentYear]: buildProjection(currentYear), [currentYear + 1]: buildProjection(currentYear + 1) };
 
-    // Échéances armées (prélèvements à venir, provisions ET dépenses programmées) :
-    // elles creusent le graphe PAR ANTICIPATION. Elles ne touchent ni realCash ni le
-    // virement — l'argent ne sort qu'au jour J, où elles deviennent de vraies dépenses.
-    const dueByMonth = Array(12).fill(0);
-    const dueLabels = Array.from({ length: 12 }, () => []);
-    annualExpenses.forEach(e => {
-      dueList(e).forEach(x => {
-        const d = new Date(x.date);
-        if (isNaN(d) || d.getFullYear() !== currentYear) return;
-        dueByMonth[d.getMonth()] += Number(x.amount) || 0;
-        if (!dueLabels[d.getMonth()].includes(e.name)) dueLabels[d.getMonth()].push(e.name);
-      });
-    });
-
-    let cumulReimb = 0, cumulOut = 0;
-    const projection = Array.from({ length: 12 }, (_, i) => {
-      cumulReimb += reimbByMonth[i];
-      // Ce que le mois consomme : dépenses réellement payées + échéances encore armées.
-      const consomme = paidByMonth[i] + dueByMonth[i];
-      // Solde AVANT la consommation du mois = sommet de la barre empilée.
-      const avant = Math.round(
-        startCash + accProvisionAt(absMonth(currentYear, i))
-        + reimbBefore + cumulReimb
-        - paidBefore - cumulOut
-        - totalPending
-      );
-      cumulOut += consomme;
-      return {
-        name: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][i],
-        // Barre verte = ce qui reste APRÈS ; segment rouge empilé = la part consommée.
-        solde: avant - Math.round(consomme),
-        due: Math.round(consomme),
-        dueLabel: [...paidLabels[i], ...dueLabels[i]].join(' · ')
-      };
-    });
-
-    return { virement, realCash, projection, provision, totalFixed, totalAnnual, totalPending };
+    return { virement, realCash, projections, provision, totalFixed, totalAnnual, totalPending };
   }, [fixedExpenses, annualExpenses, reimbursements, exceptionalPaid, pending]);
 
   // --- 4. LOGIQUES INDÉPENDANTES ---
@@ -1063,9 +1071,21 @@ export default function NexusUltimateCloud() {
                 </div>
               </div>
             </div>
+            {(() => {
+              const thisYear = new Date().getFullYear();
+              const year = totals.projections[projYear] ? projYear : thisYear;
+              const data = totals.projections[year];
+              const nowIdx = year === thisYear ? new Date().getMonth() : -1;
+              return (
+            <div>
+            <div className="flex gap-2 mb-3">
+              {[thisYear, thisYear + 1].map(y => (
+                <button key={y} onClick={() => setProjYear(y)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${year === y ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'border-white/5 text-zinc-500'}`}>{y}</button>
+              ))}
+            </div>
             <div className="h-44 w-full relative z-10">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={totals.projection}>
+                <BarChart data={data}>
                   <defs>
                     <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.55} /><stop offset="95%" stopColor="#10b981" stopOpacity={0.10} /></linearGradient>
                     <linearGradient id="gNow" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#34d399" stopOpacity={1} /><stop offset="95%" stopColor="#2dd4bf" stopOpacity={0.45} /></linearGradient>
@@ -1075,12 +1095,12 @@ export default function NexusUltimateCloud() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                   <XAxis dataKey="name" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} interval={0} padding={{ left: 10, right: 10 }}
                     tick={({ x, y, payload, index }) => (
-                      <text x={x} y={y + 10} textAnchor="middle" fontSize={10} fontWeight={index === new Date().getMonth() ? 900 : 500} fill={index === new Date().getMonth() ? '#34d399' : '#3f3f46'}>{payload.value}</text>
+                      <text x={x} y={y + 10} textAnchor="middle" fontSize={10} fontWeight={index === nowIdx ? 900 : 500} fill={index === nowIdx ? '#34d399' : '#3f3f46'}>{payload.value}</text>
                     )} />
                   <Tooltip content={<ProjectionTooltip />} cursor={{ fill: '#ffffff05' }} />
                   <Bar dataKey="solde" stackId="p" radius={[6, 6, 0, 0]}>
-                    {totals.projection.map((d, i) => (
-                      <Cell key={d.name} fill={d.solde < 0 ? 'url(#gNeg)' : i === new Date().getMonth() ? 'url(#gNow)' : 'url(#g)'} />
+                    {data.map((d, i) => (
+                      <Cell key={d.name} fill={d.solde < 0 ? 'url(#gNeg)' : i === nowIdx ? 'url(#gNow)' : 'url(#g)'} />
                     ))}
                   </Bar>
                   {/* Échéance datée : segment rouge empilé au-dessus du solde restant. */}
@@ -1088,6 +1108,9 @@ export default function NexusUltimateCloud() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            </div>
+              );
+            })()}
 
             {/* QUICK ACTIONS */}
             <div className="grid grid-cols-3 gap-4">
