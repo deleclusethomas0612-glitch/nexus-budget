@@ -194,10 +194,10 @@ const ProjectionTooltip = ({ active, payload, label }) => {
   const d = payload[0].payload;
   return (
     <div className="bg-zinc-950 border border-white/10 rounded-tile px-4 py-2.5 shadow-2xl">
-      <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{label}</p>
-      <p className="text-sm font-black text-emerald-400">{Number(d.solde).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Solde</span></p>
+      <p className="text-[11px] font-semibold uppercase text-zinc-500 mb-1">{label}</p>
+      <p className="text-sm font-black text-emerald-400">{Number(d.solde).toLocaleString()}€<span className="text-[11px] text-zinc-500 ml-1.5 uppercase">Solde</span></p>
       {d.due > 0 && (
-        <p className="text-sm font-black text-rose-400 mt-0.5">-{Number(d.due).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">{d.dueLabel}</span></p>
+        <p className="text-sm font-black text-rose-400 mt-0.5">-{Number(d.due).toLocaleString()}€<span className="text-[11px] text-zinc-500 ml-1.5 uppercase">{d.dueLabel}</span></p>
       )}
     </div>
   );
@@ -211,10 +211,10 @@ const RealEstateYearTooltip = ({ active, payload }) => {
   const total = d.capital + d.interest + d.insurance;
   return (
     <div className="bg-zinc-950 border border-white/10 rounded-tile px-4 py-2.5 shadow-2xl">
-      <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.year} · {total.toLocaleString()}€</p>
-      <p className="text-sm font-black text-violet-300">{d.capital.toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Capital · {total ? Math.round((d.capital / total) * 100) : 0}% à vous</span></p>
-      <p className="text-sm font-black text-rose-400 mt-0.5">{d.interest.toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Intérêts</span></p>
-      <p className="text-sm font-black text-zinc-400 mt-0.5">{d.insurance.toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Assurance</span></p>
+      <p className="text-[11px] font-semibold uppercase text-zinc-500 mb-1">{d.year} · {total.toLocaleString()}€</p>
+      <p className="text-sm font-black text-violet-300">{d.capital.toLocaleString()}€<span className="text-[11px] text-zinc-500 ml-1.5 uppercase">Capital · {total ? Math.round((d.capital / total) * 100) : 0}% à vous</span></p>
+      <p className="text-sm font-black text-rose-400 mt-0.5">{d.interest.toLocaleString()}€<span className="text-[11px] text-zinc-500 ml-1.5 uppercase">Intérêts</span></p>
+      <p className="text-sm font-black text-zinc-400 mt-0.5">{d.insurance.toLocaleString()}€<span className="text-[11px] text-zinc-500 ml-1.5 uppercase">Assurance</span></p>
     </div>
   );
 };
@@ -225,10 +225,10 @@ const RealEstateOwnTooltip = ({ active, payload }) => {
   const d = payload[0].payload;
   return (
     <div className="bg-zinc-950 border border-white/10 rounded-tile px-4 py-2.5 shadow-2xl">
-      <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.date ? d.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : `#${d.n}`} · {d.value ? Math.round((d.owned / d.value) * 100) : 0}% à vous</p>
-      <p className="text-sm font-black text-violet-300">{Number(d.owned).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">À vous</span></p>
-      <p className="text-sm font-black text-zinc-400 mt-0.5">{Number(d.crd).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">À la banque</span></p>
-      <p className="text-sm font-black text-emerald-400 mt-0.5">{Number(d.net).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Actif net (vente)</span></p>
+      <p className="text-[11px] font-semibold uppercase text-zinc-500 mb-1">{d.date ? d.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : `#${d.n}`} · {d.value ? Math.round((d.owned / d.value) * 100) : 0}% à vous</p>
+      <p className="text-sm font-black text-violet-300">{Number(d.owned).toLocaleString()}€<span className="text-[11px] text-zinc-500 ml-1.5 uppercase">À vous</span></p>
+      <p className="text-sm font-black text-zinc-400 mt-0.5">{Number(d.crd).toLocaleString()}€<span className="text-[11px] text-zinc-500 ml-1.5 uppercase">À la banque</span></p>
+      <p className="text-sm font-black text-emerald-400 mt-0.5">{Number(d.net).toLocaleString()}€<span className="text-[11px] text-zinc-500 ml-1.5 uppercase">Actif net (vente)</span></p>
     </div>
   );
 };
@@ -1331,11 +1331,11 @@ export default function NexusUltimateCloud() {
               <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-600/10 blur-[100px]" />
               <div className="flex justify-between items-start mb-4 relative z-10">
                 <div>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic mb-1">Cash Dispo</p>
+                  <p className="text-zinc-500 text-[11px] font-semibold uppercase tracking-widest mb-1">Cash Dispo</p>
                   <h2 className="text-5xl font-black tracking-tighter italic"><Swap v={totals.realCash}>{totals.realCash.toLocaleString()}€</Swap></h2>
                 </div>
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-chip px-4 py-2 text-right shadow-lg shadow-amber-500/5">
-                  <p className="text-amber-500 text-[9px] font-black uppercase tracking-widest italic leading-none mb-1.5">Avances</p>
+                  <p className="text-amber-500 text-[11px] font-semibold uppercase tracking-widest leading-none mb-1.5">Avances</p>
                   <p className="text-xl font-black italic text-amber-400 leading-none"><Swap v={totals.totalPending}>{totals.totalPending.toLocaleString()}€</Swap></p>
                 </div>
               </div>
@@ -1349,7 +1349,7 @@ export default function NexusUltimateCloud() {
             <div>
             <div className="flex gap-2 mb-3">
               {[thisYear, thisYear + 1].map(y => (
-                <button key={y} onClick={() => setProjYear(y)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${year === y ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'border-white/5 text-zinc-500'}`}>{y}</button>
+                <button key={y} onClick={() => setProjYear(y)} className={`px-4 py-2 rounded-full text-[11px] font-semibold uppercase tracking-widest border transition-all ${year === y ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'border-white/5 text-zinc-500'}`}>{y}</button>
               ))}
             </div>
             <div className="h-44 w-full relative z-10">
@@ -1384,13 +1384,13 @@ export default function NexusUltimateCloud() {
             {/* QUICK ACTIONS */}
             <div className="grid grid-cols-3 gap-4">
               <button onClick={() => { setDueDraft([]); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setModal({ open: true, type: 'exceptional', data: null }); }} className="bg-zinc-900/50 border border-white/5 p-5 rounded-tile flex flex-col items-center transition-all">
-                <ArrowUpRight size={22} className="mb-2 text-red-500" /><span className="text-[8px] font-black uppercase text-red-400 text-center tracking-tighter leading-tight">Dépenses</span>
+                <ArrowUpRight size={22} className="mb-2 text-red-500" /><span className="text-[11px] font-semibold uppercase text-red-400 text-center tracking-tighter leading-tight">Dépenses</span>
               </button>
               <button onClick={() => setModal({ open: true, type: 'reimbursement' })} className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-tile flex flex-col items-center transition-all">
-                <ArrowDownLeft size={22} className="mb-2 text-emerald-500" /><span className="text-[8px] font-black uppercase text-emerald-400 text-center tracking-tighter leading-tight text-emerald-400">Recette</span>
+                <ArrowDownLeft size={22} className="mb-2 text-emerald-500" /><span className="text-[11px] font-semibold uppercase text-emerald-400 text-center tracking-tighter leading-tight text-emerald-400">Recette</span>
               </button>
               <button onClick={() => { setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '', targetPending: '' }); setModal({ open: true, type: 'pending' }); }} className="bg-white text-black p-5 rounded-tile flex flex-col items-center transition-all">
-                <Plus size={22} className="mb-2" /><span className="text-[8px] font-black uppercase text-center tracking-tighter leading-tight">Avance</span>
+                <Plus size={22} className="mb-2" /><span className="text-[11px] font-semibold uppercase text-center tracking-tighter leading-tight">Avance</span>
               </button>
             </div>
 
@@ -1398,7 +1398,7 @@ export default function NexusUltimateCloud() {
             {scheduledExpenses.length > 0 && (
               <section className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
-                  <p className="text-[10px] font-black text-rose-400 uppercase tracking-[0.4em] italic leading-none">Prélèvements à venir</p>
+                  <p className="text-[11px] font-semibold text-rose-400 uppercase tracking-[0.4em] leading-none">Prélèvements à venir</p>
                   <p className="text-xl font-black italic text-rose-400 leading-none">
                     {scheduledExpenses.reduce((a, e) => a + dueTotal(e), 0).toLocaleString()}€
                   </p>
@@ -1411,7 +1411,7 @@ export default function NexusUltimateCloud() {
                         <div className="w-10 h-10 shrink-0 bg-rose-500/10 rounded-chip flex items-center justify-center text-rose-400"><CalendarClock size={18} /></div>
                         <div className="min-w-0">
                           <p className="text-sm font-black italic uppercase text-left truncate">{e.name}</p>
-                          <p className="text-[8px] text-rose-400/80 font-black uppercase tracking-widest text-left">
+                          <p className="text-[11px] text-rose-400/80 font-semibold uppercase tracking-widest text-left">
                             {dueList(e).length > 1
                               ? `${dueList(e).length} prélèvements · dès ${new Date(dueList(e)[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}`
                               : `Le ${new Date(dueList(e)[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}`}
@@ -1434,18 +1434,18 @@ export default function NexusUltimateCloud() {
 
             {/* FLUX */}
             <section className="space-y-5">
-              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] px-4 italic flex justify-between">
+              <h3 className="text-[11px] font-semibold text-zinc-500 uppercase tracking-[0.4em] px-4 flex justify-between">
                 Flux
               </h3>
               <Reorder.Group axis="y" values={pending} onReorder={(newList) => setPending(newList)} className="space-y-4"><AnimatePresence initial={false}>
-                {pending.length === 0 ? <p key="empty" className="text-center text-zinc-500 italic text-[10px] py-4">Aucune avance active.</p> :
+                {pending.length === 0 ? <p key="empty" className="text-center text-sm text-zinc-500 font-medium leading-relaxed py-6 px-6">Aucune avance en cours. Le bouton Avance en ajoute une.</p> :
                   pending.map(p => (
                     <DraggableItem key={p.id} value={p}>
                       <button onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-card flex justify-between items-center group relative overflow-hidden">
                         <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-amber-500" />
-                        <div className="flex items-center gap-5">
+                        <div className="flex items-center gap-5 min-w-0">
                           <div className="w-12 h-12 bg-amber-500/10 rounded-chip flex items-center justify-center text-amber-500"><Coins size={22} /></div>
-                          <div><p className="text-sm font-black italic uppercase text-left">{p.label}</p><p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Gérer l'avance</p></div>
+                          <div className="min-w-0"><p className="text-sm font-black italic uppercase text-left truncate">{p.label}</p><p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-widest text-left">Gérer l'avance</p></div>
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="font-mono font-black text-amber-500 text-2xl">{Number(p.amount).toLocaleString()}€</span>
@@ -1466,7 +1466,7 @@ export default function NexusUltimateCloud() {
             <div className="bg-gradient-to-br from-cyan-900/40 to-blue-600/10 border border-cyan-500/20 rounded-card p-9 relative overflow-hidden neon-pulse neon-pulse-cyan">
               <div className="flex justify-between items-center relative z-10">
                 <div>
-                  <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Épargne Totale</p>
+                  <p className="text-cyan-400 text-[11px] font-semibold uppercase tracking-widest mb-1">Épargne Totale</p>
                   <h2 className="text-5xl font-black tracking-tighter italic text-cyan-100"><Swap v={(savingsTotal + cryptoTotal)}>{(savingsTotal + cryptoTotal).toLocaleString()}€</Swap></h2>
                 </div>
                 <div className="w-14 h-14 bg-cyan-500 rounded-tile flex items-center justify-center text-black shadow-lg shadow-cyan-500/20"><PiggyBank size={28} /></div>
@@ -1475,9 +1475,9 @@ export default function NexusUltimateCloud() {
 
             {/* ACTIONS */}
             <div className="grid grid-cols-3 gap-3">
-              <button onClick={() => setModal({ open: true, type: 'create_savings_account' })} className="bg-zinc-900 border border-white/10 py-4 rounded-chip text-[10px] font-black uppercase text-zinc-400 hover:text-white transition-colors">Nouveau Compte</button>
-              <button onClick={() => setModal({ open: true, type: 'savings_transaction' })} className="bg-zinc-900 border border-white/10 py-4 rounded-chip text-[10px] font-black uppercase text-zinc-400 hover:text-emerald-400 transition-colors">Mouvement</button>
-              <button onClick={() => { setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '', targetPending: '' }); setModal({ open: true, type: 'savings_advance' }); }} className="bg-zinc-900 border border-white/10 py-4 rounded-chip text-[10px] font-black uppercase text-zinc-400 hover:text-amber-500 transition-colors">Créer Avance</button>
+              <button onClick={() => setModal({ open: true, type: 'create_savings_account' })} className="bg-zinc-900 border border-white/10 py-3 px-2 min-h-[52px] leading-tight rounded-chip text-[11px] font-semibold uppercase text-zinc-400 hover:text-white transition-colors">Nouveau Compte</button>
+              <button onClick={() => setModal({ open: true, type: 'savings_transaction' })} className="bg-zinc-900 border border-white/10 py-3 px-2 min-h-[52px] leading-tight rounded-chip text-[11px] font-semibold uppercase text-zinc-400 hover:text-emerald-400 transition-colors">Mouvement</button>
+              <button onClick={() => { setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '', targetPending: '' }); setModal({ open: true, type: 'savings_advance' }); }} className="bg-zinc-900 border border-white/10 py-3 px-2 min-h-[52px] leading-tight rounded-chip text-[11px] font-semibold uppercase text-zinc-400 hover:text-amber-500 transition-colors">Créer Avance</button>
             </div>
 
             {/* LISTE COMPTES */}
@@ -1492,7 +1492,7 @@ export default function NexusUltimateCloud() {
                         <div className="w-10 h-10 bg-cyan-500/10 rounded-chip flex items-center justify-center text-cyan-400"><Bitcoin size={20} /></div>
                         <div>
                           <p className="text-sm font-black italic uppercase text-left text-zinc-200">Crypto</p>
-                          <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Géré sur la page dédiée</p>
+                          <p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-widest text-left">Géré sur la page dédiée</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -1513,7 +1513,7 @@ export default function NexusUltimateCloud() {
                         </div>
                         <div>
                           <p className="text-sm font-black italic uppercase text-left text-zinc-200">{acc.name}</p>
-                          <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">{acc.isPortfolio ? 'Portefeuille · parts' : 'Disponible'}</p>
+                          <p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-widest text-left">{acc.isPortfolio ? 'Portefeuille · parts' : 'Disponible'}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -1534,7 +1534,7 @@ export default function NexusUltimateCloud() {
                     {acc.isPortfolio && ((acc.holdings || []).length > 0 || (Number(acc.cash) || 0) > 0) && (
                       <div className="mt-3 pt-3 border-t border-white/5 space-y-1.5">
                         {(acc.holdings || []).map(h => (
-                          <div key={h.fundId} className="flex justify-between items-center gap-2 text-[10px]">
+                          <div key={h.fundId} className="flex justify-between items-center gap-2 text-[11px]">
                             <span className="font-bold text-zinc-400 uppercase truncate">{fundName(h.fundId)}</span>
                             <span className="font-mono text-zinc-500 whitespace-nowrap shrink-0">
                               {Number(h.shares).toLocaleString('fr-FR', { maximumFractionDigits: 4 })} × {fundPrice(h) ? fundPrice(h).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}€
@@ -1543,7 +1543,7 @@ export default function NexusUltimateCloud() {
                           </div>
                         ))}
                         {(Number(acc.cash) || 0) > 0 && (
-                          <div className="flex justify-between items-center text-[10px]">
+                          <div className="flex justify-between items-center text-[11px]">
                             <span className="font-bold text-zinc-400 uppercase">Liquidités</span>
                             <span className="font-mono text-cyan-500 font-black">{Math.round(Number(acc.cash) || 0).toLocaleString()}€</span>
                           </div>
@@ -1559,22 +1559,22 @@ export default function NexusUltimateCloud() {
                 Totale ci-dessus reste la « vraie » épargne disponible sur les comptes. */}
             {realEstate && reStats && (
               <section className="space-y-4 pt-4 border-t border-white/5">
-                <h3 className="text-[10px] font-black text-violet-700 uppercase tracking-widest px-2">Patrimoine immobilier</h3>
+                <h3 className="text-[11px] font-semibold text-violet-700 uppercase tracking-widest px-2">Patrimoine immobilier</h3>
                 <div onClick={() => goTab('realestate')} className="press bg-zinc-900/30 border border-white/5 p-4 rounded-card flex justify-between items-center cursor-pointer relative overflow-hidden">
                   <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-violet-500" />
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-violet-500/10 rounded-chip flex items-center justify-center text-violet-400"><Building2 size={20} /></div>
                     <div>
                       <p className="text-sm font-black italic uppercase text-left text-zinc-200">Actif net immobilier</p>
-                      <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Net vendeur : valeur − restant dû − frais de vente</p>
+                      <p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-widest text-left">Net vendeur : valeur − restant dû − frais de vente</p>
                     </div>
                   </div>
                   <span className="text-xl font-black italic text-violet-300">{reStats.netAsset.toLocaleString()}€</span>
                 </div>
                 <div className="bg-violet-500/10 border border-violet-500/30 rounded-tile p-5 flex justify-between items-center shadow-lg shadow-violet-500/5 neon-pulse neon-pulse-amethyst">
                   <div className="relative z-10">
-                    <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic">Patrimoine total</p>
-                    <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Épargne + crypto + actif net immo</p>
+                    <p className="text-violet-300 text-[11px] font-semibold uppercase tracking-widest">Patrimoine total</p>
+                    <p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-widest">Épargne + crypto + actif net immo</p>
                   </div>
                   <p className="text-2xl font-black italic text-violet-200 relative z-10">{(savingsTotal + cryptoTotal + reStats.netAsset).toLocaleString()}€</p>
                 </div>
@@ -1585,10 +1585,10 @@ export default function NexusUltimateCloud() {
             {savingsPending.length > 0 && (
               <section className="space-y-4 pt-4 border-t border-white/5">
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-tile p-5 flex justify-between items-center shadow-lg shadow-amber-500/5">
-                  <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest italic">Total Avances</p>
+                  <p className="text-amber-500 text-[11px] font-semibold uppercase tracking-widest">Total Avances</p>
                   <p className="text-2xl font-black italic text-amber-400">{savingsPendingTotal.toLocaleString()}€</p>
                 </div>
-                <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest px-2">Avance sur Épargne</h3>
+                <h3 className="text-[11px] font-semibold text-amber-700 uppercase tracking-widest px-2">Avance sur Épargne</h3>
                 {savingsPending.map(p => {
                   const targetName = savingsAccounts.find(a => a.id === p.targetAccountId)?.name || 'Compte supprimé';
                   return (
@@ -1598,7 +1598,7 @@ export default function NexusUltimateCloud() {
                         <div className="w-10 h-10 bg-amber-500/10 rounded-chip flex items-center justify-center text-amber-500"><Coins size={20} /></div>
                         <div>
                           <p className="text-sm font-black italic uppercase text-left text-amber-500">{p.label}</p>
-                          <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Vers: {targetName}</p>
+                          <p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-widest text-left">Vers: {targetName}</p>
                         </div>
                       </div>
                       <span className="text-xl font-black italic text-amber-500">{Number(p.amount).toLocaleString()}€</span>
@@ -1617,7 +1617,7 @@ export default function NexusUltimateCloud() {
             <div className="bg-gradient-to-br from-orange-900/40 to-amber-600/10 border border-orange-500/20 rounded-card p-9 relative overflow-hidden neon-pulse neon-pulse-orange">
               <div className="flex justify-between items-center relative z-10">
                 <div>
-                  <p className="text-orange-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Portefeuille Crypto</p>
+                  <p className="text-orange-400 text-[11px] font-semibold uppercase tracking-widest mb-1">Portefeuille Crypto</p>
                   <h2 className="text-5xl font-black tracking-tighter italic text-orange-100"><Swap v={cryptoTotal}>{cryptoTotal.toLocaleString()}€</Swap></h2>
                 </div>
                 <div className="w-14 h-14 bg-orange-500 rounded-tile flex items-center justify-center text-black shadow-lg shadow-orange-500/30"><Bitcoin size={28} strokeWidth={2.5} /></div>
@@ -1626,22 +1626,22 @@ export default function NexusUltimateCloud() {
 
             {/* ACTIONS */}
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={openAddCrypto} className="bg-orange-500/10 border border-orange-500/30 py-4 rounded-chip text-[10px] font-black uppercase text-orange-400 hover:text-orange-300 transition-colors flex items-center justify-center gap-2"><Plus size={16} /> Ajouter</button>
-              <button onClick={() => fetchCryptoPrices(cryptoAssets.map(a => a.sym))} className="bg-zinc-900 border border-white/10 py-4 rounded-chip text-[10px] font-black uppercase text-zinc-400 hover:text-white transition-colors flex items-center justify-center gap-2"><RefreshCw size={14} className={cryptoLoading ? 'animate-spin' : ''} /> MAJ cours</button>
+              <button onClick={openAddCrypto} className="bg-orange-500/10 border border-orange-500/30 py-4 rounded-chip text-[11px] font-semibold uppercase text-orange-400 hover:text-orange-300 transition-colors flex items-center justify-center gap-2"><Plus size={16} /> Ajouter</button>
+              <button onClick={() => fetchCryptoPrices(cryptoAssets.map(a => a.sym))} className="bg-zinc-900 border border-white/10 py-4 rounded-chip text-[11px] font-semibold uppercase text-zinc-400 hover:text-white transition-colors flex items-center justify-center gap-2"><RefreshCw size={14} className={cryptoLoading ? 'animate-spin' : ''} /> MAJ cours</button>
             </div>
 
             {/* LISTE */}
             <Reorder.Group axis="y" values={cryptoAssets} onReorder={reorderCryptos} className="space-y-4"><AnimatePresence initial={false}>
-              {cryptoAssets.length === 0 ? <p key="empty" className="text-center text-zinc-500 italic text-[10px] py-4">Aucune crypto suivie. Ajoute-en une.</p> :
+              {cryptoAssets.length === 0 ? <p key="empty" className="text-center text-sm text-zinc-500 font-medium leading-relaxed py-6 px-6">Aucune crypto suivie. Le bouton + en ajoute une, avec la quantité détenue.</p> :
                 cryptoAssets.map(a => (
                   <DraggableItem key={a.id} value={a}>
                     <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-card flex justify-between items-center group relative overflow-hidden">
                       <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-orange-500" />
                       <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 bg-orange-500/10 rounded-chip flex items-center justify-center text-orange-400 text-[10px] font-black">{a.sym}</div>
+                        <div className="w-11 h-11 bg-orange-500/10 rounded-chip flex items-center justify-center text-orange-400 text-[11px] font-semibold">{a.sym}</div>
                         <div>
                           <p className="text-sm font-black italic uppercase text-left text-zinc-200">{cryptoName(a.sym)}</p>
-                          <p className="text-[9px] text-zinc-500 font-mono text-left">{Number(a.qty).toLocaleString('fr-FR', { maximumFractionDigits: 8 })} × {cryptoPrice(a) ? cryptoPrice(a).toLocaleString('fr-FR', { maximumFractionDigits: cryptoPrice(a) < 1 ? 6 : 2 }) + '€' : '—'}</p>
+                          <p className="text-[11px] text-zinc-500 font-mono text-left">{Number(a.qty).toLocaleString('fr-FR', { maximumFractionDigits: 8 })} × {cryptoPrice(a) ? cryptoPrice(a).toLocaleString('fr-FR', { maximumFractionDigits: cryptoPrice(a) < 1 ? 6 : 2 }) + '€' : '—'}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -1667,7 +1667,7 @@ export default function NexusUltimateCloud() {
             {!realEstate || !reStats ? (
               <div className="bg-gradient-to-br from-violet-900/40 to-purple-600/10 border border-violet-500/20 rounded-card p-9 relative overflow-hidden neon-pulse neon-pulse-amethyst text-center space-y-5">
                 <div className="w-14 h-14 mx-auto bg-violet-500 rounded-tile flex items-center justify-center text-black shadow-lg shadow-violet-500/30"><Building2 size={28} strokeWidth={2.5} /></div>
-                <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic">Patrimoine immobilier</p>
+                <p className="text-violet-300 text-[11px] font-semibold uppercase tracking-widest">Patrimoine immobilier</p>
                 <p className="text-xs text-zinc-400 font-bold leading-relaxed">Renseigne la valeur du bien et les paramètres du crédit. L'actif net se recalcule ensuite tout seul à chaque prélèvement.</p>
                 <button onClick={openRealEstate} className="w-full py-5 rounded-tile bg-violet-600 font-black text-lg uppercase shadow-xl">Configurer</button>
               </div>
@@ -1678,10 +1678,10 @@ export default function NexusUltimateCloud() {
                   <button onClick={openRealEstate} aria-label="Réglages du bien" className="absolute top-3 right-3 z-20 w-11 h-11 rounded-full flex items-center justify-center text-violet-300/60 hover:text-violet-200 hover:bg-violet-500/10 transition-all"><Settings size={16} strokeWidth={2.5} /></button>
                   <div className="flex justify-between items-center relative z-10">
                     <div>
-                      <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic mb-1">Actif net immobilier</p>
+                      <p className="text-violet-300 text-[11px] font-semibold uppercase tracking-widest mb-1">Actif net immobilier</p>
                       <h2 className="text-5xl font-black tracking-tighter italic text-violet-100">{reStats.netAsset.toLocaleString()}€</h2>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mt-2">{Number(realEstate.value).toLocaleString()}€ − {Math.round(reStats.crd).toLocaleString()}€ restant dû − {Math.round(reStats.ira + reStats.releaseFees).toLocaleString()}€ frais de vente</p>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-violet-400/70 mt-1">À jour au {fmtDate(reStats.lastPaidDate)} · échéance {reStats.paid}/{reStats.schedule.length}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mt-2">{Number(realEstate.value).toLocaleString()}€ − {Math.round(reStats.crd).toLocaleString()}€ restant dû − {Math.round(reStats.ira + reStats.releaseFees).toLocaleString()}€ frais de vente</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-400/70 mt-1">À jour au {fmtDate(reStats.lastPaidDate)} · échéance {reStats.paid}/{reStats.schedule.length}</p>
                     </div>
                     <div className="w-14 h-14 shrink-0 bg-violet-500 rounded-tile flex items-center justify-center text-black shadow-lg shadow-violet-500/30"><Building2 size={28} strokeWidth={2.5} /></div>
                   </div>
@@ -1691,7 +1691,7 @@ export default function NexusUltimateCloud() {
                 <div className="bg-zinc-900/30 border border-white/5 rounded-card p-6 space-y-3">
                   <div className="flex justify-between items-end">
                     <div>
-                      <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Capital remboursé</p>
+                      <p className="text-[11px] font-semibold uppercase text-zinc-500 tracking-widest">Capital remboursé</p>
                       <p className="text-2xl font-black italic text-violet-300">{Math.round(reStats.capitalPaid).toLocaleString()}€<span className="text-xs text-zinc-500 ml-2">/ {Number(realEstate.loan.principal).toLocaleString()}€</span></p>
                     </div>
                     <p className="text-xl font-black italic text-white">{reStats.progress.toFixed(1)}%</p>
@@ -1709,12 +1709,12 @@ export default function NexusUltimateCloud() {
                     <div className="bg-zinc-900/30 border border-violet-500/20 rounded-card p-6 space-y-4">
                       <div className="flex justify-between items-start gap-4">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Vous vous enrichissez de</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-400">Vous vous enrichissez de</p>
                           <p className="text-3xl font-black italic text-violet-200 mt-1 leading-none">{Math.round(reStats.next.capital).toLocaleString()}€<span className="text-xs text-zinc-500 ml-1.5">/mois</span></p>
                           <p className="text-xs text-zinc-400 font-semibold mt-1.5 leading-snug">capital remboursé, qui devient à vous</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 leading-none mb-1">Coût réel</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 leading-none mb-1">Coût réel</p>
                           <p className="text-2xl font-black italic text-rose-400 leading-none">{Math.round(reStats.next.interest + reStats.next.insurance).toLocaleString()}€<span className="text-xs text-zinc-500 ml-1">/mois</span></p>
                           <p className="text-xs text-zinc-400 font-semibold mt-1.5 leading-snug">intérêts + assurance</p>
                         </div>
@@ -1731,7 +1731,7 @@ export default function NexusUltimateCloud() {
 
                 {/* JALONS */}
                 <div className="bg-zinc-900/30 border border-white/5 rounded-card p-6">
-                  <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-4">Jalons</p>
+                  <p className="text-[11px] font-semibold uppercase text-zinc-500 tracking-widest mb-4">Jalons</p>
                   <div className="space-y-3">
                     {reStats.milestones.filter(m => m.date).map(m => (
                       <div key={m.key} className="flex items-center gap-3">
@@ -1750,7 +1750,7 @@ export default function NexusUltimateCloud() {
                 <div className="bg-zinc-900/30 border border-white/5 rounded-card p-6 space-y-3">
                   <div className="flex justify-between items-end">
                     <div>
-                      <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Coût du crédit payé</p>
+                      <p className="text-[11px] font-semibold uppercase text-zinc-500 tracking-widest">Coût du crédit payé</p>
                       <p className="text-2xl font-black italic text-rose-400">{Math.round(reStats.costPaid).toLocaleString()}€<span className="text-xs text-zinc-500 ml-2">/ {Math.round(reStats.totalCost).toLocaleString()}€</span></p>
                       <p className="text-xs text-zinc-400 font-semibold mt-1">intérêts + assurance sur toute la durée</p>
                     </div>
@@ -1777,7 +1777,7 @@ export default function NexusUltimateCloud() {
                     ['Échéances restantes', `${reStats.remaining}`, `${Math.floor(reStats.remaining / 12)} ans ${reStats.remaining % 12} mois`],
                   ].map(([lbl, val, sub, wide]) => (
                     <div key={lbl} className={`bg-zinc-900/30 border border-white/5 rounded-tile p-5 ${wide ? 'col-span-2' : ''}`}>
-                      <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest leading-tight">{lbl}</p>
+                      <p className="text-[11px] font-semibold uppercase text-zinc-500 tracking-widest leading-tight">{lbl}</p>
                       <p className="text-lg font-black italic text-white mt-1 leading-none">{val}</p>
                       <p className="text-xs text-zinc-400 font-semibold mt-1.5 leading-snug">{sub}</p>
                     </div>
@@ -1788,7 +1788,7 @@ export default function NexusUltimateCloud() {
                 {reStats.next ? (
                   <div className="bg-zinc-900/30 border border-violet-500/20 rounded-card p-6 flex justify-between items-center">
                     <div>
-                      <p className="text-[10px] font-black uppercase text-violet-400 tracking-widest">Prochain prélèvement</p>
+                      <p className="text-[11px] font-semibold uppercase text-violet-400 tracking-widest">Prochain prélèvement</p>
                       <p className="text-sm font-black italic text-white mt-1">{fmtDate(reStats.next.date)}</p>
                       <p className="text-xs text-zinc-400 font-semibold mt-1">{reStats.next.capital.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ capital · {reStats.next.interest.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ intérêts · {reStats.next.insurance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ assurance</p>
                     </div>
@@ -1796,7 +1796,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 ) : (
                   <div className="bg-zinc-900/30 border border-emerald-500/20 rounded-card p-6 text-center">
-                    <p className="text-[10px] font-black uppercase text-emerald-400 tracking-widest">Crédit soldé</p>
+                    <p className="text-[11px] font-semibold uppercase text-emerald-400 tracking-widest">Crédit soldé</p>
                   </div>
                 )}
 
@@ -1804,14 +1804,14 @@ export default function NexusUltimateCloud() {
                 <div className="bg-zinc-900/30 border border-white/5 rounded-card p-5">
                   <div className="flex gap-2 mb-3">
                     {[['years', 'Mensualités'], ['own', 'Propriété']].map(([k, lbl]) => (
-                      <button key={k} onClick={() => setReView(k)} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${reView === k ? 'bg-violet-500/20 border-violet-500/50 text-violet-300' : 'border-white/5 text-zinc-500'}`}>{lbl}</button>
+                      <button key={k} onClick={() => setReView(k)} className={`px-4 py-2 rounded-full text-[11px] font-semibold uppercase tracking-widest border transition-all ${reView === k ? 'bg-violet-500/20 border-violet-500/50 text-violet-300' : 'border-white/5 text-zinc-500'}`}>{lbl}</button>
                     ))}
                   </div>
                   {reView === 'years' ? (
                     <>
                       <div className="flex justify-between items-center px-2 mb-3">
-                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Où part ma mensualité</p>
-                        <div className="flex gap-2.5 text-[9px] font-black uppercase">
+                        <p className="text-[11px] font-semibold uppercase text-zinc-500 tracking-widest">Où part ma mensualité</p>
+                        <div className="flex gap-2.5 text-[11px] font-semibold uppercase">
                           <span className="text-violet-300">● Capital</span>
                           <span className="text-rose-400">● Intérêts</span>
                           <span className="text-zinc-500">● Assur.</span>
@@ -1821,8 +1821,8 @@ export default function NexusUltimateCloud() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={reStats.years} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
-                            <XAxis dataKey="year" tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={4} />
-                            <YAxis tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
+                            <XAxis dataKey="year" tick={{ fill: '#71717a', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} interval={4} />
+                            <YAxis tick={{ fill: '#71717a', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
                             <Tooltip content={<RealEstateYearTooltip />} cursor={{ fill: '#ffffff08' }} />
                             <Bar dataKey="capital" stackId="y" isAnimationActive={false}>
                               {reStats.years.map(y => <Cell key={y.year} fill={y.year === new Date().getFullYear() ? '#c4b5fd' : '#8b5cf6'} />)}
@@ -1846,35 +1846,35 @@ export default function NexusUltimateCloud() {
                       const half = reStats.milestones[0];
                       return (
                         <>
-                          <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest px-2 mb-3">Qui possède l'appart</p>
+                          <p className="text-[11px] font-semibold uppercase text-zinc-500 tracking-widest px-2 mb-3">Qui possède l'appart</p>
                           <div className="grid grid-cols-2 gap-2 mb-3">
                             <div className="rounded-tile border border-violet-500/30 bg-violet-500/10 px-3 py-2.5">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-violet-300">À vous aujourd'hui</p>
+                              <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-300">À vous aujourd'hui</p>
                               <p className="text-xl font-black italic text-violet-200 leading-none mt-1">{Math.round(now.ownPct)}%</p>
-                              <p className="text-[9px] font-bold text-zinc-500 mt-1">{now.owned.toLocaleString()}€</p>
+                              <p className="text-[11px] font-semibold text-zinc-500 mt-1">{now.owned.toLocaleString()}€</p>
                             </div>
                             <div className="rounded-tile border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-right">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-rose-300">Banque aujourd'hui</p>
+                              <p className="text-[11px] font-semibold uppercase tracking-widest text-rose-300">Banque aujourd'hui</p>
                               <p className="text-xl font-black italic text-rose-300 leading-none mt-1">{Math.round(now.bankPct)}%</p>
-                              <p className="text-[9px] font-bold text-zinc-500 mt-1">{now.crd.toLocaleString()}€</p>
+                              <p className="text-[11px] font-semibold text-zinc-500 mt-1">{now.crd.toLocaleString()}€</p>
                             </div>
                           </div>
                           <div className="h-52 relative">
                             <ResponsiveContainer width="100%" height="100%">
                               <AreaChart data={reStats.chart} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                                <XAxis dataKey="n" tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={35} tickFormatter={(n) => { const d = reStats.chart[n - 1]?.date; return d ? String(d.getFullYear()) : ''; }} />
-                                <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} width={38} />
+                                <XAxis dataKey="n" tick={{ fill: '#71717a', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} interval={35} tickFormatter={(n) => { const d = reStats.chart[n - 1]?.date; return d ? String(d.getFullYear()) : ''; }} />
+                                <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: '#71717a', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} width={38} />
                                 <Tooltip content={<RealEstateOwnTooltip />} cursor={{ stroke: '#ffffff40' }} />
                                 <Area type="monotone" dataKey="ownPct" stackId="o" stroke="#a78bfa" strokeWidth={2} fill="#8b5cf6" fillOpacity={0.55} dot={false} isAnimationActive={false} />
                                 <Area type="monotone" dataKey="bankPct" stackId="o" stroke="#fb7185" strokeWidth={0} fill="#f43f5e" fillOpacity={0.28} dot={false} isAnimationActive={false} />
                                 <ReferenceLine y={50} stroke="#ffffff30" strokeDasharray="3 3" />
-                                <ReferenceLine x={now.n} stroke="#ffffff" strokeOpacity={0.7} strokeDasharray="4 4" label={{ value: "aujourd'hui", position: 'insideTopRight', fill: '#e4e4e7', fontSize: 8, fontWeight: 800 }} />
-                                {half.n && <ReferenceLine x={half.n} stroke="#e879f9" strokeDasharray="2 4" label={{ value: `50/50 · ${half.date.getFullYear()}`, position: 'insideBottomLeft', fill: '#f5d0fe', fontSize: 8, fontWeight: 800 }} />}
+                                <ReferenceLine x={now.n} stroke="#ffffff" strokeOpacity={0.7} strokeDasharray="4 4" label={{ value: "aujourd'hui", position: 'insideTopRight', fill: '#e4e4e7', fontSize: 10, fontWeight: 800 }} />
+                                {half.n && <ReferenceLine x={half.n} stroke="#e879f9" strokeDasharray="2 4" label={{ value: `50/50 · ${half.date.getFullYear()}`, position: 'insideBottomLeft', fill: '#f5d0fe', fontSize: 10, fontWeight: 800 }} />}
                               </AreaChart>
                             </ResponsiveContainer>
                             {/* Étiquettes posées dans les zones : la banque occupe le haut-gauche, vous le bas-droit */}
-                            <p className="pointer-events-none absolute left-12 top-3 text-[10px] font-black uppercase tracking-widest text-rose-200/90">Banque</p>
-                            <p className="pointer-events-none absolute right-3 bottom-8 text-[10px] font-black uppercase tracking-widest text-violet-100">À vous</p>
+                            <p className="pointer-events-none absolute left-12 top-3 text-[11px] font-semibold uppercase tracking-widest text-rose-200/90">Banque</p>
+                            <p className="pointer-events-none absolute right-3 bottom-8 text-[11px] font-semibold uppercase tracking-widest text-violet-100">À vous</p>
                           </div>
                           <p className="text-xs text-zinc-400 font-semibold px-2 mt-2">La zone rose (dette) rétrécit à chaque prélèvement, la zone violette (votre part) grandit jusqu'à 100 % en {reStats.endDate ? reStats.endDate.getFullYear() : '—'}.</p>
                         </>
@@ -1887,7 +1887,7 @@ export default function NexusUltimateCloud() {
                 <div data-no-swipe className="bg-zinc-900/30 border border-white/5 rounded-card p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Revalorisation du bien</p>
+                      <p className="text-[11px] font-semibold uppercase text-zinc-500 tracking-widest">Revalorisation du bien</p>
                       <p className="text-xs text-zinc-400 font-semibold mt-1">simulation, n'est pas enregistrée</p>
                     </div>
                     <p className={`text-2xl font-black italic ${reGrowth > 0 ? 'text-emerald-400' : reGrowth < 0 ? 'text-rose-400' : 'text-white'}`}>{reGrowth > 0 ? '+' : ''}{reGrowth.toLocaleString('fr-FR')}%<span className="text-xs text-zinc-500 ml-1">/an</span></p>
@@ -1907,10 +1907,10 @@ export default function NexusUltimateCloud() {
                       <div className="bg-black/30 border border-white/5 rounded-tile p-4">
                         <div className="flex justify-between items-end gap-3">
                           <div>
-                            <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Actif net fin {sel.year}</p>
+                            <p className="text-[11px] font-semibold uppercase text-zinc-500 tracking-widest">Actif net fin {sel.year}</p>
                             <p className="text-3xl font-black italic text-violet-200 mt-1 leading-none">{sel.net.toLocaleString()}€</p>
                           </div>
-                          <p className={`text-xs font-black italic shrink-0 ${delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{delta >= 0 ? '+' : ''}{delta.toLocaleString()}€<span className="block text-[9px] not-italic font-bold text-zinc-500 text-right">vs aujourd'hui</span></p>
+                          <p className={`text-xs font-black italic shrink-0 ${delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{delta >= 0 ? '+' : ''}{delta.toLocaleString()}€<span className="block text-[11px] not- font-semibold text-zinc-500 text-right">vs aujourd'hui</span></p>
                         </div>
                         <div className="h-28 mt-3 touch-none select-none cursor-crosshair">
                           <ResponsiveContainer width="100%" height="100%">
@@ -1923,7 +1923,7 @@ export default function NexusUltimateCloud() {
                                   <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.02} />
                                 </linearGradient>
                               </defs>
-                              <XAxis dataKey="year" type="category" tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
+                              <XAxis dataKey="year" type="category" tick={{ fill: '#71717a', fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
                               <YAxis hide domain={['dataMin', 'dataMax']} />
                               <Tooltip content={() => null} cursor={false} />
                               <ReferenceLine x={sel.year} stroke="#c4b5fd" strokeDasharray="3 3" />
@@ -1952,11 +1952,11 @@ export default function NexusUltimateCloud() {
             <div className="bg-zinc-900/80 border border-white/10 rounded-card p-6 flex justify-between items-center relative overflow-hidden neon-pulse neon-pulse-ruby">
               <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/20 blur-xl"></div>
               <div>
-                <p className="text-[10px] font-black uppercase text-rose-400 tracking-widest">Total Mensuel Fixe</p>
+                <p className="text-[11px] font-semibold uppercase text-rose-400 tracking-widest">Total Mensuel Fixe</p>
                 <p className="text-3xl font-black italic text-white"><Swap v={personalTotal}>{personalTotal.toLocaleString()}€</Swap></p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest leading-none mb-1">Pointées</p>
+                <p className="text-[11px] font-semibold uppercase text-emerald-500 tracking-widest leading-none mb-1">Pointées</p>
                 <p className="text-2xl font-black italic text-emerald-400">{personalExpenses.filter(i => i.isPaid).length}<span className="text-sm text-zinc-500">/{personalExpenses.length}</span></p>
               </div>
             </div>
@@ -1989,13 +1989,13 @@ export default function NexusUltimateCloud() {
                             <input
                               type="text"
                               placeholder="Km..."
-                              className="bg-transparent w-20 text-[10px] font-bold text-zinc-300 outline-none placeholder:text-zinc-500"
+                              className="bg-transparent w-20 text-[11px] font-semibold text-zinc-300 outline-none placeholder:text-zinc-500"
                               value={item.comment || ''}
                               onChange={(e) => updatePersonalComment(item.id, e.target.value)}
                             />
                           </div>
                         ) : (
-                          <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Charge Perso</p>
+                          <p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-widest text-left">Charge Perso</p>
                         )}
                       </div>
                     </div>
@@ -2012,7 +2012,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 </DraggableItem>
               ))}
-            </AnimatePresence></Reorder.Group>
+            </AnimatePresence></Reorder.Group>{personalExpenses.length === 0 && <p className="text-center text-sm text-zinc-500 font-medium leading-relaxed py-6 px-6">Aucune charge perso. Ajoute-les avec le bouton + pour les cocher chaque mois.</p>}
           </div>
         )}
 
@@ -2028,19 +2028,19 @@ export default function NexusUltimateCloud() {
             <div className="bg-zinc-900/80 border border-white/10 rounded-card p-6 flex justify-between items-center relative overflow-hidden neon-pulse neon-pulse-pink">
               <div className="absolute top-0 right-0 w-24 h-24 bg-pink-400/10 blur-xl"></div>
               <div>
-                <p className="text-[10px] font-black uppercase text-pink-300 tracking-widest">Total Mensuel</p>
+                <p className="text-[11px] font-semibold uppercase text-pink-300 tracking-widest">Total Mensuel</p>
                 <p className="text-3xl font-black italic text-white"><Swap v={(totals.totalFixed + totals.provision)}>{(totals.totalFixed + totals.provision).toLocaleString()}€</Swap></p>
-                <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">{totals.totalFixed.toLocaleString()}€ fixe + {totals.provision.toLocaleString()}€ provision</p>
+                <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mt-1">{totals.totalFixed.toLocaleString()}€ fixe + {totals.provision.toLocaleString()}€ provision</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase text-pink-300 tracking-widest leading-none mb-1">Virement / P</p>
+                <p className="text-[11px] font-semibold uppercase text-pink-300 tracking-widest leading-none mb-1">Virement / P</p>
                 <p className="text-2xl font-black italic text-pink-300">{totals.virement.toLocaleString()}€</p>
               </div>
             </div>
             <section className="space-y-8">
               <div className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
-                  <p className="text-[10px] font-black text-pink-300 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
+                  <p className="text-[11px] font-semibold text-pink-300 uppercase tracking-[0.4em] leading-none">Mensuel Fixe</p>
                   <p className="text-xl font-black italic text-pink-300 leading-none">{totals.totalFixed.toLocaleString()}€</p>
                 </div>
                 <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-pink-400/10 rounded-card p-2 space-y-2"><AnimatePresence initial={false}>
@@ -2052,7 +2052,7 @@ export default function NexusUltimateCloud() {
                           <div className="w-10 h-10 bg-pink-400/10 rounded-chip flex items-center justify-center text-pink-300">{getIcon(e.name)}</div>
                           <div>
                             <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
-                            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Charge Fixe</p>
+                            <p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-widest text-left">Charge Fixe</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
@@ -2068,14 +2068,14 @@ export default function NexusUltimateCloud() {
                       </div>
                     </DraggableItem>
                   ))}
-                </AnimatePresence></Reorder.Group>
+                </AnimatePresence></Reorder.Group>{fixedExpenses.length === 0 && <p className="text-center text-sm text-zinc-500 font-medium leading-relaxed py-6 px-6">Aucune charge mensuelle. Loyer, énergie, abonnements : tout ce que vous payez à deux.</p>}
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
-                  <p className="text-[10px] font-black text-amber-400 uppercase tracking-[0.4em] italic leading-none">Provisions Annuelles</p>
+                  <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-[0.4em] leading-none">Provisions Annuelles</p>
                   <div className="text-right">
-                    <p className="text-xl font-black italic text-amber-400 leading-none">{totals.totalAnnual.toLocaleString()}€<span className="text-[10px] text-amber-600 not-italic font-bold"> /an</span></p>
-                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">≈ {totals.provision.toLocaleString()}€ /mois</p>
+                    <p className="text-xl font-black italic text-amber-400 leading-none">{totals.totalAnnual.toLocaleString()}€<span className="text-[11px] text-amber-600 not- font-semibold"> /an</span></p>
+                    <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mt-1">≈ {totals.provision.toLocaleString()}€ /mois</p>
                   </div>
                 </div>
                 {/* Les dépenses programmées (`noProvision`) partagent ce tableau mais
@@ -2090,17 +2090,17 @@ export default function NexusUltimateCloud() {
                           <div>
                             <p className="text-sm font-black italic uppercase text-left">{e.name}</p>
                             {dueList(e).length > 0
-                              ? <p className="text-[8px] text-amber-400 font-black uppercase tracking-widest text-left">
+                              ? <p className="text-[11px] text-amber-400 font-semibold uppercase tracking-widest text-left">
                                   {dueList(e).length > 1
                                     ? `${dueList(e).length} prélèvements · ${Math.round(dueTotal(e)).toLocaleString()}€ · dès ${new Date(dueList(e)[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}`
                                     : `Prélèvement ${new Date(dueList(e)[0].date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} · ${Math.round(dueTotal(e)).toLocaleString()}€`}
                                 </p>
-                              : <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">{e.startDate ? `Dès ${new Date(e.startDate).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })}` : 'Provision'}</p>}
+                              : <p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-widest text-left">{e.startDate ? `Dès ${new Date(e.startDate).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })}` : 'Provision'}</p>}
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-end">
-                            <span className="text-xl font-black italic text-amber-400">{Number(e.amount).toLocaleString()}€<span className="text-[10px] text-zinc-500 not-italic font-bold"> · {Math.round((Number(e.amount) || 0) / 12).toLocaleString()}€/m</span></span>
+                            <span className="text-xl font-black italic text-amber-400">{Number(e.amount).toLocaleString()}€<span className="text-[11px] text-zinc-500 not- font-semibold"> · {Math.round((Number(e.amount) || 0) / 12).toLocaleString()}€/m</span></span>
                             <div className="flex gap-6">
                               <button onClick={() => { const l = dueList(e); setDueDraft(l.length ? l.map((d, i) => ({ id: d.id ?? Date.now() + i, date: d.date, amount: String(d.amount ?? '') })) : [{ id: Date.now(), date: '', amount: String(e.amount ?? '') }]); setModal({ open: true, type: 'due_date', data: e }); }} aria-label={`Échéances de ${e.name}`} className={`ib ${dueList(e).length ? 'text-amber-400' : 'text-zinc-500 hover:text-amber-400'}`}><CalendarClock size={14} /></button>
                               <button aria-label="Modifier" onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual', startDate: e.startDate || '' }); setModal({ open: true, type: 'expense', data: e }); }} className="ib text-zinc-500 hover:text-white"><Pencil size={14} /></button>
@@ -2112,7 +2112,7 @@ export default function NexusUltimateCloud() {
                       </div>
                     </DraggableItem>
                   ))}
-                </AnimatePresence></Reorder.Group>
+                </AnimatePresence></Reorder.Group>{provisionItems.length === 0 && <p className="text-center text-sm text-zinc-500 font-medium leading-relaxed py-6 px-6">Aucune provision. Une charge annuelle (taxe foncière, assurance…) se met de côté chaque mois.</p>}
               </div>
             </section>
           </div>
@@ -2122,11 +2122,11 @@ export default function NexusUltimateCloud() {
         {activeTab === 'history' && (
           <div className="space-y-8 pb-4 page-transition" style={pageStyle}>
             <div className="bg-gradient-to-br from-zinc-900 to-slate-700/60 rounded-card p-10 border border-white/5 shadow-2xl relative neon-pulse neon-pulse-platinum">
-              <p className="text-slate-300 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
+              <p className="text-slate-300 text-[11px] font-semibold uppercase mb-1">Journal des Flux</p>
               <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length}</h2>
               <button onClick={() => setShowArchives(!showArchives)} className="absolute top-8 right-8 bg-black/20 p-3 rounded-chip text-slate-200 hover:bg-black/40 transition-all flex items-center gap-2">
                 <Archive size={18} />
-                <span className="text-[10px] font-bold uppercase">{showArchives ? "Actifs" : "Archives"}</span>
+                <span className="text-[11px] font-semibold uppercase">{showArchives ? "Actifs" : "Archives"}</span>
               </button>
             </div>
             <Reorder.Group axis="y" values={history} onReorder={(newList) => setHistory(newList)} className="space-y-4"><AnimatePresence initial={false}>
@@ -2140,7 +2140,7 @@ export default function NexusUltimateCloud() {
                       <div className="flex flex-col gap-2 min-w-0 pr-2">
                         <div>
                           <p className="text-sm font-black italic uppercase truncate">{h.label}</p>
-                          <p className="text-[8px] text-zinc-500 font-bold uppercase">{h.date}</p>
+                          <p className="text-[11px] text-zinc-500 font-semibold uppercase">{h.date}</p>
                         </div>
                       </div>
                     </div>
@@ -2161,7 +2161,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 </DraggableItem>
               ))}
-            </AnimatePresence></Reorder.Group>
+            </AnimatePresence></Reorder.Group>{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length === 0 && <p className="text-center text-sm text-zinc-500 font-medium leading-relaxed py-6 px-6">{showArchives ? 'Aucune écriture archivée.' : 'Aucun flux pour l\'instant. Dépenses, recettes et avances s\'inscrivent ici.'}</p>}
 
             {/* Déconnexion : rarement utile, donc en bas du Journal (plus dans la barre
                 d'onglets, où un tap raté déconnectait), avec confirmation. */}
@@ -2219,16 +2219,16 @@ export default function NexusUltimateCloud() {
                 {(modal.type === 'due_date' || (modal.type === 'exceptional' && dueDraft.length > 0)) && (
                   <div className="space-y-4">
                     {modal.type === 'due_date' && <div className="bg-black/40 border border-amber-500/20 rounded-chip p-5">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 leading-none mb-2">Provision annuelle</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-600 leading-none mb-2">Provision annuelle</p>
                       <p className="text-lg font-black italic uppercase text-amber-400 leading-none">{modal.data?.name}</p>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mt-2">Prévisionnel {Number(modal.data?.amount || 0).toLocaleString()}€ /an</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mt-2">Prévisionnel {Number(modal.data?.amount || 0).toLocaleString()}€ /an</p>
                     </div>}
 
-                    <p className="text-[10px] font-black uppercase text-amber-500 pl-2">Prélèvements prévus</p>
+                    <p className="text-[11px] font-semibold uppercase text-amber-500 pl-2">Prélèvements prévus</p>
                     {dueDraft.map((d, i) => (
                       <div key={d.id} className="bg-black/40 border border-white/10 rounded-chip p-3 space-y-2">
                         <div className="flex items-center gap-2">
-                          <span className="shrink-0 w-5 text-center text-[10px] font-black text-amber-600">{i + 1}</span>
+                          <span className="shrink-0 w-5 text-center text-[11px] font-semibold text-amber-600">{i + 1}</span>
                           <input
                             type="date"
                             className="flex-1 min-w-0 bg-black/50 border border-white/10 rounded-chip px-3 py-2.5 outline-none focus:border-amber-500 font-bold text-white text-sm [color-scheme:dark]"
@@ -2237,7 +2237,7 @@ export default function NexusUltimateCloud() {
                           <button type="button" onClick={() => setDueDraft(dueDraft.filter(x => x.id !== d.id))} className="ib-solo -mr-2 shrink-0 text-zinc-500 hover:text-red-500" aria-label="Supprimer cette échéance"><X size={16} /></button>
                         </div>
                         <div className="flex items-center gap-2 pl-7">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Montant</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Montant</span>
                           <input
                             type="number" step="0.01" inputMode="decimal" placeholder="0"
                             className="flex-1 min-w-0 bg-black/50 border border-white/10 rounded-chip px-3 py-2.5 outline-none focus:border-amber-500 font-black text-amber-400 text-sm text-right"
@@ -2260,10 +2260,10 @@ export default function NexusUltimateCloud() {
                       const ecart = modal.type === 'due_date' ? Math.round(tot - (Number(modal.data?.amount) || 0)) : 0;
                       return (
                         <div className="flex justify-between items-baseline px-2 pt-1">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Total {dueDraft.length} échéance{dueDraft.length > 1 ? 's' : ''}</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Total {dueDraft.length} échéance{dueDraft.length > 1 ? 's' : ''}</span>
                           <span className="text-right">
                             <span className="text-lg font-black italic text-amber-400">{Math.round(tot).toLocaleString()}€</span>
-                            {ecart !== 0 && <span className="block text-[9px] font-bold text-zinc-500">{ecart > 0 ? '+' : ''}{ecart.toLocaleString()}€ vs prévisionnel</span>}
+                            {ecart !== 0 && <span className="block text-[11px] font-semibold text-zinc-500">{ecart > 0 ? '+' : ''}{ecart.toLocaleString()}€ vs prévisionnel</span>}
                           </span>
                         </div>
                       );
@@ -2279,7 +2279,7 @@ export default function NexusUltimateCloud() {
                   const add = toNum(form.amount) || 0;
                   return (
                     <div className="space-y-3">
-                      <p className="text-[10px] font-black uppercase text-amber-500 pl-2">Avance</p>
+                      <p className="text-[11px] font-semibold uppercase text-amber-500 pl-2">Avance</p>
                       <div className="flex flex-wrap gap-2">
                         <button type="button" onClick={() => setForm({ ...form, targetPending: '' })} className={`px-4 py-2 rounded-chip text-xs font-bold uppercase border ${!form.targetPending ? 'bg-amber-500 border-amber-500 text-black' : 'border-zinc-800 text-zinc-500'}`}>+ Nouvelle</button>
                         {list.map(p => (
@@ -2288,9 +2288,9 @@ export default function NexusUltimateCloud() {
                       </div>
                       {sel && (
                         <div className="bg-black/40 border border-amber-500/20 rounded-chip p-5">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 leading-none mb-2">Cumul sur avance existante</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-600 leading-none mb-2">Cumul sur avance existante</p>
                           <p className="text-lg font-black italic uppercase text-amber-400 leading-none">{sel.label}</p>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-2">{Number(sel.amount).toLocaleString()}€ <span className="text-zinc-500">→</span> <span className="text-amber-400">{Math.round(sel.amount + add).toLocaleString()}€</span></p>
+                          <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mt-2">{Number(sel.amount).toLocaleString()}€ <span className="text-zinc-500">→</span> <span className="text-amber-400">{Math.round(sel.amount + add).toLocaleString()}€</span></p>
                         </div>
                       )}
                     </div>
@@ -2308,7 +2308,7 @@ export default function NexusUltimateCloud() {
                     <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-chip p-6 outline-none focus:border-emerald-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
                     {modal.type === 'expense' && form.cat === 'annual' && (
                       <div className="space-y-2">
-                        <p className="text-[10px] font-black uppercase text-emerald-500 pl-4">Date de démarrage (optionnel)</p>
+                        <p className="text-[11px] font-semibold uppercase text-emerald-500 pl-4">Date de démarrage (optionnel)</p>
                         <input type="date" className="w-full bg-black/50 border border-white/10 rounded-chip p-5 outline-none focus:border-emerald-500 font-bold text-white [color-scheme:dark]" value={form.startDate || ''} onChange={e => setForm({ ...form, startDate: e.target.value })} />
                         <p className="text-xs text-zinc-400 font-semibold pl-4 leading-snug">Sans date : cumul rétroactif depuis janvier. Avec date : cumul à partir du mois choisi.</p>
                       </div>
@@ -2318,7 +2318,7 @@ export default function NexusUltimateCloud() {
 
                 {(modal.type === 'savings_transaction' || (modal.type === 'savings_advance' && !form.targetPending)) && (
                   <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">Compte Cible</p>
+                    <p className="text-[11px] font-semibold uppercase text-zinc-500 pl-4">Compte Cible</p>
                     <div className="flex flex-wrap gap-2">
                       {savingsAccounts.filter(isMoneyAccount).map(acc => (
                         <button type="button" key={acc.id} onClick={() => setForm({ ...form, targetAccount: acc.id })} className={`px-4 py-2 rounded-chip text-xs font-bold uppercase border ${form.targetAccount === acc.id ? 'bg-amber-500 border-amber-500 text-black' : 'border-zinc-800 text-zinc-500'}`}>{acc.name}</button>
@@ -2329,7 +2329,7 @@ export default function NexusUltimateCloud() {
 
                 {modal.type === 'portfolio' && (
                   <div className="space-y-4">
-                    <p className="text-[10px] font-black uppercase text-cyan-500 pl-2">Parts détenues par fonds</p>
+                    <p className="text-[11px] font-semibold uppercase text-cyan-500 pl-2">Parts détenues par fonds</p>
                     {BOURSO_FUNDS.map(f => {
                       const shares = parseFloat(String(portfolioDraft[f.id] ?? '').replace(',', '.')) || 0;
                       const vl = vlMap[f.id]?.vl ?? null;
@@ -2338,9 +2338,9 @@ export default function NexusUltimateCloud() {
                           <div className="flex justify-between items-baseline gap-2">
                             <span className="text-sm font-black italic uppercase text-zinc-200 leading-tight">
                               {f.name}
-                              {f.ticker && <span className="ml-1.5 text-[9px] not-italic font-bold text-cyan-600 tracking-wider">ETF · {f.ticker}</span>}
+                              {f.ticker && <span className="ml-1.5 text-[11px] not- font-semibold text-cyan-600 tracking-wider">ETF · {f.ticker}</span>}
                             </span>
-                            <span className="text-[10px] font-mono text-zinc-500 whitespace-nowrap shrink-0">VL {vl ? vl.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€' : (vlLoading ? '…' : '—')}</span>
+                            <span className="text-[11px] font-mono text-zinc-500 whitespace-nowrap shrink-0">VL {vl ? vl.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€' : (vlLoading ? '…' : '—')}</span>
                           </div>
                           <div className="flex items-center gap-3">
                             <input
@@ -2350,7 +2350,7 @@ export default function NexusUltimateCloud() {
                               value={portfolioDraft[f.id] ?? ''}
                               onChange={e => setPortfolioDraft({ ...portfolioDraft, [f.id]: e.target.value })}
                             />
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase whitespace-nowrap">parts</span>
+                            <span className="text-[11px] font-semibold text-zinc-500 uppercase whitespace-nowrap">parts</span>
                             <span className="text-sm font-black italic text-cyan-500 whitespace-nowrap w-20 text-right">{vl ? Math.round(shares * vl).toLocaleString() + '€' : '—'}</span>
                           </div>
                         </div>
@@ -2382,11 +2382,11 @@ export default function NexusUltimateCloud() {
                       ['releaseFees', "Frais de mainlevée d'hypothèque (€)", 'decimal'],
                     ].map(([k, lbl, mode]) => (
                       <div key={k} className="space-y-2">
-                        <p className="text-[10px] font-black uppercase text-violet-400 pl-4">{lbl}</p>
+                        <p className="text-[11px] font-semibold uppercase text-violet-400 pl-4">{lbl}</p>
                         <input type="text" inputMode={mode} value={form[k] ?? ''} onChange={e => setForm({ ...form, [k]: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-chip px-5 py-4 font-bold outline-none focus:border-violet-500/50" />
                       </div>
                     ))}
-                    <p className="text-[10px] font-black uppercase text-zinc-500 pl-4 pt-2">Crédit</p>
+                    <p className="text-[11px] font-semibold uppercase text-zinc-500 pl-4 pt-2">Crédit</p>
                     <div className="grid grid-cols-2 gap-3">
                       {[
                         ['principal', 'Capital emprunté'],
@@ -2398,13 +2398,13 @@ export default function NexusUltimateCloud() {
                         ['iraFreeAfter', 'IRA gratuite après (échéances)'],
                       ].map(([k, lbl]) => (
                         <div key={k} className="space-y-1.5">
-                          <p className="text-[9px] font-black uppercase text-zinc-500 pl-2 leading-tight">{lbl}</p>
+                          <p className="text-[11px] font-semibold uppercase text-zinc-500 pl-2 leading-tight">{lbl}</p>
                           <input type="text" inputMode="decimal" value={form[k] ?? ''} onChange={e => setForm({ ...form, [k]: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-chip px-4 py-3 font-bold text-sm outline-none focus:border-violet-500/50" />
                         </div>
                       ))}
                     </div>
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">1re échéance (jour de prélèvement)</p>
+                      <p className="text-[11px] font-semibold uppercase text-zinc-500 pl-4">1re échéance (jour de prélèvement)</p>
                       <input type="date" value={form.firstDue ?? ''} onChange={e => setForm({ ...form, firstDue: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-chip px-5 py-4 font-bold outline-none focus:border-violet-500/50 [color-scheme:dark]" />
                     </div>
                     <p className="text-xs text-zinc-400 font-semibold pl-2 leading-snug">Le tableau d'amortissement est recalculé depuis ces paramètres. Les échéances sont comptées à partir de cette date, une par mois, le même jour. L'actif net déduit l'indemnité de remboursement anticipé (un semestre d'intérêts, plafonné à 3 % du restant dû) et les frais de mainlevée : c'est le net en poche si tu vendais aujourd'hui. Le loyer de marché est ce que coûterait le même logement en location, surtout pas la mensualité : une partie de celle-ci est du capital, donc de l'épargne. Les charges de propriétaire regroupent taxe foncière, charges de copropriété non récupérables et provision travaux. Les deux servent à dater le point où l'achat devient plus rentable que la location.</p>
@@ -2415,7 +2415,7 @@ export default function NexusUltimateCloud() {
                   <div className="space-y-5">
                     {modal.type === 'add_crypto' && (
                       <div className="space-y-2">
-                        <p className="text-[10px] font-black uppercase text-orange-500 pl-2">Crypto</p>
+                        <p className="text-[11px] font-semibold uppercase text-orange-500 pl-2">Crypto</p>
                         <div className="flex flex-wrap gap-2">
                           {CRYPTOS.filter(c => !cryptoAssets.some(a => a.sym === c.sym) || c.sym === cryptoDraft.sym).map(c => (
                             <button type="button" key={c.sym} onClick={() => setCryptoDraft({ ...cryptoDraft, sym: c.sym })} className={`px-3 py-2 rounded-chip text-[11px] font-black uppercase border ${cryptoDraft.sym === c.sym ? 'bg-orange-500 border-orange-500 text-black' : 'border-zinc-800 text-zinc-500'}`}>{c.sym}</button>
@@ -2426,7 +2426,7 @@ export default function NexusUltimateCloud() {
                     <div className="bg-black/40 border border-white/10 rounded-chip p-4 space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-black italic uppercase text-zinc-200">{cryptoName(cryptoDraft.sym)}</span>
-                        <span className="text-[10px] font-mono text-zinc-500">{cryptoPrices[cryptoDraft.sym]?.price ? cryptoPrices[cryptoDraft.sym].price.toLocaleString('fr-FR', { maximumFractionDigits: cryptoPrices[cryptoDraft.sym].price < 1 ? 6 : 2 }) + '€' : (cryptoLoading ? '…' : '—')}</span>
+                        <span className="text-[11px] font-mono text-zinc-500">{cryptoPrices[cryptoDraft.sym]?.price ? cryptoPrices[cryptoDraft.sym].price.toLocaleString('fr-FR', { maximumFractionDigits: cryptoPrices[cryptoDraft.sym].price < 1 ? 6 : 2 }) + '€' : (cryptoLoading ? '…' : '—')}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <input
