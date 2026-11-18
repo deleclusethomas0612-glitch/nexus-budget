@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, AreaChart, Area, ReferenceLine } from 'recharts';
 import {
   TrendingUp, Users, Wallet, Plus, Check, X, Trash2, Pencil,
@@ -111,6 +111,47 @@ const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+// Titre et bouton des modales génériques : une dépense ne doit pas ressembler à une recette.
+const MODAL_TITLES = {
+  exceptional: 'Dépense', reimbursement: 'Recette', pending: 'Avance',
+  repay_partial: 'Remboursement', repay_savings_advance: 'Remboursement épargne',
+  expense: 'Charge commune', edit_history: "Modifier l'écriture",
+};
+const MODAL_CTA = {
+  exceptional: ['Enregistrer la dépense', 'bg-red-500'],
+  reimbursement: ['Enregistrer la recette', 'bg-emerald-600'],
+  pending: ["Enregistrer l'avance", 'bg-amber-600'],
+  repay_partial: ['Enregistrer le remboursement', 'bg-emerald-600'],
+  repay_savings_advance: ['Enregistrer le remboursement', 'bg-emerald-600'],
+  expense: ['Enregistrer la charge', 'bg-emerald-600'],
+  edit_history: ['Enregistrer', 'bg-emerald-600'],
+  create_savings_account: ['Créer le compte', 'bg-emerald-600'],
+  create_personal_expense: ['Enregistrer', 'bg-emerald-600'],
+};
+
+// Montant saisi au clavier : accepte « 84,90 », « 84.90 », « 1 380 » et les nombres déjà typés.
+const toNum = (v) => parseFloat(String(v ?? '').replace(/[\s\u00a0\u202f\u20ac]/g, '').replace(',', '.'));
+
+// Annulation d'une suppression : remet dans `cur` les éléments que l'action avait retirés
+// (à leur place d'origine) et enlève ceux qu'elle avait ajoutés, sans toucher aux autres
+// modifications faites entre-temps. `before` / `next` = la liste avant et après l'action.
+const restoreList = (before, next, cur) => {
+  const beforeIds = new Set(before.map(x => x.id));
+  const nextIds = new Set(next.map(x => x.id));
+  const added = new Set(next.filter(x => !beforeIds.has(x.id)).map(x => x.id));
+  const out = cur.filter(x => !added.has(x.id));
+  before.forEach((item, i) => {
+    if (nextIds.has(item.id) || out.some(x => x.id === item.id)) return;
+    let pos = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      const k = out.findIndex(x => x.id === before[j].id);
+      if (k !== -1) { pos = k + 1; break; }
+    }
+    out.splice(pos, 0, item);
+  });
+  return out;
+};
+
 // Date réelle d'un flux (dépense / recette), qui sert à le placer sur le bon mois
 // du graphe. Les flux enregistrés avant la datation n'ont pas de `paidOn` : on
 // retombe sur leur `id`, qui est un `Date.now()` de création. Sans repli
@@ -198,6 +239,20 @@ export default function NexusUltimateCloud() {
   const [showArchives, setShowArchives] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [saveError, setSaveError] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saved' : confirmation discrète après chaque sauvegarde
+  const [loadError, setLoadError] = useState(false);   // le chargement a échoué : écran « Réessayer », aucune sauvegarde
+  const [loadedFor, setLoadedFor] = useState(null);    // id de l'utilisateur dont les données sont chargées avec succès
+  const [undo, setUndo] = useState(null);              // { label, changes } : dernière suppression annulable 5 s
+  // Erreur de saisie, rattachée à la modale ouverte : elle disparaît d'elle-même à la
+  // prochaine ouverture (setModal crée toujours un nouvel objet).
+  const [formErrorState, setFormErrorState] = useState({ msg: '', modal: null });
+  const formError = formErrorState.modal === modal ? formErrorState.msg : '';
+  const setFormError = (msg) => setFormErrorState({ msg, modal });
+  const loadedRef = useRef(null);   // même info que loadedFor, lisible dans les callbacks d'auth
+  const fetchingRef = useRef(null); // évite deux chargements simultanés du même compte
+  const dirtyRef = useRef(false);   // une modification attend d'être sauvegardée
+  const undoTimer = useRef(null);
+  const savedTimer = useRef(null);
   const [vlMap, setVlMap] = useState({});          // { symbol: { vl, at } } — VL live
   const [vlLoading, setVlLoading] = useState(false);
   const [portfolioDraft, setPortfolioDraft] = useState({}); // { fundId: "parts" } dans la modale
@@ -248,10 +303,26 @@ export default function NexusUltimateCloud() {
     setPersonalExpenses([]);
   };
 
+  // Chargement des données. Règle de sécurité : tant qu'un chargement n'a pas RÉUSSI,
+  // `loadedFor` reste vide et aucune sauvegarde ne part (cf. auto-save). Sans ça, un
+  // réseau qui échoue laissait des listes vides à l'écran… que l'auto-save écrivait
+  // ensuite par-dessus les vraies données.
   const fetchData = async (userId) => {
+    if (fetchingRef.current === userId) return;
+    fetchingRef.current = userId;
+    loadedRef.current = null;
+    setLoadedFor(null);
+    setLoadError(false);
     setLoading(true);
     clearAllStates(); // Reset avant de charger le nouveau compte
-    const { data } = await supabase.from('nexus_data').select('*').eq('user_id', userId).single();
+    const fail = () => { fetchingRef.current = null; setLoadError(true); setLoading(false); };
+    let data, error;
+    try {
+      ({ data, error } = await supabase.from('nexus_data').select('*').eq('user_id', userId).maybeSingle());
+    } catch {
+      return fail(); // coupure réseau qui lève une exception au lieu de renvoyer `error`
+    }
+    if (error) return fail();
 
     if (data) {
       setFixedExpenses(data.fixed_expenses || []);
@@ -264,17 +335,20 @@ export default function NexusUltimateCloud() {
       setSavingsPending(data.savings_pending || []);
       setPersonalExpenses(data.personal_expenses || []);
     } else {
-      // Si pas de données, on s'assure d'insérer une ligne propre si besoin
-      const { data: check } = await supabase.from('nexus_data').select('user_id').eq('user_id', userId);
-      if (!check || check.length === 0) {
-        const defaults = {
-          user_id: userId,
-          fixed_expenses: [], annual_expenses: [], pending: [], history: [], reimbursements: [], exceptional_paid: [],
-          savings_accounts: [], savings_pending: [], personal_expenses: []
-        };
-        await supabase.from('nexus_data').insert(defaults);
-      }
+      // Aucune ligne (et aucune erreur) : compte neuf, on crée une ligne vide.
+      const defaults = {
+        user_id: userId,
+        fixed_expenses: [], annual_expenses: [], pending: [], history: [], reimbursements: [], exceptional_paid: [],
+        savings_accounts: [], savings_pending: [], personal_expenses: []
+      };
+      let insertError;
+      try { ({ error: insertError } = await supabase.from('nexus_data').insert(defaults)); }
+      catch { return fail(); }
+      if (insertError) return fail();
     }
+    fetchingRef.current = null;
+    loadedRef.current = userId;
+    setLoadedFor(userId);
     setLoading(false);
   };
 
@@ -285,10 +359,12 @@ export default function NexusUltimateCloud() {
       else setLoading(false);
     });
 
+    // On ne recharge que si le compte change : un simple rafraîchissement du jeton
+    // (TOKEN_REFRESHED) rechargeait tout et écrasait une saisie pas encore sauvegardée.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) fetchData(session.user.id);
-      else setLoading(false);
+      if (session) { if (session.user.id !== loadedRef.current) fetchData(session.user.id); }
+      else { loadedRef.current = null; setLoadedFor(null); setLoading(false); }
     });
 
     return () => subscription.unsubscribe();
@@ -296,7 +372,7 @@ export default function NexusUltimateCloud() {
   }, []);
 
   const saveData = async () => {
-    if (!session) return;
+    if (!session || loadedRef.current !== session.user.id) return false;
     const updates = {
       fixed_expenses: fixedExpenses,
       annual_expenses: annualExpenses,
@@ -311,16 +387,35 @@ export default function NexusUltimateCloud() {
     };
     const { error } = await supabase.from('nexus_data').upsert({ user_id: session.user.id, ...updates });
     setSaveError(!!error);
+    if (error) return false;
+    dirtyRef.current = false;
+    setSaveStatus('saved');
+    clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSaveStatus('idle'), 1500);
+    return true;
   };
+  // Référence toujours à jour vers saveData, pour les écouteurs posés une seule fois.
+  const saveRef = useRef(saveData);
+  useEffect(() => { saveRef.current = saveData; });
 
   // Sauvegarde auto avec anti-rebond : les modifications rapprochées (ex. saisie clavier)
   // sont regroupées en une seule écriture, 800 ms après la dernière modification.
+  // Jamais avant un chargement réussi (`loadedFor`).
   useEffect(() => {
-    if (loading || !session) return;
+    if (loading || !session || loadedFor !== session.user.id) return;
+    dirtyRef.current = true;
     const timer = setTimeout(() => { saveData(); }, 800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fixedExpenses, annualExpenses, pending, history, reimbursements, exceptionalPaid, savingsAccounts, savingsPending, personalExpenses]);
+  }, [fixedExpenses, annualExpenses, pending, history, reimbursements, exceptionalPaid, savingsAccounts, savingsPending, personalExpenses, loadedFor]);
+
+  // L'app passe en arrière-plan (téléphone verrouillé, autre app) : on sauvegarde tout
+  // de suite ce qui attend, sans attendre l'anti-rebond qui pourrait ne jamais partir.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden' && dirtyRef.current) saveRef.current(); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, []);
 
   // Échéances échues : quand le jour d'un prélèvement armé sur une provision annuelle
   // est atteint, cette échéance devient une vraie Dépense (Cash Dispo + Journal), puis
@@ -328,7 +423,7 @@ export default function NexusUltimateCloud() {
   // restent armées. La provision, elle, reste en place et continue de cumuler.
   // Le retrait rend l'opération non rejouable (pas de double débit).
   useEffect(() => {
-    if (loading || !session) return;
+    if (loading || !session || loadedFor !== session.user.id) return;
     const now = new Date();
     const isDue = (d) => {
       const t = new Date(`${d.date}T23:59:59`);
@@ -362,7 +457,7 @@ export default function NexusUltimateCloud() {
       if (rest.length === dueList(e).length) return e;
       return { ...e, dueSchedule: rest, dueDate: null, dueAmount: null };
     }));
-  }, [annualExpenses, loading, session]);
+  }, [annualExpenses, loading, session, loadedFor]);
 
   // --- 2. AUTHENTIFICATION ---
   const handleAuth = async (e) => {
@@ -381,8 +476,48 @@ export default function NexusUltimateCloud() {
   };
 
   const handleLogout = async () => {
+    // La dernière saisie part avant la déconnexion. Si la sauvegarde échoue, on reste
+    // connecté : le bandeau rouge propose de réessayer, rien n'est perdu.
+    if (dirtyRef.current && !(await saveData())) return;
+    if (!window.confirm('Se déconnecter ?')) return;
+    clearTimeout(undoTimer.current);
+    setUndo(null);
+    loadedRef.current = null;
+    setLoadedFor(null);
     await supabase.auth.signOut();
     clearAllStates();
+  };
+
+  // --- ANNULER (5 s) ---
+  // Toute suppression ou absorption passe par `commitWithUndo` : elle s'applique tout de
+  // suite, et « Annuler » remet exactement les éléments touchés (restoreList), donc les
+  // totaux reviennent à l'identique. Aucune formule de calcul n'est concernée.
+  const lists = {
+    fixedExpenses: [fixedExpenses, setFixedExpenses],
+    annualExpenses: [annualExpenses, setAnnualExpenses],
+    pending: [pending, setPending],
+    history: [history, setHistory],
+    reimbursements: [reimbursements, setReimbursements],
+    exceptionalPaid: [exceptionalPaid, setExceptionalPaid],
+    savingsAccounts: [savingsAccounts, setSavingsAccounts],
+    savingsPending: [savingsPending, setSavingsPending],
+    personalExpenses: [personalExpenses, setPersonalExpenses],
+  };
+  const commitWithUndo = (label, nextByKey) => {
+    const changes = Object.entries(nextByKey).map(([key, next]) => {
+      const [before, set] = lists[key];
+      set(next);
+      return { key, before, next };
+    });
+    clearTimeout(undoTimer.current);
+    setUndo({ label, changes, at: Date.now() });
+    undoTimer.current = setTimeout(() => setUndo(null), 5000);
+  };
+  const handleUndo = () => {
+    if (!undo) return;
+    undo.changes.forEach(({ key, before, next }) => lists[key][1](cur => restoreList(before, next, cur)));
+    clearTimeout(undoTimer.current);
+    setUndo(null);
   };
 
   // --- 3. LOGIQUE MÉTIER ---
@@ -759,8 +894,9 @@ export default function NexusUltimateCloud() {
   }, [savingsPending]);
 
   const handleSavingsTransaction = (isIncome) => {
-    const val = parseFloat(form.amount);
-    if (!form.targetAccount || isNaN(val)) return;
+    const val = toNum(form.amount);
+    if (isNaN(val)) { setFormError('Indique un montant, par exemple 84,90.'); return; }
+    if (!form.targetAccount) { setFormError('Choisis le compte concerné.'); return; }
 
     setSavingsAccounts(savingsAccounts.map(acc => {
       if (acc.id === form.targetAccount) {
@@ -773,8 +909,8 @@ export default function NexusUltimateCloud() {
   };
 
   const handleSavingsAdvance = () => {
-    const val = parseFloat(form.amount);
-    if (isNaN(val) || val <= 0) return;
+    const val = toNum(form.amount);
+    if (isNaN(val) || val <= 0) { setFormError('Indique un montant supérieur à 0, par exemple 84,90.'); return; }
     // Cumul sur une avance existante : le compte cible est déjà porté par l'avance,
     // on ne redemande donc ni le libellé ni le compte.
     const existing = form.targetPending ? savingsPending.find(p => p.id === form.targetPending) : null;
@@ -867,14 +1003,20 @@ export default function NexusUltimateCloud() {
   const handleAbsorb = () => {
     const debt = modal.data;
     const sharedId = Date.now();
+    // Même écriture qu'avant (cf. addEntry), mais annulable pendant 5 s.
+    const log = (label) => ({ id: sharedId, label, amount: debt.amount, type: 'payment', date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) });
 
     if (modal.type === 'repay_savings_advance') {
-      setSavingsPending(savingsPending.filter(p => p.id !== debt.id));
-      addEntry(sharedId, `Absorbé Épargne: ${debt.label}`, debt.amount, 'payment');
+      commitWithUndo(`${debt.label} absorbée`, {
+        savingsPending: savingsPending.filter(p => p.id !== debt.id),
+        history: [log(`Absorbé Épargne: ${debt.label}`), ...history],
+      });
     } else {
-      setPending(pending.filter(p => p.id !== debt.id));
-      setExceptionalPaid([...exceptionalPaid, { id: sharedId, label: debt.label, amount: debt.amount, paidOn: todayISO() }]);
-      addEntry(sharedId, `Absorbé: ${debt.label}`, debt.amount, 'payment');
+      commitWithUndo(`${debt.label} absorbée`, {
+        pending: pending.filter(p => p.id !== debt.id),
+        exceptionalPaid: [...exceptionalPaid, { id: sharedId, label: debt.label, amount: debt.amount, paidOn: todayISO() }],
+        history: [log(`Absorbé: ${debt.label}`), ...history],
+      });
     }
 
     setModal({ open: false, type: '', data: null });
@@ -882,10 +1024,10 @@ export default function NexusUltimateCloud() {
   };
 
   const handleDeleteHistory = (item) => {
-    if (!window.confirm("Supprimer cette écriture et mettre à jour le solde ?")) return;
-    setHistory(history.filter(h => h.id !== item.id));
-    if (item.type === 'payment') setExceptionalPaid(exceptionalPaid.filter(p => p.id !== item.id));
-    else if (item.type === 'reimb') setReimbursements(reimbursements.filter(r => r.id !== item.id));
+    const next = { history: history.filter(h => h.id !== item.id) };
+    if (item.type === 'payment') next.exceptionalPaid = exceptionalPaid.filter(p => p.id !== item.id);
+    else if (item.type === 'reimb') next.reimbursements = reimbursements.filter(r => r.id !== item.id);
+    commitWithUndo(`Écriture « ${item.label} » supprimée`, next);
   };
 
   const handleEditHistory = (item) => {
@@ -915,8 +1057,8 @@ export default function NexusUltimateCloud() {
       setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
       return;
     }
-    const val = parseFloat(form.amount);
-    if (isNaN(val) || val <= 0) return;
+    const val = toNum(form.amount);
+    if (isNaN(val) || val <= 0) { setFormError('Indique un montant supérieur à 0, par exemple 84,90.'); return; }
     const sharedId = Date.now();
 
     if (modal.type === 'create_savings_account') {
@@ -1012,13 +1154,24 @@ export default function NexusUltimateCloud() {
   };
 
   // --- RENDER ---
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-emerald-500"><Loader2 className="animate-spin" size={48} /></div>;
+  if (session && loadError) return (
+    <div className="min-h-screen bg-[#020202] text-white flex items-center justify-center p-6">
+      <div role="alert" className="w-full max-w-sm bg-zinc-900/60 border border-red-500/30 rounded-[2rem] p-8 space-y-5 text-center">
+        <p className="text-lg font-black">Impossible de charger tes données</p>
+        <p className="text-sm text-zinc-400 leading-snug">Vérifie ta connexion. Rien n'a été modifié ni enregistré : tes données sont intactes sur le serveur.</p>
+        <button onClick={() => fetchData(session.user.id)} className="w-full min-h-[52px] rounded-2xl bg-emerald-500 text-emerald-950 font-black">Réessayer</button>
+        <button onClick={async () => { await supabase.auth.signOut(); clearAllStates(); }} className="w-full min-h-[44px] rounded-2xl border border-white/10 text-zinc-300 font-bold text-sm">Se déconnecter</button>
+      </div>
+    </div>
+  );
+
+  if (loading || (session && loadedFor !== session.user.id)) return <div className="min-h-screen bg-black flex items-center justify-center text-emerald-500"><Loader2 className="animate-spin" size={48} /></div>;
 
   if (!session) return (
     <div className="min-h-screen bg-[#020202] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <p className="text-zinc-500 text-xs font-bold uppercase tracking-[0.3em]">Cloud Access</p>
+          <p className="text-zinc-400 text-xs font-bold uppercase tracking-[0.3em]">Connexion à Nexus</p>
         </div>
         <div className="bg-zinc-900/50 border border-white/10 rounded-[2.5rem] p-8 space-y-6 backdrop-blur-xl">
           <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
@@ -1046,11 +1199,19 @@ export default function NexusUltimateCloud() {
     >
       <div className="max-w-md mx-auto space-y-6">
 
-        {saveError && (
-          <div className="bg-red-500/15 border border-red-500/30 text-red-400 text-[11px] font-bold rounded-2xl px-4 py-3 text-center leading-tight">
-            ⚠ Échec de sauvegarde — vérifie ta connexion. Tes dernières modifications ne sont peut-être pas enregistrées.
-          </div>
-        )}
+        {/* Bandeau d'échec : fixé en haut (ne part pas au défilement), annoncé aux lecteurs d'écran */}
+        <div aria-live="assertive" className="fixed top-0 inset-x-0 z-[150] px-4 pointer-events-none" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
+          {saveError && (
+            <div role="alert" className="pointer-events-auto max-w-md mx-auto bg-red-950/95 border border-red-500/40 text-red-200 text-xs font-bold rounded-2xl pl-4 pr-2 py-2 flex items-center gap-3 shadow-2xl backdrop-blur">
+              <span className="flex-1 leading-snug">⚠ Sauvegarde échouée. Tes dernières modifications ne sont pas encore enregistrées.</span>
+              <button onClick={() => saveData()} className="shrink-0 min-h-[44px] px-4 rounded-xl bg-red-500 text-red-950 font-black">Réessayer</button>
+            </div>
+          )}
+        </div>
+        {/* Confirmation discrète après chaque sauvegarde réussie */}
+        <div aria-live="polite" className={`fixed right-4 z-[140] text-[11px] font-bold text-emerald-400 bg-zinc-900/90 border border-emerald-500/20 rounded-full px-3 py-1.5 pointer-events-none transition-opacity duration-200 ${saveStatus === 'saved' && !saveError ? 'opacity-100' : 'opacity-0'}`} style={{ top: 'max(12px, env(safe-area-inset-top))' }}>
+          {saveStatus === 'saved' && !saveError ? '✓ Enregistré' : ''}
+        </div>
 
         {/* HEADER REMOVED REPLACEMENT LOGIC */}
 
@@ -1153,7 +1314,7 @@ export default function NexusUltimateCloud() {
                         <span className="text-xl font-black italic text-rose-400">{Math.round(dueTotal(e)).toLocaleString()}€</span>
                         <div className="flex gap-2">
                           <button onClick={() => { setForm({ label: e.name, amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setDueDraft(dueList(e).map((d, i) => ({ id: d.id ?? Date.now() + i, date: d.date, amount: String(d.amount ?? '') }))); setModal({ open: true, type: 'exceptional', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
-                          <button onClick={() => setAnnualExpenses(annualExpenses.filter(x => x.id !== e.id))} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                          <button onClick={() => commitWithUndo(`Prélèvement « ${e.name} » supprimé`, { annualExpenses: annualExpenses.filter(x => x.id !== e.id) })} aria-label={`Supprimer ${e.name}`} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                         </div>
                       </div>
                     </div>
@@ -1256,7 +1417,7 @@ export default function NexusUltimateCloud() {
                               else { setForm({ label: acc.name, amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setModal({ open: true, type: 'rename_savings', data: acc }); }
                             }} className="text-zinc-600 hover:text-cyan-400" title={canHoldTitles(acc) ? 'Gérer les parts' : 'Renommer le compte'}><Pencil size={13} /></button>
                             {acc.isPortfolio && <button onClick={() => fetchVLs(portfolioSymbols)} className="text-zinc-600 hover:text-white" title="Rafraîchir la VL"><RefreshCw size={12} className={vlLoading ? 'animate-spin' : ''} /></button>}
-                            <button onClick={() => { if (window.confirm('Supprimer ce compte épargne ?')) setSavingsAccounts(savingsAccounts.filter(a => a.id !== acc.id)) }} className="text-zinc-700 hover:text-red-500"><Trash2 size={12} /></button>
+                            <button onClick={() => commitWithUndo(`Compte « ${acc.name} » supprimé`, { savingsAccounts: savingsAccounts.filter(a => a.id !== acc.id) })} aria-label={`Supprimer ${acc.name}`} className="text-zinc-700 hover:text-red-500"><Trash2 size={12} /></button>
                           </div>
                         </div>
                         <DragHandle />
@@ -1380,7 +1541,7 @@ export default function NexusUltimateCloud() {
                           <span className="text-xl font-black italic text-orange-500">{cryptoValue(a).toLocaleString()}€</span>
                           <div className="flex gap-2 mt-0.5">
                             <button onClick={() => openEditCrypto(a)} className="text-zinc-600 hover:text-orange-400"><Pencil size={13} /></button>
-                            <button onClick={() => { if (window.confirm('Retirer cette crypto ?')) setSavingsAccounts(savingsAccounts.filter(x => x.id !== a.id)) }} className="text-zinc-700 hover:text-red-500"><Trash2 size={13} /></button>
+                            <button onClick={() => commitWithUndo(`${a.sym} retiré`, { savingsAccounts: savingsAccounts.filter(x => x.id !== a.id) })} aria-label={`Retirer ${a.sym}`} className="text-zinc-700 hover:text-red-500"><Trash2 size={13} /></button>
                           </div>
                         </div>
                         <DragHandle />
@@ -1731,7 +1892,7 @@ export default function NexusUltimateCloud() {
                         <span className={`text-xl font-black italic text-rose-400`}>{Number(item.amount).toLocaleString()}€</span>
                         <div className="flex gap-2">
                           <button onClick={() => { setForm({ label: item.label, amount: item.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'create_personal_expense', data: item }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
-                          <button onClick={() => { if (window.confirm('Supprimer ?')) setPersonalExpenses(personalExpenses.filter(i => i.id !== item.id)) }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                          <button onClick={() => commitWithUndo(`« ${item.label} » supprimé`, { personalExpenses: personalExpenses.filter(i => i.id !== item.id) })} aria-label={`Supprimer ${item.label}`} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                         </div>
                       </div>
                       <DragHandle />
@@ -1787,7 +1948,7 @@ export default function NexusUltimateCloud() {
                             <span className="text-xl font-black italic text-pink-300">{Number(e.amount).toLocaleString()}€</span>
                             <div className="flex gap-2">
                               <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
-                              <button onClick={() => { const n = fixedExpenses.filter(x => x.id !== e.id); setFixedExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                              <button onClick={() => commitWithUndo(`Charge « ${e.name} » supprimée`, { fixedExpenses: fixedExpenses.filter(x => x.id !== e.id) })} aria-label={`Supprimer ${e.name}`} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
                           </div>
                           <DragHandle />
@@ -1831,7 +1992,7 @@ export default function NexusUltimateCloud() {
                             <div className="flex gap-2">
                               <button onClick={() => { const l = dueList(e); setDueDraft(l.length ? l.map((d, i) => ({ id: d.id ?? Date.now() + i, date: d.date, amount: String(d.amount ?? '') })) : [{ id: Date.now(), date: '', amount: String(e.amount ?? '') }]); setModal({ open: true, type: 'due_date', data: e }); }} className={dueList(e).length ? 'text-amber-400' : 'text-zinc-600 hover:text-amber-400'}><CalendarClock size={14} /></button>
                               <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual', startDate: e.startDate || '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
-                              <button onClick={() => { const n = annualExpenses.filter(x => x.id !== e.id); setAnnualExpenses(n); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                              <button onClick={() => commitWithUndo(`Provision « ${e.name} » supprimée`, { annualExpenses: annualExpenses.filter(x => x.id !== e.id) })} aria-label={`Supprimer ${e.name}`} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
                           </div>
                           <DragHandle />
@@ -1894,7 +2055,7 @@ export default function NexusUltimateCloud() {
             <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in max-h-[88vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-10">
                 <h2 className="text-2xl font-black italic uppercase text-white">
-                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéances' : (modal.type === 'exceptional' && dueDraft.length > 0) ? 'Dépense programmée' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : modal.type === 'realestate' ? 'Mon bien' : 'Opération'}
+                  {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéances' : (modal.type === 'exceptional' && dueDraft.length > 0) ? 'Dépense programmée' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : modal.type === 'realestate' ? 'Mon bien' : (modal.type === 'pending' && form.targetPending) ? 'Ajout à une avance' : (MODAL_TITLES[modal.type] || 'Opération')}
                 </h2>
                 <button onClick={() => { setModal({ open: false, type: '', data: null }); setDueDraft([]); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
               </div>
@@ -1960,7 +2121,7 @@ export default function NexusUltimateCloud() {
                   const list = modal.type === 'pending' ? pending : savingsPending;
                   if (list.length === 0) return null;
                   const sel = list.find(p => p.id === form.targetPending);
-                  const add = parseFloat(String(form.amount).replace(',', '.')) || 0;
+                  const add = toNum(form.amount) || 0;
                   return (
                     <div className="space-y-3">
                       <p className="text-[10px] font-black uppercase text-amber-500 pl-2">Avance</p>
@@ -2129,12 +2290,13 @@ export default function NexusUltimateCloud() {
 
                 {modal.type !== 'portfolio' && modal.type !== 'add_crypto' && modal.type !== 'edit_crypto' && modal.type !== 'rename_savings' && modal.type !== 'due_date' && !(modal.type === 'exceptional' && dueDraft.length > 0) && (
                   <div className="relative flex items-center gap-3">
-                    <input type="number" step="0.01" className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-emerald-500 text-5xl font-black text-white text-center" placeholder="0.00" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} />
+                    <input type="text" inputMode="decimal" autoComplete="off" aria-label="Montant en euros" aria-invalid={!!formError} aria-describedby={formError ? 'amount-error' : undefined} className={`w-full bg-black/50 border rounded-2xl p-6 outline-none focus:border-emerald-500 text-5xl font-black text-white text-center ${formError ? 'border-red-500/60' : 'border-white/10'}`} placeholder="0,00" value={form.amount} onChange={e => { setFormError(''); setForm({ ...form, amount: e.target.value }); }} />
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
                       <button type="button" onClick={() => setForm({ ...form, amount: modal.data.amount })} className="px-4 py-8 bg-emerald-600/20 text-emerald-400 font-black uppercase text-xl rounded-2xl border border-emerald-500/20 hover:bg-emerald-600/40 transition-colors">MAX</button>
                     )}
                   </div>
                 )}
+                {formError && <p id="amount-error" role="alert" className="text-sm font-bold text-red-400 text-center -mt-2">{formError}</p>}
 
                 {modal.type === 'exceptional' && dueDraft.length === 0 && (
                   <button
@@ -2147,7 +2309,7 @@ export default function NexusUltimateCloud() {
 
                 {modal.type === 'savings_transaction' ? (
                   <div className="flex gap-4">
-                    <button type="button" onClick={() => handleSavingsTransaction(true)} className="flex-1 py-6 rounded-[2rem] bg-emerald-600 font-black text-xl uppercase shadow-xl">Dépot</button>
+                    <button type="button" onClick={() => handleSavingsTransaction(true)} className="flex-1 py-6 rounded-[2rem] bg-emerald-600 font-black text-xl uppercase shadow-xl">Dépôt</button>
                     <button type="button" onClick={() => handleSavingsTransaction(false)} className="flex-1 py-6 rounded-[2rem] bg-red-600 font-black text-xl uppercase shadow-xl">Retrait</button>
                   </div>
                 ) : modal.type === 'savings_advance' ? (
@@ -2169,9 +2331,9 @@ export default function NexusUltimateCloud() {
                   <button type="button" onClick={handleRealEstateSave} className="w-full py-6 rounded-[2rem] bg-violet-600 font-black text-xl uppercase shadow-xl">Enregistrer</button>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'exceptional' && dueDraft.length > 0 ? 'bg-amber-600' : 'bg-emerald-600'}`}>{modal.type === 'exceptional' && dueDraft.length > 0 ? 'Programmer' : (modal.type === 'pending' && form.targetPending) ? "Ajouter à l'avance" : 'Confirmer'}</button>
+                    <button type="submit" className={`w-full py-6 rounded-[2rem] font-black text-xl uppercase tracking-tighter shadow-xl transition-all ${modal.type === 'exceptional' && dueDraft.length > 0 ? 'bg-amber-600' : (MODAL_CTA[modal.type]?.[1] || 'bg-emerald-600')}`}>{modal.type === 'exceptional' && dueDraft.length > 0 ? 'Programmer' : (modal.type === 'pending' && form.targetPending) ? "Ajouter à l'avance" : (MODAL_CTA[modal.type]?.[0] || 'Confirmer')}</button>
                     {(modal.type === 'repay_partial' || modal.type === 'repay_savings_advance') && (
-                      <button type="button" onClick={handleAbsorb} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-amber-500 border border-amber-500/30 hover:bg-amber-500/10 flex items-center justify-center gap-2"><Flame size={16} /> Absorbé</button>
+                      <button type="button" onClick={handleAbsorb} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-amber-500 border border-amber-500/30 hover:bg-amber-500/10 flex items-center justify-center gap-2"><Flame size={16} /> Je l'absorbe</button>
                     )}
                   </div>
                 )}
@@ -2179,6 +2341,15 @@ export default function NexusUltimateCloud() {
             </div>
           </div>
         )}
+        {/* ANNULER : dernière suppression / absorption, réversible 5 s */}
+        <div aria-live="polite" className="fixed left-1/2 -translate-x-1/2 bottom-32 w-[92%] max-w-sm z-[160] pointer-events-none">
+          {undo && (
+            <div key={undo.at} role="status" className="pointer-events-auto flex items-center justify-between gap-3 bg-zinc-100 text-zinc-900 rounded-2xl pl-4 pr-1 py-1 shadow-2xl">
+              <span className="text-sm font-bold leading-snug truncate">{undo.label}</span>
+              <button onClick={handleUndo} className="shrink-0 min-h-[44px] px-4 rounded-xl text-emerald-700 font-black">Annuler</button>
+            </div>
+          )}
+        </div>
         {/* NAV BAR (Avec icones couleurs corrigées) */}
         <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 px-6 py-5 rounded-[2.5rem] flex justify-between items-center z-50 shadow-2xl">
           <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
