@@ -10,7 +10,7 @@ App **perso** de suivi de budget pour un **couple (2 personnes)**. Usage privé,
 
 ## Stack
 
-- **React 19** + **Vite 7**, un seul gros composant : [`src/App.jsx`](src/App.jsx) (~1900 lignes). Seule exception : [`src/realestate.js`](src/realestate.js), fonctions pures (sans React) du tableau d'amortissement, vérifiables par script node.
+- **React 19** + **Vite 7**, un seul gros composant : [`src/App.jsx`](src/App.jsx) (~2500 lignes). Seule exception : [`src/realestate.js`](src/realestate.js), fonctions pures (sans React) du tableau d'amortissement, vérifiables par script node.
 - **Tailwind v4** (classes utilitaires inline), **framer-motion** (drag & reorder), **recharts** (graphe projection), **lucide-react** (icônes).
 - **Supabase** : auth (email/mot de passe) + stockage. Client dans [`src/supabase.js`](src/supabase.js).
 - **Fonction serverless Vercel** : [`api/vl.js`](api/vl.js).
@@ -37,7 +37,11 @@ Les `id` sont des `Date.now()`.
 ### Sauvegarde
 
 - **Auto-save anti-rebond 800 ms** ([`useEffect`](src/App.jsx) → `saveData`) : toute modif de state déclenche un `upsert` de **toutes** les colonnes, 800 ms après la dernière modif (regroupe les frappes clavier).
-- En cas d'échec → `saveError` affiche une **bannière rouge**. Ne pas réintroduire d'écritures par-colonne (`saveToCloud` a été supprimé au profit d'un chemin unique).
+- En cas d'échec → `saveError` affiche une **bannière rouge** avec « Réessayer ». Ne pas réintroduire d'écritures par-colonne (`saveToCloud` a été supprimé au profit d'un chemin unique). Succès → pastille « ✓ Enregistré » 1,5 s.
+- **Aucune sauvegarde avant un chargement réussi** (protection contre l'écrasement des données) : `fetchData` pose `loadedFor` / `loadedRef` seulement après un `select` réussi ; l'auto-save et le balayage des échéances sont gardés par `loadedFor === session.user.id`. Chargement en erreur → écran « Impossible de charger tes données » (Réessayer / Se déconnecter), jamais d'écriture. `fetchingRef` évite deux chargements simultanés ; `onAuthStateChange` ne recharge **que si l'utilisateur change** (un `TOKEN_REFRESHED` ne doit pas recharger par-dessus une saisie).
+- `dirtyRef` + `visibilitychange` : une modification en attente est envoyée dès que l'app passe en arrière-plan ; la déconnexion (bas du Journal, avec confirmation) envoie d'abord ce qui reste et s'arrête si l'envoi échoue.
+- **Suppressions annulables** : toute suppression (et l'absorption d'une avance) passe par `commitWithUndo(label, { cléDeState: nouveauTableau })` → bandeau « Annuler » 5 s. `restoreList` remet chaque élément à sa place d'origine (par `id`), donc les totaux reviennent à l'identique. Nouvelle suppression = passer par `commitWithUndo`, pas de `window.confirm`.
+- Montants saisis : toujours `toNum(v)` (accepte virgule, espaces, €), jamais `parseFloat` direct.
 
 ## Logique métier (⚠️ le cœur, à manipuler avec soin)
 
@@ -62,7 +66,7 @@ Une provision annuelle peut porter une ou **plusieurs échéances armées** (pai
 - **`dueList(e)`** (portée module) normalise les échéances en liste et assure la **rétrocompatibilité** : les provisions armées avant le multi-échéances portent encore `dueDate`/`dueAmount` scalaires, relus comme une liste à une ligne. Toujours passer par `dueList` / `dueTotal`, jamais lire `dueDate` directement.
 - **Au jour J** : un `useEffect` (même garde `loading || !session` que l'auto-save) balaie les échéances de chaque provision ; celles dont la date est atteinte créent une **dépense** dans `exceptionalPaid` + une ligne `payment` dans `history` (datée du prélèvement, libellé numéroté `(n/total)` s'il y en a plusieurs), puis sont **retirées de `dueSchedule`** — les échéances suivantes restent armées. La provision reste en place et continue de cumuler ; elle se réarme manuellement l'année suivante. Le retrait rend l'opération **non rejouable** (pas de double débit).
 - **Avant le jour J** : les échéances ne touchent **ni `realCash` ni le virement** — l'argent n'est pas encore sorti. Elles n'apparaissent que sur le **graphe de projection** (cf. section suivante), en rouge sur leur mois.
-- La carte du modal est `max-h-[88vh] overflow-y-auto` : sans ça, une liste de 4 échéances déborde l'écran mobile et le bouton Enregistrer devient inaccessible.
+- Le tiroir de saisie est limité en hauteur (`maxHeight: calc(100dvh − clavier − 1.5rem)`) et défile : sans ça, une liste de 4 échéances déborde l'écran mobile et le bouton Enregistrer devient inaccessible.
 
 ### Dépenses programmées (dashboard)
 
@@ -146,13 +150,27 @@ npm run lint     # eslint . (le dossier api/ est ignoré)
 
 ## Effet néon (design)
 
-`neon-pulse` (dans [`src/index.css`](src/index.css)) = liseré lumineux qui tourne lentement (conic-gradient floutée, 7 s) + halo ambiant coloré + liseré de verre. Variantes de couleur via classe additionnelle : `neon-pulse-cyan` (Épargne), `neon-pulse-green` (pointage payé), `neon-pulse-orange` (Crypto), `neon-pulse-pink` (Charges communes), `neon-pulse-ruby` (Perso), `neon-pulse-platinum` (Journal), `neon-pulse-amethyst` (Immobilier) ; défaut = **émeraude → menthe** (thème « Émeraude » choisi en août 2026, tout l'ancien violet/indigo a été remplacé).
+`neon-pulse` (dans [`src/index.css`](src/index.css)) = liseré lumineux qui tourne lentement (conic-gradient floutée, 7 s) + halo ambiant coloré + liseré de verre. Variantes de couleur via classe additionnelle : `neon-pulse-cyan` (Épargne), `neon-pulse-orange` (Crypto), `neon-pulse-pink` (Charges communes), `neon-pulse-ruby` (Perso), `neon-pulse-platinum` (Journal), `neon-pulse-amethyst` (Immobilier) ; défaut = **émeraude → menthe** (thème « Émeraude » choisi en août 2026, tout l'ancien violet/indigo a été remplacé).
 
-**Code couleur par page** (validé août 2026) : Dashboard = émeraude · Charges communes = **rose** (section Mensuel Fixe) + **or/ambre** (section Provisions Annuelles, avec équivalent `/mois` affiché) · Perso = **rubis** (check « payé » reste vert néon) · Épargne = cyan · Crypto = orange · Immobilier = **améthyste** (violet, seule teinte encore libre ; le bleu est exclu car trop proche du cyan) · Journal = **platine** (flux : rouge = paiement, émeraude = recette, teal = autre). La nav reflète la couleur de chaque page sur l'onglet actif. L'ambre reste aussi la couleur des Avances (partout). Couleurs pilotées par les vars `--neon-1/2/-glow`. Respecte `prefers-reduced-motion` (rotation figée). Pour un nouvel univers de couleur, ajouter une variante `.neon-pulse-xxx` plutôt que de bricoler inline.
+**Code couleur par page** (validé août 2026) : Dashboard = émeraude · Charges communes = **rose** (section Mensuel Fixe) + **or/ambre** (section Provisions Annuelles, avec équivalent `/mois` affiché) · Perso = **rubis** (check « payé » reste vert néon, mais **fixe** : classe `.paid-check.is-paid`, sans rotation) · Épargne = cyan · Crypto = orange · Immobilier = **améthyste** (violet, seule teinte encore libre ; le bleu est exclu car trop proche du cyan) · Journal = **platine** (flux : rouge = paiement, émeraude = recette, teal = autre). La nav reflète la couleur de chaque page sur l'onglet actif (pastille `.nav-pill` teintée par `--pc`), et le nom de la page s'affiche en haut avec une pastille de sa couleur, sur les 7 onglets. L'ambre reste aussi la couleur des Avances (partout). Couleurs pilotées par les vars `--neon-1/2/-glow`. Respecte `prefers-reduced-motion` (rotation figée) ; rotation en pause quand l'app est en arrière-plan (classe `app-hidden` sur `<html>`). **Un seul néon qui tourne par écran** (la carte héro de la page). Pour un nouvel univers de couleur, ajouter une variante `.neon-pulse-xxx` plutôt que de bricoler inline.
+
+## Interactions et design system (refonte nov. 2026, lots L0 → L6)
+
+- **Onglets** : liste unique `TABS` (portée module : id, label, icône, couleur). Toujours changer d'onglet via `goTab(id)` : il retient le sens (`tabDir`) pour que la page arrive du bon côté (`.page-transition`, `--dx` ±16 px). Swipe : > 50 px ou geste vif (> 0,11 px/ms, ≥ 20 px).
+- **Tiroir de saisie** (ex-modal) : `AnimatePresence` + `MotionDiv`, monte du bas en 320 ms, redescend en 200 ms. Fermer = `requestClose()` (poignée, croix, fond, Échap) : demande « Abandonner la saisie en cours ? » si `form` / `dueDraft` / `portfolioDraft` / `cryptoDraft` ont changé depuis l'ouverture. Après un enregistrement réussi, fermer directement avec `setModal({ open: false, … })`. Clavier iOS géré par `visualViewport` (`--kb`). Titres et boutons : tables `MODAL_TITLES` / `MODAL_CTA`.
+- **Mouvement** : jetons `--ease`, `--ease-io`, `--m-in/out/press` dans `index.css`. Pas de rebond, jamais `transition: all`. Appui des boutons global (`button:active`) ; une ligne `div` cliquable prend la classe `.press` ; une ligne non cliquable ne réagit pas à l'appui.
+- **Listes** : chaque `Reorder.Group` contient un `<AnimatePresence initial={false}>` (sortie en fondu à la suppression / à l'archivage). Un enfant hors `DraggableItem` (message de liste vide) doit avoir une `key`. Glisser = `scale 1.02` + ombre.
+- **Cibles tactiles** : boutons-icônes en `.ib` (44 px avec marge négative) ou `.ib-solo`, toujours avec `aria-label`.
+- **Montants** : chiffres à largeur fixe (`tabular-nums` sur `body`). Un total qui doit s'animer quand il change s'enveloppe dans `<Swap v={valeur}>…</Swap>` (fondu + léger flou en 150 ms, rien au premier affichage).
+- **Arrondis** : 3 jetons seulement (`@theme` dans `index.css`) → `rounded-chip` (14 px : champs, puces, icônes), `rounded-tile` (22 px : lignes, boutons), `rounded-card` (30 px : cartes héro, tiroir), plus `rounded-full`. Ne pas réintroduire de `rounded-[…]`.
+- **Libellés** : 11 px minimum, droits, `font-semibold` ; l'italique reste réservé aux montants et aux titres. Une liste vide affiche une phrase qui dit quoi faire.
+- **Chargement** : squelette de page (pas de roue), `role="status"`.
 
 ## Pièges connus
 
 - Un seul fichier composant : les states mappent 1:1 aux colonnes DB. Ajouter une donnée = l'imbriquer dans un JSON existant, **pas** une nouvelle colonne.
 - **Swipe d'onglet vs gestes horizontaux** : `handleTouchStart` ignore les touches qui démarrent sur un `input[type="range"]` ou dans un élément `data-no-swipe`. Tout nouveau curseur / carrousel horizontal doit en bénéficier, sinon le glisser change d'onglet.
 - Les champs texte (Km essence, commentaire perso, parts) reposent sur l'auto-save anti-rebond.
-- Fichiers hors périmètre app à ne pas relinter/committer : aucun (les vieux `App.jsx.bak/-test/_temp` ont été supprimés).
+- **Marges `space-y-*` sur un élément `fixed`** : dans une liste `space-y-*`, un enfant `fixed inset-0` hérite d'une marge basse qui le raccourcit (le tiroir flottait 24 px au-dessus du bas). Ajouter `m-0`.
+- **ESLint et `motion.div`** : la règle `no-unused-vars` ne voit pas `motion` utilisé en `<motion.div>` → passer par l'alias `MotionDiv` (portée module).
+- Fichiers hors périmètre app à ne pas committer : `.claude/` (config locale) et `supabase/`.
