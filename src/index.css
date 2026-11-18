@@ -90,20 +90,29 @@ button:focus:not(:focus-visible) {
   border-radius: 12px;
 }
 
+/* Changement d'onglet : la page arrive du côté où l'on va (--dx = ±16px, posé par goTab),
+   simple fondu au premier affichage (--dx = 0). */
 .page-transition {
-  animation: slideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: pageIn 200ms var(--ease) both;
 }
 
-@keyframes slideUp {
+@keyframes pageIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateX(var(--dx, 0px));
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
+}
+
+/* Barre d'onglets : pastille teintée de la couleur de la page, qui voyage par transform. */
+.nav-pill {
+  background: color-mix(in srgb, var(--pc) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pc) 38%, transparent);
+  transition: transform 240ms var(--ease-io), background-color 200ms ease, border-color 200ms ease;
 }
 
 @keyframes springIn {
@@ -204,6 +213,9 @@ button:focus:not(:focus-visible) {
   .page-transition,
   .animate-spring-in {
     animation: fadeOnly 0.2s ease forwards;
+  }
+  .nav-pill {
+    transition: background-color 200ms ease, border-color 200ms ease;
   }
 }
 

@@ -111,6 +111,17 @@ const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+// Onglets : ordre de navigation (et du swipe), nom affiché, icône et couleur de la page.
+const TABS = [
+  { id: 'dashboard', label: 'Dashboard', Icon: TrendingUp, color: '#34d399' },
+  { id: 'expenses', label: 'Charges communes', Icon: Users, color: '#f9a8d4' },
+  { id: 'personal', label: 'Mes charges perso', Icon: CheckSquare, color: '#f43f5e' },
+  { id: 'savings', label: 'Épargne', Icon: PiggyBank, color: '#06b6d4' },
+  { id: 'crypto', label: 'Crypto', Icon: Bitcoin, color: '#fb923c' },
+  { id: 'realestate', label: 'Immobilier', Icon: Building2, color: '#a78bfa' },
+  { id: 'history', label: 'Journal', Icon: HistoryIcon, color: '#e2e8f0' },
+];
+
 // Titre et bouton des modales génériques : une dépense ne doit pas ressembler à une recette.
 const MODAL_TITLES = {
   exceptional: 'Dépense', reimbursement: 'Recette', pending: 'Avance',
@@ -238,6 +249,7 @@ export default function NexusUltimateCloud() {
   const [form, setForm] = useState({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
   const [showArchives, setShowArchives] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
+  const [tabDir, setTabDir] = useState(0);          // sens du dernier changement d'onglet (transition)
   const [saveError, setSaveError] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saved' : confirmation discrète après chaque sauvegarde
   const [loadError, setLoadError] = useState(false);   // le chargement a échoué : écran « Réessayer », aucune sauvegarde
@@ -265,13 +277,23 @@ export default function NexusUltimateCloud() {
   const [projYear, setProjYear] = useState(() => new Date().getFullYear()); // graphe dashboard : année affichée, non enregistrée
   const [reYear, setReYear] = useState(2030);          // année choisie sur la mini-courbe d'actif net, non enregistrée
 
-  const tabs = ['dashboard', 'expenses', 'personal', 'savings', 'crypto', 'realestate', 'history'];
+  const tabs = TABS.map(t => t.id);
+
+  // Changement d'onglet : on retient le sens (+1 vers la droite, −1 vers la gauche)
+  // pour que la page arrive du côté où l'on va.
+  const goTab = (next) => {
+    if (next === activeTab) return;
+    setTabDir(tabs.indexOf(next) > tabs.indexOf(activeTab) ? 1 : -1);
+    setActiveTab(next);
+  };
+  const pageStyle = { '--dx': `${tabDir * 16}px` };
+  const tabIndex = Math.max(0, tabs.indexOf(activeTab));
 
   const handleTouchStart = (e) => {
     // Un geste qui démarre sur un curseur (ou une zone marquée data-no-swipe) le fait
     // glisser : il ne doit pas être pris pour un swipe de changement d'onglet.
     if (e.target.closest?.('input[type="range"], [data-no-swipe]')) { setTouchStart(null); return; }
-    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY, t: e.timeStamp });
   };
 
   const handleTouchEnd = (e) => {
@@ -282,10 +304,12 @@ export default function NexusUltimateCloud() {
     const diffX = touchStart.x - touchEndX;
     const diffY = touchStart.y - touchEndY;
     const currentIndex = tabs.indexOf(activeTab);
+    // Un geste vif suffit : au-delà de 0,11 px/ms on change d'onglet même sous 50 px.
+    const fast = Math.abs(diffX) >= 20 && Math.abs(diffX) / Math.max(1, e.timeStamp - touchStart.t) > 0.11;
 
-    if (Math.abs(diffX) > Math.abs(diffY)) {
-      if (diffX > 50 && currentIndex < tabs.length - 1) setActiveTab(tabs[currentIndex + 1]);
-      if (diffX < -50 && currentIndex > 0) setActiveTab(tabs[currentIndex - 1]);
+    if (Math.abs(diffX) > Math.abs(diffY) && (Math.abs(diffX) > 50 || fast)) {
+      if (diffX > 0 && currentIndex < tabs.length - 1) goTab(tabs[currentIndex + 1]);
+      if (diffX < 0 && currentIndex > 0) goTab(tabs[currentIndex - 1]);
     }
     setTouchStart(null);
   };
@@ -1213,11 +1237,15 @@ export default function NexusUltimateCloud() {
           {saveStatus === 'saved' && !saveError ? '✓ Enregistré' : ''}
         </div>
 
-        {/* HEADER REMOVED REPLACEMENT LOGIC */}
+        {/* Nom de la page avec la pastille de sa couleur, sur les 7 onglets. */}
+        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
+          <span aria-hidden="true" className="w-2 h-2 rounded-full" style={{ background: TABS[tabIndex].color }} />
+          {TABS[tabIndex].label}
+        </p>
 
 
         {activeTab === 'dashboard' && (
-          <div className="space-y-10 page-transition">
+          <div className="space-y-10 page-transition" style={pageStyle}>
             {/* CARTE CASH DISPO */}
             <div className="bg-zinc-900/40 border border-white/10 rounded-[2.5rem] p-6 relative overflow-hidden backdrop-blur-xl shadow-2xl neon-pulse">
               <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-600/10 blur-[100px]" />
@@ -1353,7 +1381,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- PAGE EPARGNE (MODIFIÉE CYAN + CORRECTIONS TEXTE) --- */}
         {activeTab === 'savings' && (
-          <div className="space-y-10 page-transition">
+          <div className="space-y-10 page-transition" style={pageStyle}>
             {/* CARTE CYAN */}
             <div className="bg-gradient-to-br from-cyan-900/40 to-blue-600/10 border border-cyan-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-cyan">
               <div className="flex justify-between items-center relative z-10">
@@ -1377,7 +1405,7 @@ export default function NexusUltimateCloud() {
               {savingsDisplay.map(acc => acc === CRYPTO_ROW ? (
                 /* Ligne Crypto : même thème que les comptes, réordonnable, mais lecture seule */
                 <DraggableItem key="crypto-row" value={CRYPTO_ROW}>
-                  <div onClick={() => setActiveTab('crypto')} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden cursor-pointer">
+                  <div onClick={() => goTab('crypto')} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden cursor-pointer">
                     <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-cyan-500" />
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
@@ -1452,7 +1480,7 @@ export default function NexusUltimateCloud() {
             {realEstate && reStats && (
               <section className="space-y-4 pt-4 border-t border-white/5">
                 <h3 className="text-[10px] font-black text-violet-700 uppercase tracking-widest px-2">Patrimoine immobilier</h3>
-                <div onClick={() => setActiveTab('realestate')} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center cursor-pointer transition-all active:scale-95 relative overflow-hidden">
+                <div onClick={() => goTab('realestate')} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center cursor-pointer transition-all active:scale-95 relative overflow-hidden">
                   <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-violet-500" />
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400"><Building2 size={20} /></div>
@@ -1504,7 +1532,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- PAGE CRYPTO --- */}
         {activeTab === 'crypto' && (
-          <div className="space-y-10 page-transition">
+          <div className="space-y-10 page-transition" style={pageStyle}>
             {/* CARTE ORANGE BITCOIN */}
             <div className="bg-gradient-to-br from-orange-900/40 to-amber-600/10 border border-orange-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-orange">
               <div className="flex justify-between items-center relative z-10">
@@ -1555,7 +1583,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- PAGE IMMOBILIER (actif net = valeur du bien − capital restant dû) --- */}
         {activeTab === 'realestate' && (
-          <div className="space-y-8 page-transition">
+          <div className="space-y-8 page-transition" style={pageStyle}>
             {!realEstate || !reStats ? (
               <div className="bg-gradient-to-br from-violet-900/40 to-purple-600/10 border border-violet-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-amethyst text-center space-y-5">
                 <div className="w-14 h-14 mx-auto bg-violet-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-violet-500/30"><Building2 size={28} strokeWidth={2.5} /></div>
@@ -1839,7 +1867,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- PAGE PERSO (AVEC TOTAL MENSUEL AJOUTÉ) --- */}
         {activeTab === 'personal' && (
-          <div className="space-y-8 page-transition">
+          <div className="space-y-8 page-transition" style={pageStyle}>
             {/* TOTAL FIXE MENSUEL */}
             <div className="bg-zinc-900/80 border border-white/10 rounded-[2.5rem] p-6 flex justify-between items-center relative overflow-hidden neon-pulse neon-pulse-ruby">
               <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/20 blur-xl"></div>
@@ -1906,7 +1934,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- PAGE CHARGES FIXES --- */}
         {activeTab === 'expenses' && (
-          <div className="space-y-10 pb-4 text-white page-transition">
+          <div className="space-y-10 pb-4 text-white page-transition" style={pageStyle}>
             <div className="flex justify-between items-center px-4">
               <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges communes</h2>
               <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-pink-400/30 border border-pink-300/30 text-pink-100 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
@@ -2008,7 +2036,7 @@ export default function NexusUltimateCloud() {
 
         {/* --- HISTORIQUE --- */}
         {activeTab === 'history' && (
-          <div className="space-y-8 pb-4 page-transition">
+          <div className="space-y-8 pb-4 page-transition" style={pageStyle}>
             <div className="bg-gradient-to-br from-zinc-900 to-slate-700/60 rounded-[3.5rem] p-10 border border-white/5 shadow-2xl relative neon-pulse neon-pulse-platinum">
               <p className="text-slate-300 text-[10px] font-black uppercase mb-1 italic">Journal des Flux</p>
               <h2 className="text-7xl font-black italic tracking-tighter leading-none">{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length}</h2>
@@ -2050,6 +2078,12 @@ export default function NexusUltimateCloud() {
                 </DraggableItem>
               ))}
             </Reorder.Group>
+
+            {/* Déconnexion : rarement utile, donc en bas du Journal (plus dans la barre
+                d'onglets, où un tap raté déconnectait), avec confirmation. */}
+            <button onClick={handleLogout} className="w-full min-h-[52px] rounded-[2rem] border border-white/10 text-zinc-400 hover:text-red-400 font-bold text-sm flex items-center justify-center gap-2">
+              <LogOut size={18} /> Se déconnecter
+            </button>
           </div>
         )}
         {/* --- MODAL --- */}
@@ -2353,17 +2387,30 @@ export default function NexusUltimateCloud() {
             </div>
           )}
         </div>
-        {/* NAV BAR (Avec icones couleurs corrigées) */}
-        <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 px-6 py-5 rounded-[2.5rem] flex justify-between items-center z-50 shadow-2xl">
-          <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-500 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-pink-300 scale-125 transition-all' : 'text-zinc-500 transition-all'}><Users size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-rose-500 scale-125 transition-all' : 'text-zinc-500 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-500 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('crypto')} className={activeTab === 'crypto' ? 'text-orange-400 scale-125 transition-all' : 'text-zinc-500 transition-all'}><Bitcoin size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('realestate')} className={activeTab === 'realestate' ? 'text-violet-400 scale-125 transition-all' : 'text-zinc-500 transition-all'}><Building2 size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-slate-200 scale-125 transition-all' : 'text-zinc-500 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
-          <div className="w-px h-8 bg-white/10 mx-1" />
-          <button onClick={handleLogout} className="text-zinc-500 hover:text-red-500 transition-colors"><LogOut size={22} /></button>
+        {/* NAV BAR : 7 onglets de 44 px min., pastille qui glisse sous l'onglet actif (transform seul) */}
+        <nav aria-label="Onglets" className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 p-2 rounded-[2.5rem] z-50 shadow-2xl">
+          <div className="relative grid grid-cols-7">
+            <span
+              aria-hidden="true"
+              className="nav-pill absolute inset-y-0 left-0 rounded-[1.25rem] pointer-events-none"
+              style={{ width: `${100 / TABS.length}%`, transform: `translateX(${tabIndex * 100}%)`, '--pc': TABS[tabIndex].color }}
+            />
+            {TABS.map(tab => {
+              const TabIcon = tab.Icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => goTab(tab.id)}
+                  aria-label={tab.label}
+                  aria-current={activeTab === tab.id ? 'page' : undefined}
+                  className="relative h-12 flex items-center justify-center rounded-[1.25rem] text-zinc-500"
+                  style={activeTab === tab.id ? { color: tab.color } : undefined}
+                >
+                  <TabIcon size={22} strokeWidth={2.75} />
+                </button>
+              );
+            })}
+          </div>
         </nav>
       </div>
     </div>
