@@ -3,13 +3,21 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import {
   TrendingUp, Users, Wallet, Plus, Check, X, Trash2, Pencil,
   History as HistoryIcon, Zap, HeartPulse,
-  Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Loader2, Flame,
+  Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Flame,
   PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw, Bitcoin, CalendarClock, Building2, Settings
 } from 'lucide-react';
 import { supabase } from './supabase';
 import { REALESTATE_DEFAULTS, isRealEstate, isMoneyAccount, realEstateStats } from './realestate';
 import { Reorder, useDragControls, AnimatePresence, motion, MotionConfig } from 'framer-motion';
 const MotionDiv = motion.div;
+
+// --- MONTANT QUI CHANGE : fondu + léger flou en 150 ms, seulement quand la valeur change ---
+const Swap = ({ v, children }) => {
+  const [prev, setPrev] = useState(v);
+  const [n, setN] = useState(0);
+  if (prev !== v) { setPrev(v); setN(n + 1); }
+  return <span key={n} className={n ? 'num-swap' : undefined}>{children}</span>;
+};
 
 // --- CONTEXTE POUR LES CONTRÔLES DE DRAG ---
 const DragContext = React.createContext();
@@ -302,6 +310,13 @@ export default function NexusUltimateCloud() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+  // App en arrière-plan : le néon arrête de tourner (rien à voir, autant épargner la batterie).
+  useEffect(() => {
+    const sync = () => document.documentElement.classList.toggle('app-hidden', document.hidden);
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
   // Clavier iOS : le tiroir remonte au-dessus du clavier ; la page derrière ne défile plus.
   useEffect(() => {
     if (!modal.open) return;
@@ -1239,7 +1254,22 @@ export default function NexusUltimateCloud() {
     </div>
   );
 
-  if (loading || (session && loadedFor !== session.user.id)) return <div className="min-h-screen bg-black flex items-center justify-center text-emerald-500"><Loader2 className="animate-spin" size={48} /></div>;
+  // Chargement : la forme de la page apparaît tout de suite (titre, carte, graphe, actions, onglets).
+  if (loading || (session && loadedFor !== session.user.id)) return (
+    <div role="status" aria-label="Chargement de tes données" className="min-h-screen bg-[#020202] p-4 pt-8">
+      <div className="max-w-md mx-auto space-y-6 animate-pulse motion-reduce:animate-none">
+        <div className="h-3 w-28 rounded-full bg-zinc-800" />
+        <div className="h-36 rounded-[2.5rem] bg-zinc-900 border border-white/5" />
+        <div className="h-48 rounded-[2rem] bg-zinc-900/60" />
+        <div className="grid grid-cols-3 gap-3">
+          <div className="h-24 rounded-[2rem] bg-zinc-900" />
+          <div className="h-24 rounded-[2rem] bg-zinc-900" />
+          <div className="h-24 rounded-[2rem] bg-zinc-900" />
+        </div>
+      </div>
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm h-16 rounded-[2.5rem] bg-zinc-900/80 border border-white/10" />
+    </div>
+  );
 
   if (!session) return (
     <div className="min-h-screen bg-[#020202] text-white flex items-center justify-center p-6">
@@ -1302,11 +1332,11 @@ export default function NexusUltimateCloud() {
               <div className="flex justify-between items-start mb-4 relative z-10">
                 <div>
                   <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest italic mb-1">Cash Dispo</p>
-                  <h2 className="text-5xl font-black tracking-tighter italic">{totals.realCash.toLocaleString()}€</h2>
+                  <h2 className="text-5xl font-black tracking-tighter italic"><Swap v={totals.realCash}>{totals.realCash.toLocaleString()}€</Swap></h2>
                 </div>
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl px-4 py-2 text-right shadow-lg shadow-amber-500/5">
                   <p className="text-amber-500 text-[9px] font-black uppercase tracking-widest italic leading-none mb-1.5">Avances</p>
-                  <p className="text-xl font-black italic text-amber-400 leading-none">{totals.totalPending.toLocaleString()}€</p>
+                  <p className="text-xl font-black italic text-amber-400 leading-none"><Swap v={totals.totalPending}>{totals.totalPending.toLocaleString()}€</Swap></p>
                 </div>
               </div>
             </div>
@@ -1437,7 +1467,7 @@ export default function NexusUltimateCloud() {
               <div className="flex justify-between items-center relative z-10">
                 <div>
                   <p className="text-cyan-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Épargne Totale</p>
-                  <h2 className="text-5xl font-black tracking-tighter italic text-cyan-100">{(savingsTotal + cryptoTotal).toLocaleString()}€</h2>
+                  <h2 className="text-5xl font-black tracking-tighter italic text-cyan-100"><Swap v={(savingsTotal + cryptoTotal)}>{(savingsTotal + cryptoTotal).toLocaleString()}€</Swap></h2>
                 </div>
                 <div className="w-14 h-14 bg-cyan-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-cyan-500/20"><PiggyBank size={28} /></div>
               </div>
@@ -1588,7 +1618,7 @@ export default function NexusUltimateCloud() {
               <div className="flex justify-between items-center relative z-10">
                 <div>
                   <p className="text-orange-400 text-[10px] font-black uppercase tracking-widest italic mb-1">Portefeuille Crypto</p>
-                  <h2 className="text-5xl font-black tracking-tighter italic text-orange-100">{cryptoTotal.toLocaleString()}€</h2>
+                  <h2 className="text-5xl font-black tracking-tighter italic text-orange-100"><Swap v={cryptoTotal}>{cryptoTotal.toLocaleString()}€</Swap></h2>
                 </div>
                 <div className="w-14 h-14 bg-orange-500 rounded-3xl flex items-center justify-center text-black shadow-lg shadow-orange-500/30"><Bitcoin size={28} strokeWidth={2.5} /></div>
               </div>
@@ -1923,7 +1953,7 @@ export default function NexusUltimateCloud() {
               <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/20 blur-xl"></div>
               <div>
                 <p className="text-[10px] font-black uppercase text-rose-400 tracking-widest">Total Mensuel Fixe</p>
-                <p className="text-3xl font-black italic text-white">{personalTotal.toLocaleString()}€</p>
+                <p className="text-3xl font-black italic text-white"><Swap v={personalTotal}>{personalTotal.toLocaleString()}€</Swap></p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest leading-none mb-1">Pointées</p>
@@ -1999,7 +2029,7 @@ export default function NexusUltimateCloud() {
               <div className="absolute top-0 right-0 w-24 h-24 bg-pink-400/10 blur-xl"></div>
               <div>
                 <p className="text-[10px] font-black uppercase text-pink-300 tracking-widest">Total Mensuel</p>
-                <p className="text-3xl font-black italic text-white">{(totals.totalFixed + totals.provision).toLocaleString()}€</p>
+                <p className="text-3xl font-black italic text-white"><Swap v={(totals.totalFixed + totals.provision)}>{(totals.totalFixed + totals.provision).toLocaleString()}€</Swap></p>
                 <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">{totals.totalFixed.toLocaleString()}€ fixe + {totals.provision.toLocaleString()}€ provision</p>
               </div>
               <div className="text-right">

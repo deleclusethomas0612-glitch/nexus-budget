@@ -7,6 +7,8 @@
 body {
   user-select: none;
   -webkit-user-select: none;
+  /* Chiffres de même largeur : un montant qui change ne fait plus bouger ce qui l'entoure. */
+  font-variant-numeric: tabular-nums;
   scrollbar-width: none;
   -ms-overflow-style: none;
   overscroll-behavior-y: auto;
@@ -141,6 +143,21 @@ button:focus:not(:focus-visible) {
   background: color-mix(in srgb, var(--pc) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--pc) 38%, transparent);
   transition: transform 240ms var(--ease-io), background-color 200ms ease, border-color 200ms ease;
+}
+
+/* Montant qui change : il arrive en 150 ms avec un léger flou (composant Swap). */
+.num-swap {
+  display: inline-block;
+  animation: numIn 150ms var(--ease);
+}
+@keyframes numIn {
+  from { opacity: 0.35; filter: blur(3px); }
+  to { opacity: 1; filter: blur(0); }
+}
+
+/* App en arrière-plan : le néon s'arrête. */
+.app-hidden .neon-pulse::before {
+  animation-play-state: paused;
 }
 
 /* --- NEON BORDER (liseré lumineux qui tourne + halo ambiant, version premium) --- */
