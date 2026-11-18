@@ -2112,12 +2112,7 @@ export default function NexusUltimateCloud() {
         {/* --- PAGE CHARGES FIXES --- */}
         {activeTab === 'expenses' && (
           <div className="space-y-10 pb-4 text-white page-transition" style={pageStyle}>
-            <div className="flex justify-between items-center px-4">
-              <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Charges communes</h2>
-              <button onClick={() => setModal({ open: true, type: 'expense' })} className="w-14 h-14 bg-pink-400/30 border border-pink-300/30 text-pink-100 rounded-tile flex items-center justify-center shadow-lg transition-all"><Plus size={28} /></button>
-            </div>
-
-            {/* TOTAL GLOBAL ET VIREMENT */}
+            {/* TOTAL GLOBAL ET VIREMENT (le nom de la page est déjà affiché en haut) */}
             <div className="bg-zinc-900/80 border border-white/10 rounded-card p-6 flex justify-between items-center relative overflow-hidden neon-pulse neon-pulse-pink">
               <div className="absolute top-0 right-0 w-24 h-24 bg-pink-400/10 blur-xl"></div>
               <div>
@@ -2130,6 +2125,14 @@ export default function NexusUltimateCloud() {
                 <p className="text-2xl font-black italic text-pink-300">{totals.virement.toLocaleString()}€</p>
               </div>
             </div>
+
+            {/* Ajouter : sous le total, pleine largeur, fixe ou provision au choix dans le tiroir */}
+            <button
+              onClick={() => { setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setModal({ open: true, type: 'expense' }); }}
+              className="w-full min-h-[52px] -mt-4 rounded-tile bg-pink-400/15 border border-pink-300/30 text-pink-200 font-bold text-sm flex items-center justify-center gap-2"
+            >
+              <Plus size={18} /> Ajouter une charge
+            </button>
             <section className="space-y-8">
               <div className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
