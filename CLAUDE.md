@@ -167,6 +167,12 @@ npm run lint     # eslint . (le dossier api/ est ignoré)
 - **Chargement** : squelette de page (pas de roue), `role="status"`.
 - **Profil** : icône en haut à droite de chaque page → tiroir `modal.type === 'profile'` (contenu à part du formulaire de saisie) : e-mail du compte, changement de mot de passe (`supabase.auth.updateUser({ password })`, champs `form.pw1/pw2`), changement d'adresse (`updateUser({ email })`, lien de confirmation), déconnexion. « Mot de passe oublié ? » sur l'écran de connexion → `resetPasswordForEmail` ; au retour par le lien, l'événement `PASSWORD_RECOVERY` ouvre le profil sur « Choisis ton nouveau mot de passe ». Le site Vercel doit être déclaré dans Supabase (Authentication → URL Configuration). Ne touche jamais aux données budget.
 
+## Mode clair (pastel)
+
+- Choix **Sombre / Clair / Auto** dans le tiroir « Mon profil » (`theme`, `setTheme`). Préférence de l'appareil dans `localStorage` (`nexus-theme`), **jamais en base** ; défaut = sombre. Appliqué par `data-theme="light"` sur `<html>`, posé dès `index.html` (pas de flash) et par `applyTheme` (met aussi à jour `theme-color`).
+- **Aucune classe n'est dupliquée** : le bloc « MODE CLAIR » de `index.css` redéfinit les couleurs de Tailwind (`--color-zinc-*` inversés, `--color-white` = encre, `--color-black` = papier ; pour chaque teinte : 300-400 = texte d'accent foncé, 500 = accent, 600 = aplat pastel, 700-950 = fonds pâles). Une nouvelle teinte Tailwind utilisée dans l'app doit y être ajoutée. Style sobre en clair : pas d'italique, graisse 700, titres en casse normale, pas de néon qui tourne (carte du même fond que la page, liseré fin et léger halo de la couleur de la page).
+- Couleurs posées en JS (onglets) : `TABS[].light` via `tabColor(tab)`. Les couleurs hex des graphiques ne changent pas.
+
 ## Pièges connus
 
 - Un seul fichier composant : les states mappent 1:1 aux colonnes DB. Ajouter une donnée = l'imbriquer dans un JSON existant, **pas** une nouvelle colonne.

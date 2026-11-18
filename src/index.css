@@ -255,3 +255,252 @@ button:focus:not(:focus-visible) {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ===================================================================
+   MODE CLAIR « pastel » (data-theme="light" sur <html>, choisi dans Mon profil).
+   On ne touche pas aux classes : on redéfinit les couleurs de Tailwind.
+   Gris inversés (zinc-900 = carte blanche, white = encre), teintes adoucies :
+   300-400 = texte d'accent foncé, 500 = accent, 600 = aplat pastel, 700-950 = fonds pâles.
+   =================================================================== */
+html[data-theme="light"] {
+  color-scheme: light;
+  --paper: #f6f3ee;
+  --card: #fffdfa;
+  --ink: #2f2b28;
+  --color-white: var(--ink);
+  --color-black: var(--paper);
+  --color-zinc-50: #2f2b28;
+  --color-zinc-100: #2f2b28;
+  --color-zinc-200: #3a3631;
+  --color-zinc-300: #48433d;
+  --color-zinc-400: #5a544d;
+  --color-zinc-500: #6f685f;
+  --color-zinc-600: #bcb4a9;
+  --color-zinc-700: #e1dbd2;
+  --color-zinc-800: #efeae3;
+  --color-zinc-900: #fffdfa;
+  --color-zinc-950: #fbf9f5;
+  --color-emerald-50: #24604d;
+  --color-emerald-100: #24604d;
+  --color-emerald-200: #24604d;
+  --color-emerald-300: #2f7d64;
+  --color-emerald-400: #2f7d64;
+  --color-emerald-500: #5aa88c;
+  --color-emerald-600: #b9e1d1;
+  --color-emerald-700: #dcefe6;
+  --color-emerald-800: #dcefe6;
+  --color-emerald-900: #ecf6f1;
+  --color-emerald-950: #ecf6f1;
+  --color-green-50: #24604d;
+  --color-green-100: #24604d;
+  --color-green-200: #24604d;
+  --color-green-300: #2f7d64;
+  --color-green-400: #2f7d64;
+  --color-green-500: #5aa88c;
+  --color-green-600: #b9e1d1;
+  --color-green-700: #dcefe6;
+  --color-green-800: #dcefe6;
+  --color-green-900: #ecf6f1;
+  --color-green-950: #ecf6f1;
+  --color-teal-50: #215e5a;
+  --color-teal-100: #215e5a;
+  --color-teal-200: #215e5a;
+  --color-teal-300: #2c7a74;
+  --color-teal-400: #2c7a74;
+  --color-teal-500: #58a59d;
+  --color-teal-600: #b6dfda;
+  --color-teal-700: #daefec;
+  --color-teal-800: #daefec;
+  --color-teal-900: #ebf6f4;
+  --color-teal-950: #ebf6f4;
+  --color-cyan-50: #1f5a66;
+  --color-cyan-100: #1f5a66;
+  --color-cyan-200: #1f5a66;
+  --color-cyan-300: #2a7585;
+  --color-cyan-400: #2a7585;
+  --color-cyan-500: #579fae;
+  --color-cyan-600: #b7dde5;
+  --color-cyan-700: #dbeef2;
+  --color-cyan-800: #dbeef2;
+  --color-cyan-900: #ecf6f8;
+  --color-cyan-950: #ecf6f8;
+  --color-blue-50: #2a4f7a;
+  --color-blue-100: #2a4f7a;
+  --color-blue-200: #2a4f7a;
+  --color-blue-300: #3a6797;
+  --color-blue-400: #3a6797;
+  --color-blue-500: #6b93be;
+  --color-blue-600: #c3d6ea;
+  --color-blue-700: #e0eaf5;
+  --color-blue-800: #e0eaf5;
+  --color-blue-900: #eff4fa;
+  --color-blue-950: #eff4fa;
+  --color-amber-50: #6f4c14;
+  --color-amber-100: #6f4c14;
+  --color-amber-200: #6f4c14;
+  --color-amber-300: #8f661f;
+  --color-amber-400: #8f661f;
+  --color-amber-500: #c4954a;
+  --color-amber-600: #f1dbab;
+  --color-amber-700: #f8ecd2;
+  --color-amber-800: #f8ecd2;
+  --color-amber-900: #fcf5e7;
+  --color-amber-950: #fcf5e7;
+  --color-orange-50: #7a421e;
+  --color-orange-100: #7a421e;
+  --color-orange-200: #7a421e;
+  --color-orange-300: #9d5a2c;
+  --color-orange-400: #9d5a2c;
+  --color-orange-500: #cf8a5c;
+  --color-orange-600: #f4cdb0;
+  --color-orange-700: #f9e5d6;
+  --color-orange-800: #f9e5d6;
+  --color-orange-900: #fcf2ea;
+  --color-orange-950: #fcf2ea;
+  --color-red-50: #80312c;
+  --color-red-100: #80312c;
+  --color-red-200: #80312c;
+  --color-red-300: #a2463e;
+  --color-red-400: #a2463e;
+  --color-red-500: #cf7469;
+  --color-red-600: #f2c2bc;
+  --color-red-700: #f8e0dd;
+  --color-red-800: #f8e0dd;
+  --color-red-900: #fcefed;
+  --color-red-950: #fcefed;
+  --color-rose-50: #803545;
+  --color-rose-100: #803545;
+  --color-rose-200: #803545;
+  --color-rose-300: #a24a5d;
+  --color-rose-400: #a24a5d;
+  --color-rose-500: #cf7c8d;
+  --color-rose-600: #f3c7cf;
+  --color-rose-700: #f9e2e6;
+  --color-rose-800: #f9e2e6;
+  --color-rose-900: #fcf0f2;
+  --color-rose-950: #fcf0f2;
+  --color-pink-50: #75375a;
+  --color-pink-100: #75375a;
+  --color-pink-200: #75375a;
+  --color-pink-300: #975078;
+  --color-pink-400: #975078;
+  --color-pink-500: #c780a6;
+  --color-pink-600: #f0cade;
+  --color-pink-700: #f8e5ee;
+  --color-pink-800: #f8e5ee;
+  --color-pink-900: #fcf2f6;
+  --color-pink-950: #fcf2f6;
+  --color-fuchsia-50: #6f3569;
+  --color-fuchsia-100: #6f3569;
+  --color-fuchsia-200: #6f3569;
+  --color-fuchsia-300: #8f4d88;
+  --color-fuchsia-400: #8f4d88;
+  --color-fuchsia-500: #bd7fb6;
+  --color-fuchsia-600: #ebcbe7;
+  --color-fuchsia-700: #f6e5f3;
+  --color-fuchsia-800: #f6e5f3;
+  --color-fuchsia-900: #fbf2f9;
+  --color-fuchsia-950: #fbf2f9;
+  --color-purple-50: #56397a;
+  --color-purple-100: #56397a;
+  --color-purple-200: #56397a;
+  --color-purple-300: #6f5098;
+  --color-purple-400: #6f5098;
+  --color-purple-500: #9a80c0;
+  --color-purple-600: #dacdee;
+  --color-purple-700: #eee7f7;
+  --color-purple-800: #eee7f7;
+  --color-purple-900: #f7f3fb;
+  --color-purple-950: #f7f3fb;
+  --color-violet-50: #4f3f80;
+  --color-violet-100: #4f3f80;
+  --color-violet-200: #4f3f80;
+  --color-violet-300: #66549f;
+  --color-violet-400: #66549f;
+  --color-violet-500: #8f7fc6;
+  --color-violet-600: #d6cff0;
+  --color-violet-700: #ece8f8;
+  --color-violet-800: #ece8f8;
+  --color-violet-900: #f6f4fc;
+  --color-violet-950: #f6f4fc;
+  --color-slate-50: #2f3742;
+  --color-slate-100: #2f3742;
+  --color-slate-200: #2f3742;
+  --color-slate-300: #465160;
+  --color-slate-400: #465160;
+  --color-slate-500: #748093;
+  --color-slate-600: #cfd5de;
+  --color-slate-700: #e8ebf0;
+  --color-slate-800: #e8ebf0;
+  --color-slate-900: #f3f5f8;
+  --color-slate-950: #f3f5f8;
+}
+
+html[data-theme="light"] body { background: var(--paper); }
+html[data-theme="light"] .bg-\[\#020202\] { background-color: var(--paper); }
+html[data-theme="light"] .text-emerald-600, html[data-theme="light"] .text-emerald-700, html[data-theme="light"] .text-emerald-800 { color: #2f7d64; }
+html[data-theme="light"] .text-emerald-900, html[data-theme="light"] .text-emerald-950 { color: #24604d; }
+html[data-theme="light"] .text-green-600, html[data-theme="light"] .text-green-700, html[data-theme="light"] .text-green-800 { color: #2f7d64; }
+html[data-theme="light"] .text-green-900, html[data-theme="light"] .text-green-950 { color: #24604d; }
+html[data-theme="light"] .text-teal-600, html[data-theme="light"] .text-teal-700, html[data-theme="light"] .text-teal-800 { color: #2c7a74; }
+html[data-theme="light"] .text-teal-900, html[data-theme="light"] .text-teal-950 { color: #215e5a; }
+html[data-theme="light"] .text-cyan-600, html[data-theme="light"] .text-cyan-700, html[data-theme="light"] .text-cyan-800 { color: #2a7585; }
+html[data-theme="light"] .text-cyan-900, html[data-theme="light"] .text-cyan-950 { color: #1f5a66; }
+html[data-theme="light"] .text-blue-600, html[data-theme="light"] .text-blue-700, html[data-theme="light"] .text-blue-800 { color: #3a6797; }
+html[data-theme="light"] .text-blue-900, html[data-theme="light"] .text-blue-950 { color: #2a4f7a; }
+html[data-theme="light"] .text-amber-600, html[data-theme="light"] .text-amber-700, html[data-theme="light"] .text-amber-800 { color: #8f661f; }
+html[data-theme="light"] .text-amber-900, html[data-theme="light"] .text-amber-950 { color: #6f4c14; }
+html[data-theme="light"] .text-orange-600, html[data-theme="light"] .text-orange-700, html[data-theme="light"] .text-orange-800 { color: #9d5a2c; }
+html[data-theme="light"] .text-orange-900, html[data-theme="light"] .text-orange-950 { color: #7a421e; }
+html[data-theme="light"] .text-red-600, html[data-theme="light"] .text-red-700, html[data-theme="light"] .text-red-800 { color: #a2463e; }
+html[data-theme="light"] .text-red-900, html[data-theme="light"] .text-red-950 { color: #80312c; }
+html[data-theme="light"] .text-rose-600, html[data-theme="light"] .text-rose-700, html[data-theme="light"] .text-rose-800 { color: #a24a5d; }
+html[data-theme="light"] .text-rose-900, html[data-theme="light"] .text-rose-950 { color: #803545; }
+html[data-theme="light"] .text-pink-600, html[data-theme="light"] .text-pink-700, html[data-theme="light"] .text-pink-800 { color: #975078; }
+html[data-theme="light"] .text-pink-900, html[data-theme="light"] .text-pink-950 { color: #75375a; }
+html[data-theme="light"] .text-fuchsia-600, html[data-theme="light"] .text-fuchsia-700, html[data-theme="light"] .text-fuchsia-800 { color: #8f4d88; }
+html[data-theme="light"] .text-fuchsia-900, html[data-theme="light"] .text-fuchsia-950 { color: #6f3569; }
+html[data-theme="light"] .text-purple-600, html[data-theme="light"] .text-purple-700, html[data-theme="light"] .text-purple-800 { color: #6f5098; }
+html[data-theme="light"] .text-purple-900, html[data-theme="light"] .text-purple-950 { color: #56397a; }
+html[data-theme="light"] .text-violet-600, html[data-theme="light"] .text-violet-700, html[data-theme="light"] .text-violet-800 { color: #66549f; }
+html[data-theme="light"] .text-violet-900, html[data-theme="light"] .text-violet-950 { color: #4f3f80; }
+html[data-theme="light"] .text-slate-600, html[data-theme="light"] .text-slate-700, html[data-theme="light"] .text-slate-800 { color: #465160; }
+html[data-theme="light"] .text-slate-900, html[data-theme="light"] .text-slate-950 { color: #2f3742; }
+
+/* Sobre : pas d'italique ni de graisse extrême, titres en casse normale. */
+html[data-theme="light"] .italic { font-style: normal; }
+html[data-theme="light"] .font-black { font-weight: 700; }
+html[data-theme="light"] .tracking-tighter { letter-spacing: -0.01em; }
+html[data-theme="light"] h2.uppercase, html[data-theme="light"] h3.uppercase,
+html[data-theme="light"] .text-sm.uppercase, html[data-theme="light"] .text-base.uppercase,
+html[data-theme="light"] .text-lg.uppercase, html[data-theme="light"] .text-xl.uppercase { text-transform: none; }
+
+/* Ombres douces et chaudes au lieu des grandes ombres noires. */
+html[data-theme="light"] .shadow-2xl, html[data-theme="light"] .shadow-xl, html[data-theme="light"] .shadow-lg {
+  box-shadow: 0 1px 2px rgba(60, 45, 30, 0.06), 0 8px 24px -12px rgba(60, 45, 30, 0.18);
+}
+
+/* Cartes principales en clair : même fond que la page, la couleur de la page seulement en touche :
+   un liseré fin et un léger halo néon, rien dans le fond. */
+html[data-theme="light"] .neon-pulse {
+  border-color: color-mix(in srgb, var(--neon-2) 40%, transparent) !important;
+  box-shadow: 0 1px 2px rgba(60, 45, 30, 0.05), 0 0 0 3px color-mix(in srgb, var(--neon-2) 7%, transparent), 0 12px 28px -20px color-mix(in srgb, var(--neon-2) 60%, transparent);
+}
+html[data-theme="light"] .neon-pulse::before { display: none; }
+html[data-theme="light"] .neon-pulse::after { background: var(--paper); inset: 0; }
+
+/* Taches de couleur floues derrière les cartes : retirées en clair. */
+html[data-theme="light"] [class*="blur-[100px]"], html[data-theme="light"] .blur-xl:not(button) { display: none; }
+
+/* Coche « payé » et pastille d'onglet en version pastel. */
+html[data-theme="light"] .paid-check { border-color: #cfc8be; }
+html[data-theme="light"] .paid-check.is-paid { border-color: #5aa88c; color: #2f7d64; background: #dcefe6; box-shadow: none; }
+html[data-theme="light"] .nav-pill { background: color-mix(in srgb, var(--pc) 18%, white); border-color: color-mix(in srgb, var(--pc) 30%, transparent); }
+
+/* Graphiques : grilles et repères lisibles sur fond clair. */
+html[data-theme="light"] .recharts-cartesian-grid line { stroke: #e7e1d8; }
+
+/* Survol : on assombrit légèrement au lieu d'éclaircir. */
+@media (hover: hover) and (pointer: fine) {
+  html[data-theme="light"] button:hover, html[data-theme="light"] [role="button"]:hover { filter: brightness(0.97); }
+}

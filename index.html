@@ -7,6 +7,10 @@
     <meta name="theme-color" content="#020202" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>nexus-budget</title>
+    <script>
+      // Mode clair / sombre appliqué avant l'affichage (choix gardé dans Mon profil).
+      try { var t = localStorage.getItem('nexus-theme') || 'dark'; if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; document.documentElement.dataset.theme = t; if (t === 'light') document.querySelector('meta[name=theme-color]').setAttribute('content', '#f6f3ee'); } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

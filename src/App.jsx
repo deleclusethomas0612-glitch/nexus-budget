@@ -11,6 +11,18 @@ import { REALESTATE_DEFAULTS, isRealEstate, isMoneyAccount, realEstateStats } fr
 import { Reorder, useDragControls, AnimatePresence, motion, MotionConfig } from 'framer-motion';
 const MotionDiv = motion.div;
 
+// --- APPARENCE : 'dark' (défaut), 'light' (pastel) ou 'auto' (suit le téléphone) ---
+// Préférence d'affichage propre à l'appareil (localStorage), jamais envoyée en base.
+const THEME_KEY = 'nexus-theme';
+const readTheme = () => { try { return localStorage.getItem(THEME_KEY) || 'dark'; } catch { return 'dark'; } };
+const resolveTheme = (t) => (t === 'auto' ? (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t);
+const applyTheme = (t) => {
+  const r = resolveTheme(t);
+  document.documentElement.dataset.theme = r;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', r === 'light' ? '#f6f3ee' : '#020202');
+  return r;
+};
+
 // --- MONTANT QUI CHANGE : fondu + léger flou en 150 ms, seulement quand la valeur change ---
 const Swap = ({ v, children }) => {
   const [prev, setPrev] = useState(v);
@@ -125,13 +137,13 @@ const todayISO = () => {
 
 // Onglets : ordre de navigation (et du swipe), nom affiché, icône et couleur de la page.
 const TABS = [
-  { id: 'dashboard', label: 'Dashboard', Icon: TrendingUp, color: '#34d399' },
-  { id: 'expenses', label: 'Charges communes', Icon: Users, color: '#f9a8d4' },
-  { id: 'personal', label: 'Mes charges perso', Icon: CheckSquare, color: '#f43f5e' },
-  { id: 'savings', label: 'Épargne', Icon: PiggyBank, color: '#06b6d4' },
-  { id: 'crypto', label: 'Crypto', Icon: Bitcoin, color: '#fb923c' },
-  { id: 'realestate', label: 'Immobilier', Icon: Building2, color: '#a78bfa' },
-  { id: 'history', label: 'Journal', Icon: HistoryIcon, color: '#e2e8f0' },
+  { id: 'dashboard', label: 'Dashboard', Icon: TrendingUp, color: '#34d399', light: '#4f9e82' },
+  { id: 'expenses', label: 'Charges communes', Icon: Users, color: '#f9a8d4', light: '#c47a9f' },
+  { id: 'personal', label: 'Mes charges perso', Icon: CheckSquare, color: '#f43f5e', light: '#c65d70' },
+  { id: 'savings', label: 'Épargne', Icon: PiggyBank, color: '#06b6d4', light: '#4a95a6' },
+  { id: 'crypto', label: 'Crypto', Icon: Bitcoin, color: '#fb923c', light: '#c8814f' },
+  { id: 'realestate', label: 'Immobilier', Icon: Building2, color: '#a78bfa', light: '#8070bd' },
+  { id: 'history', label: 'Journal', Icon: HistoryIcon, color: '#e2e8f0', light: '#6b7686' },
 ];
 
 // Titre et bouton des modales génériques : une dépense ne doit pas ressembler à une recette.
@@ -245,6 +257,19 @@ export default function NexusUltimateCloud() {
   const [profileMsg, setProfileMsg] = useState(null); // { where: 'pw' | 'email', ok, text } dans le tiroir Profil
   const [profileBusy, setProfileBusy] = useState(null);
   const [showPw, setShowPw] = useState(false);
+  const [theme, setThemeState] = useState(readTheme);       // choix : 'dark' | 'light' | 'auto'
+  const [resolved, setResolved] = useState(() => resolveTheme(readTheme())); // ce qui est affiché
+  const isLight = resolved === 'light';
+  const setTheme = (t) => { try { localStorage.setItem(THEME_KEY, t); } catch { /* navigation privée */ } setThemeState(t); };
+  useEffect(() => {
+    setResolved(applyTheme(theme));
+    if (theme !== 'auto' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-color-scheme: light)');
+    const onChange = () => setResolved(applyTheme('auto'));
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [theme]);
+  const tabColor = (t) => (isLight ? t.light : t.color);
 
   // --- DATA STATE (MAIN) ---
   const [fixedExpenses, setFixedExpenses] = useState([]);
@@ -1385,7 +1410,7 @@ export default function NexusUltimateCloud() {
         {/* Nom de la page avec la pastille de sa couleur, sur les 7 onglets. */}
         <div className="flex items-center justify-between">
           <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
-            <span aria-hidden="true" className="w-2 h-2 rounded-full" style={{ background: TABS[tabIndex].color }} />
+            <span aria-hidden="true" className="w-2 h-2 rounded-full" style={{ background: tabColor(TABS[tabIndex]) }} />
             {TABS[tabIndex].label}
           </p>
           <button onClick={openProfile} aria-label="Mon profil" className="ib-solo -mr-3 rounded-full text-zinc-400"><UserRound size={20} /></button>
@@ -2313,6 +2338,28 @@ export default function NexusUltimateCloud() {
                   </form>
                   )}
 
+                  {/* Apparence */}
+                  {!modal.data?.recovery && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-white">Apparence</h3>
+                    <div role="radiogroup" aria-label="Apparence" className="grid grid-cols-3 gap-1 p-1 rounded-chip bg-black/40 border border-white/10">
+                      {[['dark', 'Sombre'], ['light', 'Clair'], ['auto', 'Auto']].map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          role="radio"
+                          aria-checked={theme === id}
+                          onClick={() => setTheme(id)}
+                          className={`min-h-[44px] rounded-chip text-sm font-semibold ${theme === id ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-zinc-500 font-medium">Clair : couleurs pastel, plus sobre. Auto suit le réglage du téléphone. Gardé sur cet appareil.</p>
+                  </div>
+                  )}
+
                   {/* Déconnexion */}
                   <button type="button" onClick={handleLogout} className="w-full min-h-[52px] rounded-tile border border-red-500/30 text-red-400 font-bold text-sm flex items-center justify-center gap-2">
                     <LogOut size={18} /> Se déconnecter
@@ -2618,7 +2665,7 @@ export default function NexusUltimateCloud() {
             <span
               aria-hidden="true"
               className="nav-pill absolute inset-y-0 left-0 rounded-tile pointer-events-none"
-              style={{ width: `${100 / TABS.length}%`, transform: `translateX(${tabIndex * 100}%)`, '--pc': TABS[tabIndex].color }}
+              style={{ width: `${100 / TABS.length}%`, transform: `translateX(${tabIndex * 100}%)`, '--pc': tabColor(TABS[tabIndex]) }}
             />
             {TABS.map(tab => {
               const TabIcon = tab.Icon;
@@ -2629,7 +2676,7 @@ export default function NexusUltimateCloud() {
                   aria-label={tab.label}
                   aria-current={activeTab === tab.id ? 'page' : undefined}
                   className="relative h-12 flex items-center justify-center rounded-tile text-zinc-500"
-                  style={activeTab === tab.id ? { color: tab.color } : undefined}
+                  style={activeTab === tab.id ? { color: tabColor(tab) } : undefined}
                 >
                   <TabIcon size={22} strokeWidth={2.75} />
                 </button>
