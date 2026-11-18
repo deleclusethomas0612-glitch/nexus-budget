@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabase';
 import { REALESTATE_DEFAULTS, isRealEstate, isMoneyAccount, realEstateStats } from './realestate';
-import { Reorder, useDragControls } from 'framer-motion';
+import { Reorder, useDragControls, AnimatePresence, motion, MotionConfig } from 'framer-motion';
+const MotionDiv = motion.div;
 
 // --- CONTEXTE POUR LES CONTRÔLES DE DRAG ---
 const DragContext = React.createContext();
@@ -272,6 +273,52 @@ export default function NexusUltimateCloud() {
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [cryptoDraft, setCryptoDraft] = useState({});   // { sym, qty } dans la modale
   const [dueDraft, setDueDraft] = useState([]);         // [{ id, date, amount }] dans la modale Échéances
+
+  // --- Tiroir de saisie : on ne perd jamais une saisie en le fermant ---
+  // Photo des brouillons à l'ouverture (même patron que formErrorState : liée à l'objet modal).
+  const draftKey = () => JSON.stringify([form, dueDraft, portfolioDraft, cryptoDraft]);
+  const [draftSnap, setDraftSnap] = useState({ modal: null, key: '' });
+  if (modal.open && draftSnap.modal !== modal) setDraftSnap({ modal, key: draftKey() });
+  const sheetDrag = useDragControls();
+  const sheetWrap = useRef(null);
+  const resetModal = () => {
+    setModal({ open: false, type: '', data: null });
+    setDueDraft([]);
+    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' });
+  };
+  // Fermeture demandée (poignée, croix, fond, Échap) : confirmation si la saisie a changé.
+  const requestClose = () => {
+    const changed = draftSnap.modal === modal && draftSnap.key !== draftKey();
+    if (changed && !window.confirm('Abandonner la saisie en cours ?')) return;
+    resetModal();
+  };
+  // Échap ferme le tiroir (réabonné à chaque rendu pour lire la saisie à jour).
+  useEffect(() => {
+    if (!modal.open) return;
+    const onKey = (e) => { if (e.key === 'Escape') requestClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  // Clavier iOS : le tiroir remonte au-dessus du clavier ; la page derrière ne défile plus.
+  useEffect(() => {
+    if (!modal.open) return;
+    const vv = window.visualViewport;
+    const fit = () => {
+      const el = sheetWrap.current;
+      if (!el || !vv) return;
+      el.style.setProperty('--kb', `${Math.max(0, window.innerHeight - vv.height - vv.offsetTop)}px`);
+    };
+    fit();
+    vv?.addEventListener('resize', fit);
+    vv?.addEventListener('scroll', fit);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      vv?.removeEventListener('resize', fit);
+      vv?.removeEventListener('scroll', fit);
+      document.body.style.overflow = prev;
+    };
+  }, [modal.open]);
   const [reView, setReView] = useState('years');       // graphe Immobilier : 'years' (mensualités) | 'own' (propriété)
   const [reGrowth, setReGrowth] = useState(0);         // revalorisation annuelle simulée (%), non enregistrée
   const [projYear, setProjYear] = useState(() => new Date().getFullYear()); // graphe dashboard : année affichée, non enregistrée
@@ -2086,15 +2133,49 @@ export default function NexusUltimateCloud() {
             </button>
           </div>
         )}
-        {/* --- MODAL --- */}
+        {/* --- TIROIR DE SAISIE : monte du bas (320 ms), redescend (200 ms). AnimatePresence garde
+            le dernier contenu affiché pendant la sortie, donc rien ne « saute » en se fermant. --- */}
+        <MotionConfig reducedMotion="user">
+        <AnimatePresence>
         {modal.open && (
-          <div className="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-            <div className="bg-zinc-900 border border-white/10 w-full max-w-md mx-auto rounded-[3.5rem] p-10 shadow-2xl animate-spring-in max-h-[88vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-10">
-                <h2 className="text-2xl font-black italic uppercase text-white">
+          <div key="sheet" ref={sheetWrap} data-no-swipe className="fixed inset-0 m-0 z-[200] flex items-end justify-center" style={{ paddingBottom: 'var(--kb, 0px)' }}>
+            <MotionDiv
+              aria-hidden="true"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={requestClose}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.24, ease: 'easeOut' } }}
+              exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeOut' } }}
+            />
+            <MotionDiv
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sheet-title"
+              className="relative bg-zinc-900 border border-white/10 border-b-0 w-full max-w-md rounded-t-[2rem] px-6 pb-[max(2rem,env(safe-area-inset-bottom))] shadow-2xl overflow-y-auto overscroll-contain"
+              style={{ maxHeight: 'calc(100dvh - var(--kb, 0px) - 1.5rem)' }}
+              initial={{ y: '100%' }}
+              animate={{ y: 0, transition: { duration: 0.32, ease: [0.32, 0.72, 0, 1] } }}
+              exit={{ y: '100%', transition: { duration: 0.2, ease: [0.32, 0.72, 0, 1] } }}
+              drag="y"
+              dragControls={sheetDrag}
+              dragListener={false}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0.04, bottom: 0.7 }}
+              dragSnapToOrigin
+              onDragEnd={(e, info) => { if (info.offset.y > 110 || info.velocity.y > 500) requestClose(); }}
+            >
+              {/* Poignée : on la tire vers le bas pour fermer (un geste vif suffit). */}
+              <div
+                onPointerDown={(e) => sheetDrag.start(e)}
+                className="sticky top-0 z-10 -mx-6 pt-3 pb-4 flex justify-center bg-zinc-900 cursor-grab touch-none"
+              >
+                <span aria-hidden="true" className="w-10 h-1.5 rounded-full bg-zinc-700" />
+              </div>
+              <div className="flex justify-between items-center mb-8">
+                <h2 id="sheet-title" className="text-2xl font-black italic uppercase text-white">
                   {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéances' : (modal.type === 'exceptional' && dueDraft.length > 0) ? 'Dépense programmée' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : modal.type === 'realestate' ? 'Mon bien' : (modal.type === 'pending' && form.targetPending) ? 'Ajout à une avance' : (MODAL_TITLES[modal.type] || 'Opération')}
                 </h2>
-                <button onClick={() => { setModal({ open: false, type: '', data: null }); setDueDraft([]); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} aria-label="Fermer" className="ib-solo -mr-3 text-zinc-500"><X size={28} /></button>
+                <button type="button" onClick={requestClose} aria-label="Fermer" className="ib-solo -mr-3 text-zinc-500"><X size={28} /></button>
               </div>
 
               <form onSubmit={handleForm} className="space-y-8">
@@ -2375,9 +2456,11 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
               </form>
-            </div>
+            </MotionDiv>
           </div>
         )}
+        </AnimatePresence>
+        </MotionConfig>
         {/* ANNULER : dernière suppression / absorption, réversible 5 s */}
         <div aria-live="polite" className="fixed left-1/2 -translate-x-1/2 bottom-32 w-[92%] max-w-sm z-[160] pointer-events-none">
           {undo && (
