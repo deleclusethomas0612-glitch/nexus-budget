@@ -172,9 +172,9 @@ const ProjectionTooltip = ({ active, payload, label }) => {
   return (
     <div className="bg-zinc-950 border border-white/10 rounded-[20px] px-4 py-2.5 shadow-2xl">
       <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{label}</p>
-      <p className="text-sm font-black text-emerald-400">{Number(d.solde).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Solde</span></p>
+      <p className="text-sm font-black text-emerald-400">{Number(d.solde).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Solde</span></p>
       {d.due > 0 && (
-        <p className="text-sm font-black text-rose-400 mt-0.5">-{Number(d.due).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">{d.dueLabel}</span></p>
+        <p className="text-sm font-black text-rose-400 mt-0.5">-{Number(d.due).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">{d.dueLabel}</span></p>
       )}
     </div>
   );
@@ -189,9 +189,9 @@ const RealEstateYearTooltip = ({ active, payload }) => {
   return (
     <div className="bg-zinc-950 border border-white/10 rounded-[20px] px-4 py-2.5 shadow-2xl">
       <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.year} · {total.toLocaleString()}€</p>
-      <p className="text-sm font-black text-violet-300">{d.capital.toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Capital · {total ? Math.round((d.capital / total) * 100) : 0}% à vous</span></p>
-      <p className="text-sm font-black text-rose-400 mt-0.5">{d.interest.toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Intérêts</span></p>
-      <p className="text-sm font-black text-zinc-400 mt-0.5">{d.insurance.toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Assurance</span></p>
+      <p className="text-sm font-black text-violet-300">{d.capital.toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Capital · {total ? Math.round((d.capital / total) * 100) : 0}% à vous</span></p>
+      <p className="text-sm font-black text-rose-400 mt-0.5">{d.interest.toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Intérêts</span></p>
+      <p className="text-sm font-black text-zinc-400 mt-0.5">{d.insurance.toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Assurance</span></p>
     </div>
   );
 };
@@ -203,9 +203,9 @@ const RealEstateOwnTooltip = ({ active, payload }) => {
   return (
     <div className="bg-zinc-950 border border-white/10 rounded-[20px] px-4 py-2.5 shadow-2xl">
       <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{d.date ? d.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : `#${d.n}`} · {d.value ? Math.round((d.owned / d.value) * 100) : 0}% à vous</p>
-      <p className="text-sm font-black text-violet-300">{Number(d.owned).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">À vous</span></p>
-      <p className="text-sm font-black text-zinc-400 mt-0.5">{Number(d.crd).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">À la banque</span></p>
-      <p className="text-sm font-black text-emerald-400 mt-0.5">{Number(d.net).toLocaleString()}€<span className="text-[9px] text-zinc-600 ml-1.5 uppercase">Actif net (vente)</span></p>
+      <p className="text-sm font-black text-violet-300">{Number(d.owned).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">À vous</span></p>
+      <p className="text-sm font-black text-zinc-400 mt-0.5">{Number(d.crd).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">À la banque</span></p>
+      <p className="text-sm font-black text-emerald-400 mt-0.5">{Number(d.net).toLocaleString()}€<span className="text-[9px] text-zinc-500 ml-1.5 uppercase">Actif net (vente)</span></p>
     </div>
   );
 };
@@ -1175,8 +1175,8 @@ export default function NexusUltimateCloud() {
         </div>
         <div className="bg-zinc-900/50 border border-white/10 rounded-[2.5rem] p-8 space-y-6 backdrop-blur-xl">
           <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
-            <button onClick={() => setAuthMode('login')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${authMode === 'login' ? 'bg-emerald-600 text-white' : 'text-zinc-600'}`}>Connexion</button>
-            <button onClick={() => setAuthMode('signup')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${authMode === 'signup' ? 'bg-emerald-600 text-white' : 'text-zinc-600'}`}>Créer</button>
+            <button onClick={() => setAuthMode('login')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${authMode === 'login' ? 'bg-emerald-600 text-white' : 'text-zinc-500'}`}>Connexion</button>
+            <button onClick={() => setAuthMode('signup')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${authMode === 'signup' ? 'bg-emerald-600 text-white' : 'text-zinc-500'}`}>Créer</button>
           </div>
           {authError && <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-red-400 text-xs font-bold text-center">{authError}</div>}
           <form onSubmit={handleAuth} className="space-y-4">
@@ -1256,7 +1256,7 @@ export default function NexusUltimateCloud() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                   <XAxis dataKey="name" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} interval={0} padding={{ left: 10, right: 10 }}
                     tick={({ x, y, payload, index }) => (
-                      <text x={x} y={y + 10} textAnchor="middle" fontSize={10} fontWeight={index === nowIdx ? 900 : 500} fill={index === nowIdx ? '#34d399' : '#3f3f46'}>{payload.value}</text>
+                      <text x={x} y={y + 10} textAnchor="middle" fontSize={10} fontWeight={index === nowIdx ? 900 : 500} fill={index === nowIdx ? '#34d399' : '#71717a'}>{payload.value}</text>
                     )} />
                   <Tooltip content={<ProjectionTooltip />} cursor={{ fill: '#ffffff05' }} />
                   <Bar dataKey="solde" stackId="p" radius={[6, 6, 0, 0]}>
@@ -1312,15 +1312,15 @@ export default function NexusUltimateCloud() {
                       </div>
                       <div className="flex flex-col items-end shrink-0 pl-2">
                         <span className="text-xl font-black italic text-rose-400">{Math.round(dueTotal(e)).toLocaleString()}€</span>
-                        <div className="flex gap-2">
-                          <button onClick={() => { setForm({ label: e.name, amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setDueDraft(dueList(e).map((d, i) => ({ id: d.id ?? Date.now() + i, date: d.date, amount: String(d.amount ?? '') }))); setModal({ open: true, type: 'exceptional', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
-                          <button onClick={() => commitWithUndo(`Prélèvement « ${e.name} » supprimé`, { annualExpenses: annualExpenses.filter(x => x.id !== e.id) })} aria-label={`Supprimer ${e.name}`} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                        <div className="flex gap-6">
+                          <button aria-label="Modifier" onClick={() => { setForm({ label: e.name, amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setDueDraft(dueList(e).map((d, i) => ({ id: d.id ?? Date.now() + i, date: d.date, amount: String(d.amount ?? '') }))); setModal({ open: true, type: 'exceptional', data: e }); }} className="ib text-zinc-500 hover:text-white"><Pencil size={14} /></button>
+                          <button onClick={() => commitWithUndo(`Prélèvement « ${e.name} » supprimé`, { annualExpenses: annualExpenses.filter(x => x.id !== e.id) })} aria-label={`Supprimer ${e.name}`} className="ib text-zinc-500 hover:text-red-500"><Trash2 size={14} /></button>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-                <p className="text-[9px] text-zinc-600 font-bold px-4 leading-tight">Rien n'est débité avant la date : le Cash Dispo ne bouge qu'au jour J. Le graphe, lui, anticipe déjà le creux.</p>
+                <p className="text-xs text-zinc-400 font-semibold px-4 leading-snug">Rien n'est débité avant la date : le Cash Dispo ne bouge qu'au jour J. Le graphe, lui, anticipe déjà le creux.</p>
               </section>
             )}
 
@@ -1330,7 +1330,7 @@ export default function NexusUltimateCloud() {
                 Flux
               </h3>
               <Reorder.Group axis="y" values={pending} onReorder={(newList) => setPending(newList)} className="space-y-4">
-                {pending.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Aucune avance active.</p> :
+                {pending.length === 0 ? <p className="text-center text-zinc-500 italic text-[10px] py-4">Aucune avance active.</p> :
                   pending.map(p => (
                     <DraggableItem key={p.id} value={p}>
                       <button onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center transition-all group relative overflow-hidden active:scale-95">
@@ -1411,13 +1411,13 @@ export default function NexusUltimateCloud() {
                       <div className="flex items-center gap-4">
                         <div className="flex flex-col items-end">
                           <span className="text-xl font-black italic text-cyan-500">{accountValue(acc).toLocaleString()}€</span>
-                          <div className="flex gap-2 items-center mt-0.5">
-                            <button onClick={() => {
+                          <div className="flex gap-6 items-center mt-0.5">
+                            <button aria-label="Modifier" onClick={() => {
                               if (canHoldTitles(acc)) { openPortfolio(acc); }
                               else { setForm({ label: acc.name, amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setModal({ open: true, type: 'rename_savings', data: acc }); }
-                            }} className="text-zinc-600 hover:text-cyan-400" title={canHoldTitles(acc) ? 'Gérer les parts' : 'Renommer le compte'}><Pencil size={13} /></button>
-                            {acc.isPortfolio && <button onClick={() => fetchVLs(portfolioSymbols)} className="text-zinc-600 hover:text-white" title="Rafraîchir la VL"><RefreshCw size={12} className={vlLoading ? 'animate-spin' : ''} /></button>}
-                            <button onClick={() => commitWithUndo(`Compte « ${acc.name} » supprimé`, { savingsAccounts: savingsAccounts.filter(a => a.id !== acc.id) })} aria-label={`Supprimer ${acc.name}`} className="text-zinc-700 hover:text-red-500"><Trash2 size={12} /></button>
+                            }} className="ib text-zinc-500 hover:text-cyan-400" title={canHoldTitles(acc) ? 'Gérer les parts' : 'Renommer le compte'}><Pencil size={13} /></button>
+                            {acc.isPortfolio && <button aria-label="Rafraîchir la VL" onClick={() => fetchVLs(portfolioSymbols)} className="ib text-zinc-500 hover:text-white" title="Rafraîchir la VL"><RefreshCw size={12} className={vlLoading ? 'animate-spin' : ''} /></button>}
+                            <button onClick={() => commitWithUndo(`Compte « ${acc.name} » supprimé`, { savingsAccounts: savingsAccounts.filter(a => a.id !== acc.id) })} aria-label={`Supprimer ${acc.name}`} className="ib text-zinc-500 hover:text-red-500"><Trash2 size={12} /></button>
                           </div>
                         </div>
                         <DragHandle />
@@ -1524,7 +1524,7 @@ export default function NexusUltimateCloud() {
 
             {/* LISTE */}
             <Reorder.Group axis="y" values={cryptoAssets} onReorder={reorderCryptos} className="space-y-4">
-              {cryptoAssets.length === 0 ? <p className="text-center text-zinc-700 italic text-[10px] py-4">Aucune crypto suivie. Ajoute-en une.</p> :
+              {cryptoAssets.length === 0 ? <p className="text-center text-zinc-500 italic text-[10px] py-4">Aucune crypto suivie. Ajoute-en une.</p> :
                 cryptoAssets.map(a => (
                   <DraggableItem key={a.id} value={a}>
                     <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
@@ -1539,9 +1539,9 @@ export default function NexusUltimateCloud() {
                       <div className="flex items-center gap-4">
                         <div className="flex flex-col items-end">
                           <span className="text-xl font-black italic text-orange-500">{cryptoValue(a).toLocaleString()}€</span>
-                          <div className="flex gap-2 mt-0.5">
-                            <button onClick={() => openEditCrypto(a)} className="text-zinc-600 hover:text-orange-400"><Pencil size={13} /></button>
-                            <button onClick={() => commitWithUndo(`${a.sym} retiré`, { savingsAccounts: savingsAccounts.filter(x => x.id !== a.id) })} aria-label={`Retirer ${a.sym}`} className="text-zinc-700 hover:text-red-500"><Trash2 size={13} /></button>
+                          <div className="flex gap-6 mt-0.5">
+                            <button aria-label="Modifier" onClick={() => openEditCrypto(a)} className="ib text-zinc-500 hover:text-orange-400"><Pencil size={13} /></button>
+                            <button onClick={() => commitWithUndo(`${a.sym} retiré`, { savingsAccounts: savingsAccounts.filter(x => x.id !== a.id) })} aria-label={`Retirer ${a.sym}`} className="ib text-zinc-500 hover:text-red-500"><Trash2 size={13} /></button>
                           </div>
                         </div>
                         <DragHandle />
@@ -1567,7 +1567,7 @@ export default function NexusUltimateCloud() {
               <>
                 {/* HÉRO ACTIF NET — l'engrenage ouvre les réglages du bien (modal `realestate`) */}
                 <div className="bg-gradient-to-br from-violet-900/40 to-purple-600/10 border border-violet-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-amethyst">
-                  <button onClick={openRealEstate} aria-label="Réglages du bien" className="absolute top-4 right-5 z-20 w-8 h-8 rounded-full flex items-center justify-center text-violet-300/60 hover:text-violet-200 hover:bg-violet-500/10 transition-all active:scale-90"><Settings size={16} strokeWidth={2.5} /></button>
+                  <button onClick={openRealEstate} aria-label="Réglages du bien" className="absolute top-3 right-3 z-20 w-11 h-11 rounded-full flex items-center justify-center text-violet-300/60 hover:text-violet-200 hover:bg-violet-500/10 transition-all active:scale-90"><Settings size={16} strokeWidth={2.5} /></button>
                   <div className="flex justify-between items-center relative z-10">
                     <div>
                       <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic mb-1">Actif net immobilier</p>
@@ -1603,19 +1603,19 @@ export default function NexusUltimateCloud() {
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Vous vous enrichissez de</p>
                           <p className="text-3xl font-black italic text-violet-200 mt-1 leading-none">{Math.round(reStats.next.capital).toLocaleString()}€<span className="text-xs text-zinc-500 ml-1.5">/mois</span></p>
-                          <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">capital remboursé, qui devient à vous</p>
+                          <p className="text-xs text-zinc-400 font-semibold mt-1.5 leading-snug">capital remboursé, qui devient à vous</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 leading-none mb-1">Coût réel</p>
                           <p className="text-2xl font-black italic text-rose-400 leading-none">{Math.round(reStats.next.interest + reStats.next.insurance).toLocaleString()}€<span className="text-xs text-zinc-500 ml-1">/mois</span></p>
-                          <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">intérêts + assurance</p>
+                          <p className="text-xs text-zinc-400 font-semibold mt-1.5 leading-snug">intérêts + assurance</p>
                         </div>
                       </div>
                       <div>
                         <div className="h-2.5 rounded-full bg-rose-500/40 overflow-hidden border border-white/5">
                           <div className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-500" style={{ width: `${pct}%` }} />
                         </div>
-                        <p className="text-[9px] text-zinc-500 font-bold mt-2">{Math.round(pct)}% de la mensualité est de l'épargne</p>
+                        <p className="text-xs text-zinc-400 font-semibold mt-2">{Math.round(pct)}% de la mensualité est de l'épargne</p>
                       </div>
                     </div>
                   );
@@ -1631,7 +1631,7 @@ export default function NexusUltimateCloud() {
                         <p className={`flex-1 text-xs font-black uppercase ${m.done ? 'text-violet-300' : 'text-zinc-300'}`}>{m.label}</p>
                         <div className="text-right">
                           <p className="text-xs font-black italic text-white">{m.date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}</p>
-                          <p className="text-[9px] text-zinc-600 font-bold">{m.done ? 'atteint' : `dans ${fmtDuration(m.n - reStats.paid)}`}</p>
+                          <p className="text-xs text-zinc-400 font-semibold">{m.done ? 'atteint' : `dans ${fmtDuration(m.n - reStats.paid)}`}</p>
                         </div>
                       </div>
                     ))}
@@ -1644,7 +1644,7 @@ export default function NexusUltimateCloud() {
                     <div>
                       <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Coût du crédit payé</p>
                       <p className="text-2xl font-black italic text-rose-400">{Math.round(reStats.costPaid).toLocaleString()}€<span className="text-xs text-zinc-500 ml-2">/ {Math.round(reStats.totalCost).toLocaleString()}€</span></p>
-                      <p className="text-[9px] text-zinc-600 font-bold mt-1">intérêts + assurance sur toute la durée</p>
+                      <p className="text-xs text-zinc-400 font-semibold mt-1">intérêts + assurance sur toute la durée</p>
                     </div>
                     <p className="text-xl font-black italic text-white">{reStats.totalCost > 0 ? ((reStats.costPaid / reStats.totalCost) * 100).toFixed(1) : '0.0'}%</p>
                   </div>
@@ -1671,7 +1671,7 @@ export default function NexusUltimateCloud() {
                     <div key={lbl} className={`bg-zinc-900/30 border border-white/5 rounded-[2rem] p-5 ${wide ? 'col-span-2' : ''}`}>
                       <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest leading-tight">{lbl}</p>
                       <p className="text-lg font-black italic text-white mt-1 leading-none">{val}</p>
-                      <p className="text-[9px] text-zinc-600 font-bold mt-1.5 leading-tight">{sub}</p>
+                      <p className="text-xs text-zinc-400 font-semibold mt-1.5 leading-snug">{sub}</p>
                     </div>
                   ))}
                 </div>
@@ -1682,7 +1682,7 @@ export default function NexusUltimateCloud() {
                     <div>
                       <p className="text-[10px] font-black uppercase text-violet-400 tracking-widest">Prochain prélèvement</p>
                       <p className="text-sm font-black italic text-white mt-1">{fmtDate(reStats.next.date)}</p>
-                      <p className="text-[9px] text-zinc-500 font-bold mt-1">{reStats.next.capital.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ capital · {reStats.next.interest.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ intérêts · {reStats.next.insurance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ assurance</p>
+                      <p className="text-xs text-zinc-400 font-semibold mt-1">{reStats.next.capital.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ capital · {reStats.next.interest.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ intérêts · {reStats.next.insurance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€ assurance</p>
                     </div>
                     <p className="text-2xl font-black italic text-violet-300">{(reStats.next.capital + reStats.next.interest + reStats.next.insurance).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</p>
                   </div>
@@ -1713,8 +1713,8 @@ export default function NexusUltimateCloud() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={reStats.years} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
-                            <XAxis dataKey="year" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={4} />
-                            <YAxis tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
+                            <XAxis dataKey="year" tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={4} />
+                            <YAxis tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={38} />
                             <Tooltip content={<RealEstateYearTooltip />} cursor={{ fill: '#ffffff08' }} />
                             <Bar dataKey="capital" stackId="y" isAnimationActive={false}>
                               {reStats.years.map(y => <Cell key={y.year} fill={y.year === new Date().getFullYear() ? '#c4b5fd' : '#8b5cf6'} />)}
@@ -1728,7 +1728,7 @@ export default function NexusUltimateCloud() {
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
-                      <p className="text-[9px] text-zinc-600 font-bold px-2 mt-2">Barre claire = année en cours. La première et la dernière année sont partielles.</p>
+                      <p className="text-xs text-zinc-400 font-semibold px-2 mt-2">Barre claire = année en cours. La première et la dernière année sont partielles.</p>
                     </>
                   ) : (
                     (() => {
@@ -1754,8 +1754,8 @@ export default function NexusUltimateCloud() {
                           <div className="h-52 relative">
                             <ResponsiveContainer width="100%" height="100%">
                               <AreaChart data={reStats.chart} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                                <XAxis dataKey="n" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={35} tickFormatter={(n) => { const d = reStats.chart[n - 1]?.date; return d ? String(d.getFullYear()) : ''; }} />
-                                <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} width={38} />
+                                <XAxis dataKey="n" tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval={35} tickFormatter={(n) => { const d = reStats.chart[n - 1]?.date; return d ? String(d.getFullYear()) : ''; }} />
+                                <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} width={38} />
                                 <Tooltip content={<RealEstateOwnTooltip />} cursor={{ stroke: '#ffffff40' }} />
                                 <Area type="monotone" dataKey="ownPct" stackId="o" stroke="#a78bfa" strokeWidth={2} fill="#8b5cf6" fillOpacity={0.55} dot={false} isAnimationActive={false} />
                                 <Area type="monotone" dataKey="bankPct" stackId="o" stroke="#fb7185" strokeWidth={0} fill="#f43f5e" fillOpacity={0.28} dot={false} isAnimationActive={false} />
@@ -1768,7 +1768,7 @@ export default function NexusUltimateCloud() {
                             <p className="pointer-events-none absolute left-12 top-3 text-[10px] font-black uppercase tracking-widest text-rose-200/90">Banque</p>
                             <p className="pointer-events-none absolute right-3 bottom-8 text-[10px] font-black uppercase tracking-widest text-violet-100">À vous</p>
                           </div>
-                          <p className="text-[9px] text-zinc-600 font-bold px-2 mt-2">La zone rose (dette) rétrécit à chaque prélèvement, la zone violette (votre part) grandit jusqu'à 100 % en {reStats.endDate ? reStats.endDate.getFullYear() : '—'}.</p>
+                          <p className="text-xs text-zinc-400 font-semibold px-2 mt-2">La zone rose (dette) rétrécit à chaque prélèvement, la zone violette (votre part) grandit jusqu'à 100 % en {reStats.endDate ? reStats.endDate.getFullYear() : '—'}.</p>
                         </>
                       );
                     })()
@@ -1780,7 +1780,7 @@ export default function NexusUltimateCloud() {
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Revalorisation du bien</p>
-                      <p className="text-[9px] text-zinc-600 font-bold mt-1">simulation, n'est pas enregistrée</p>
+                      <p className="text-xs text-zinc-400 font-semibold mt-1">simulation, n'est pas enregistrée</p>
                     </div>
                     <p className={`text-2xl font-black italic ${reGrowth > 0 ? 'text-emerald-400' : reGrowth < 0 ? 'text-rose-400' : 'text-white'}`}>{reGrowth > 0 ? '+' : ''}{reGrowth.toLocaleString('fr-FR')}%<span className="text-xs text-zinc-500 ml-1">/an</span></p>
                   </div>
@@ -1802,7 +1802,7 @@ export default function NexusUltimateCloud() {
                             <p className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Actif net fin {sel.year}</p>
                             <p className="text-3xl font-black italic text-violet-200 mt-1 leading-none">{sel.net.toLocaleString()}€</p>
                           </div>
-                          <p className={`text-xs font-black italic shrink-0 ${delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{delta >= 0 ? '+' : ''}{delta.toLocaleString()}€<span className="block text-[9px] not-italic font-bold text-zinc-600 text-right">vs aujourd'hui</span></p>
+                          <p className={`text-xs font-black italic shrink-0 ${delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{delta >= 0 ? '+' : ''}{delta.toLocaleString()}€<span className="block text-[9px] not-italic font-bold text-zinc-500 text-right">vs aujourd'hui</span></p>
                         </div>
                         <div className="h-28 mt-3 touch-none select-none cursor-crosshair">
                           <ResponsiveContainer width="100%" height="100%">
@@ -1815,7 +1815,7 @@ export default function NexusUltimateCloud() {
                                   <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.02} />
                                 </linearGradient>
                               </defs>
-                              <XAxis dataKey="year" type="category" tick={{ fill: '#52525b', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
+                              <XAxis dataKey="year" type="category" tick={{ fill: '#71717a', fontSize: 9, fontWeight: 700 }} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
                               <YAxis hide domain={['dataMin', 'dataMax']} />
                               <Tooltip content={() => null} cursor={false} />
                               <ReferenceLine x={sel.year} stroke="#c4b5fd" strokeDasharray="3 3" />
@@ -1826,11 +1826,11 @@ export default function NexusUltimateCloud() {
                             </AreaChart>
                           </ResponsiveContainer>
                         </div>
-                        <p className="text-[9px] text-zinc-600 font-bold mt-2 text-center">Glisse le doigt sur la courbe pour choisir l'année</p>
+                        <p className="text-xs text-zinc-400 font-semibold mt-2 text-center">Glisse le doigt sur la courbe pour choisir l'année</p>
                       </div>
                     );
                   })()}
-                  <p className="text-[9px] text-zinc-600 font-bold leading-relaxed">S'applique à partir d'aujourd'hui : l'actif net du jour ne bouge pas. Modifie la « Propriété », les jalons et la courbe.</p>
+                  <p className="text-xs text-zinc-400 font-semibold leading-relaxed">S'applique à partir d'aujourd'hui : l'actif net du jour ne bouge pas. Modifie la « Propriété », les jalons et la courbe.</p>
                 </div>
               </>
             )}
@@ -1877,22 +1877,22 @@ export default function NexusUltimateCloud() {
                             <input
                               type="text"
                               placeholder="Km..."
-                              className="bg-transparent w-20 text-[10px] font-bold text-zinc-300 outline-none placeholder:text-zinc-700"
+                              className="bg-transparent w-20 text-[10px] font-bold text-zinc-300 outline-none placeholder:text-zinc-500"
                               value={item.comment || ''}
                               onChange={(e) => updatePersonalComment(item.id, e.target.value)}
                             />
                           </div>
                         ) : (
-                          <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest text-left">Charge Perso</p>
+                          <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest text-left">Charge Perso</p>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col items-end">
                         <span className={`text-xl font-black italic text-rose-400`}>{Number(item.amount).toLocaleString()}€</span>
-                        <div className="flex gap-2">
-                          <button onClick={() => { setForm({ label: item.label, amount: item.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'create_personal_expense', data: item }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
-                          <button onClick={() => commitWithUndo(`« ${item.label} » supprimé`, { personalExpenses: personalExpenses.filter(i => i.id !== item.id) })} aria-label={`Supprimer ${item.label}`} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                        <div className="flex gap-6">
+                          <button aria-label="Modifier" onClick={() => { setForm({ label: item.label, amount: item.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'create_personal_expense', data: item }); }} className="ib text-zinc-500 hover:text-white"><Pencil size={14} /></button>
+                          <button onClick={() => commitWithUndo(`« ${item.label} » supprimé`, { personalExpenses: personalExpenses.filter(i => i.id !== item.id) })} aria-label={`Supprimer ${item.label}`} className="ib text-zinc-500 hover:text-red-500"><Trash2 size={14} /></button>
                         </div>
                       </div>
                       <DragHandle />
@@ -1946,9 +1946,9 @@ export default function NexusUltimateCloud() {
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-end">
                             <span className="text-xl font-black italic text-pink-300">{Number(e.amount).toLocaleString()}€</span>
-                            <div className="flex gap-2">
-                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
-                              <button onClick={() => commitWithUndo(`Charge « ${e.name} » supprimée`, { fixedExpenses: fixedExpenses.filter(x => x.id !== e.id) })} aria-label={`Supprimer ${e.name}`} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                            <div className="flex gap-6">
+                              <button aria-label="Modifier" onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'fixed', startDate: '' }); setModal({ open: true, type: 'expense', data: e }); }} className="ib text-zinc-500 hover:text-white"><Pencil size={14} /></button>
+                              <button onClick={() => commitWithUndo(`Charge « ${e.name} » supprimée`, { fixedExpenses: fixedExpenses.filter(x => x.id !== e.id) })} aria-label={`Supprimer ${e.name}`} className="ib text-zinc-500 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
                           </div>
                           <DragHandle />
@@ -1989,10 +1989,10 @@ export default function NexusUltimateCloud() {
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-end">
                             <span className="text-xl font-black italic text-amber-400">{Number(e.amount).toLocaleString()}€<span className="text-[10px] text-zinc-500 not-italic font-bold"> · {Math.round((Number(e.amount) || 0) / 12).toLocaleString()}€/m</span></span>
-                            <div className="flex gap-2">
-                              <button onClick={() => { const l = dueList(e); setDueDraft(l.length ? l.map((d, i) => ({ id: d.id ?? Date.now() + i, date: d.date, amount: String(d.amount ?? '') })) : [{ id: Date.now(), date: '', amount: String(e.amount ?? '') }]); setModal({ open: true, type: 'due_date', data: e }); }} className={dueList(e).length ? 'text-amber-400' : 'text-zinc-600 hover:text-amber-400'}><CalendarClock size={14} /></button>
-                              <button onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual', startDate: e.startDate || '' }); setModal({ open: true, type: 'expense', data: e }); }} className="text-zinc-600 hover:text-white"><Pencil size={14} /></button>
-                              <button onClick={() => commitWithUndo(`Provision « ${e.name} » supprimée`, { annualExpenses: annualExpenses.filter(x => x.id !== e.id) })} aria-label={`Supprimer ${e.name}`} className="text-zinc-600 hover:text-red-500"><Trash2 size={14} /></button>
+                            <div className="flex gap-6">
+                              <button onClick={() => { const l = dueList(e); setDueDraft(l.length ? l.map((d, i) => ({ id: d.id ?? Date.now() + i, date: d.date, amount: String(d.amount ?? '') })) : [{ id: Date.now(), date: '', amount: String(e.amount ?? '') }]); setModal({ open: true, type: 'due_date', data: e }); }} aria-label={`Échéances de ${e.name}`} className={`ib ${dueList(e).length ? 'text-amber-400' : 'text-zinc-500 hover:text-amber-400'}`}><CalendarClock size={14} /></button>
+                              <button aria-label="Modifier" onClick={() => { setForm({ label: e.name, amount: e.amount, cat: 'annual', startDate: e.startDate || '' }); setModal({ open: true, type: 'expense', data: e }); }} className="ib text-zinc-500 hover:text-white"><Pencil size={14} /></button>
+                              <button onClick={() => commitWithUndo(`Provision « ${e.name} » supprimée`, { annualExpenses: annualExpenses.filter(x => x.id !== e.id) })} aria-label={`Supprimer ${e.name}`} className="ib text-zinc-500 hover:text-red-500"><Trash2 size={14} /></button>
                             </div>
                           </div>
                           <DragHandle />
@@ -2020,7 +2020,7 @@ export default function NexusUltimateCloud() {
             <Reorder.Group axis="y" values={history} onReorder={(newList) => setHistory(newList)} className="space-y-4">
               {history.filter(h => showArchives ? h.isArchived : !h.isArchived).map(h => (
                 <DraggableItem key={h.id} value={h}>
-                  <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex justify-between items-center relative group transition-all active:scale-95 ${h.isArchived ? 'opacity-50' : ''}`}>
+                  <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex flex-wrap gap-y-3 justify-between items-center relative group transition-all active:scale-95 ${h.isArchived ? 'opacity-50' : ''}`}>
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className={`min-w-12 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : h.type === 'advance' ? 'bg-amber-500/10 text-amber-500' : 'bg-teal-500/10 text-teal-400'}`}>
                         {h.type === 'payment' ? <ArrowUpRight size={20} /> : h.type === 'reimb' ? <ArrowDownLeft size={20} /> : h.type === 'advance' ? <Coins size={20} /> : <HistoryIcon size={20} />}
@@ -2028,12 +2028,7 @@ export default function NexusUltimateCloud() {
                       <div className="flex flex-col gap-2 min-w-0 pr-2">
                         <div>
                           <p className="text-sm font-black italic uppercase truncate">{h.label}</p>
-                          <p className="text-[8px] text-zinc-600 font-bold uppercase">{h.date}</p>
-                        </div>
-                        <div className="flex gap-2 items-center bg-black/20 p-2 w-max rounded-xl border border-white/5">
-                          <button onClick={() => handleArchiveHistory(h)} className="text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
-                          {!h.isArchived && <button onClick={() => handleEditHistory(h)} className="text-zinc-500 hover:text-slate-200"><Pencil size={16} /></button>}
-                          <button onClick={() => handleDeleteHistory(h)} className="text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
+                          <p className="text-[8px] text-zinc-500 font-bold uppercase">{h.date}</p>
                         </div>
                       </div>
                     </div>
@@ -2042,6 +2037,14 @@ export default function NexusUltimateCloud() {
                         {h.type === 'payment' || h.type === 'advance' ? '-' : '+'}{Number(h.amount).toLocaleString()}€
                       </span>
                       <DragHandle />
+                    </div>
+                    {/* Actions sur leur propre ligne : trois cibles de 44 px ne tiennent pas sous le libellé */}
+                    <div className="w-full pl-16">
+                      <div className="flex gap-6 items-center bg-black/20 p-3 w-max rounded-xl border border-white/5">
+                        <button aria-label={`${h.isArchived ? 'Désarchiver' : 'Archiver'} ${h.label}`} onClick={() => handleArchiveHistory(h)} className="ib text-zinc-500 hover:text-amber-500"><Archive size={16} /></button>
+                        {!h.isArchived && <button aria-label={`Modifier ${h.label}`} onClick={() => handleEditHistory(h)} className="ib text-zinc-500 hover:text-slate-200"><Pencil size={16} /></button>}
+                        <button aria-label={`Supprimer ${h.label}`} onClick={() => handleDeleteHistory(h)} className="ib text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
+                      </div>
                     </div>
                   </div>
                 </DraggableItem>
@@ -2057,7 +2060,7 @@ export default function NexusUltimateCloud() {
                 <h2 className="text-2xl font-black italic uppercase text-white">
                   {modal.type === 'create_savings_account' ? 'Nouveau Compte' : modal.type === 'savings_transaction' ? 'Mouvement' : modal.type === 'savings_advance' ? 'Avance Épargne' : modal.type === 'create_personal_expense' ? 'Dépense Perso' : modal.type === 'portfolio' ? 'Portefeuille' : modal.type === 'rename_savings' ? 'Renommer' : modal.type === 'due_date' ? 'Échéances' : (modal.type === 'exceptional' && dueDraft.length > 0) ? 'Dépense programmée' : (modal.type === 'add_crypto' || modal.type === 'edit_crypto') ? 'Crypto' : modal.type === 'realestate' ? 'Mon bien' : (modal.type === 'pending' && form.targetPending) ? 'Ajout à une avance' : (MODAL_TITLES[modal.type] || 'Opération')}
                 </h2>
-                <button onClick={() => { setModal({ open: false, type: '', data: null }); setDueDraft([]); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} className="text-zinc-600"><X size={28} /></button>
+                <button onClick={() => { setModal({ open: false, type: '', data: null }); setDueDraft([]); setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }) }} aria-label="Fermer" className="ib-solo -mr-3 text-zinc-500"><X size={28} /></button>
               </div>
 
               <form onSubmit={handleForm} className="space-y-8">
@@ -2079,16 +2082,16 @@ export default function NexusUltimateCloud() {
                             className="flex-1 min-w-0 bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 outline-none focus:border-amber-500 font-bold text-white text-sm [color-scheme:dark]"
                             value={d.date}
                             onChange={ev => setDueDraft(dueDraft.map(x => x.id === d.id ? { ...x, date: ev.target.value } : x))} />
-                          <button type="button" onClick={() => setDueDraft(dueDraft.filter(x => x.id !== d.id))} className="shrink-0 text-zinc-700 hover:text-red-500 p-1" aria-label="Supprimer cette échéance"><X size={16} /></button>
+                          <button type="button" onClick={() => setDueDraft(dueDraft.filter(x => x.id !== d.id))} className="ib-solo -mr-2 shrink-0 text-zinc-500 hover:text-red-500" aria-label="Supprimer cette échéance"><X size={16} /></button>
                         </div>
                         <div className="flex items-center gap-2 pl-7">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Montant</span>
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Montant</span>
                           <input
                             type="number" step="0.01" inputMode="decimal" placeholder="0"
                             className="flex-1 min-w-0 bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 outline-none focus:border-amber-500 font-black text-amber-400 text-sm text-right"
                             value={d.amount}
                             onChange={ev => setDueDraft(dueDraft.map(x => x.id === d.id ? { ...x, amount: ev.target.value } : x))} />
-                          <span className="text-sm font-black text-zinc-600 pr-1">EUR</span>
+                          <span className="text-sm font-black text-zinc-500 pr-1">EUR</span>
                         </div>
                       </div>
                     ))}
@@ -2108,7 +2111,7 @@ export default function NexusUltimateCloud() {
                           <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Total {dueDraft.length} échéance{dueDraft.length > 1 ? 's' : ''}</span>
                           <span className="text-right">
                             <span className="text-lg font-black italic text-amber-400">{Math.round(tot).toLocaleString()}€</span>
-                            {ecart !== 0 && <span className="block text-[9px] font-bold text-zinc-600">{ecart > 0 ? '+' : ''}{ecart.toLocaleString()}€ vs prévisionnel</span>}
+                            {ecart !== 0 && <span className="block text-[9px] font-bold text-zinc-500">{ecart > 0 ? '+' : ''}{ecart.toLocaleString()}€ vs prévisionnel</span>}
                           </span>
                         </div>
                       );
@@ -2135,7 +2138,7 @@ export default function NexusUltimateCloud() {
                         <div className="bg-black/40 border border-amber-500/20 rounded-2xl p-5">
                           <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 leading-none mb-2">Cumul sur avance existante</p>
                           <p className="text-lg font-black italic uppercase text-amber-400 leading-none">{sel.label}</p>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-2">{Number(sel.amount).toLocaleString()}€ <span className="text-zinc-700">→</span> <span className="text-amber-400">{Math.round(sel.amount + add).toLocaleString()}€</span></p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mt-2">{Number(sel.amount).toLocaleString()}€ <span className="text-zinc-500">→</span> <span className="text-amber-400">{Math.round(sel.amount + add).toLocaleString()}€</span></p>
                         </div>
                       )}
                     </div>
@@ -2146,8 +2149,8 @@ export default function NexusUltimateCloud() {
                   <div className="space-y-6">
                     {modal.type === 'expense' && (
                       <div className="flex gap-2 bg-black/50 p-1 rounded-2xl">
-                        <button type="button" onClick={() => setForm({ ...form, cat: 'fixed' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-pink-400/30 border border-pink-300/30 text-pink-100' : 'text-zinc-600'}`}>Mensuel</button>
-                        <button type="button" onClick={() => setForm({ ...form, cat: 'annual' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-amber-500 text-black' : 'text-zinc-600'}`}>Annuel</button>
+                        <button type="button" onClick={() => setForm({ ...form, cat: 'fixed' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'fixed' ? 'bg-pink-400/30 border border-pink-300/30 text-pink-100' : 'text-zinc-500'}`}>Mensuel</button>
+                        <button type="button" onClick={() => setForm({ ...form, cat: 'annual' })} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${form.cat === 'annual' ? 'bg-amber-500 text-black' : 'text-zinc-500'}`}>Annuel</button>
                       </div>
                     )}
                     <input autoFocus className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 outline-none focus:border-emerald-500 font-bold text-lg text-white" placeholder="Nom / Libellé" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} />
@@ -2155,7 +2158,7 @@ export default function NexusUltimateCloud() {
                       <div className="space-y-2">
                         <p className="text-[10px] font-black uppercase text-emerald-500 pl-4">Date de démarrage (optionnel)</p>
                         <input type="date" className="w-full bg-black/50 border border-white/10 rounded-2xl p-5 outline-none focus:border-emerald-500 font-bold text-white [color-scheme:dark]" value={form.startDate || ''} onChange={e => setForm({ ...form, startDate: e.target.value })} />
-                        <p className="text-[9px] text-zinc-600 font-bold pl-4 leading-tight">Sans date : cumul rétroactif depuis janvier. Avec date : cumul à partir du mois choisi.</p>
+                        <p className="text-xs text-zinc-400 font-semibold pl-4 leading-snug">Sans date : cumul rétroactif depuis janvier. Avec date : cumul à partir du mois choisi.</p>
                       </div>
                     )}
                   </div>
@@ -2214,7 +2217,7 @@ export default function NexusUltimateCloud() {
                         <span className="text-sm font-black text-zinc-500">€</span>
                       </div>
                     </div>
-                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Valeur = (parts × VL/cours) + liquidités, arrondie à l'euro. VL des fonds et cours des ETF récupérés automatiquement sur Boursorama.</p>
+                    <p className="text-xs text-zinc-400 font-semibold pl-2 leading-snug">Valeur = (parts × VL/cours) + liquidités, arrondie à l'euro. VL des fonds et cours des ETF récupérés automatiquement sur Boursorama.</p>
                   </div>
                 )}
 
@@ -2252,7 +2255,7 @@ export default function NexusUltimateCloud() {
                       <p className="text-[10px] font-black uppercase text-zinc-500 pl-4">1re échéance (jour de prélèvement)</p>
                       <input type="date" value={form.firstDue ?? ''} onChange={e => setForm({ ...form, firstDue: e.target.value })} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 font-bold outline-none focus:border-violet-500/50 [color-scheme:dark]" />
                     </div>
-                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Le tableau d'amortissement est recalculé depuis ces paramètres. Les échéances sont comptées à partir de cette date, une par mois, le même jour. L'actif net déduit l'indemnité de remboursement anticipé (un semestre d'intérêts, plafonné à 3 % du restant dû) et les frais de mainlevée : c'est le net en poche si tu vendais aujourd'hui. Le loyer de marché est ce que coûterait le même logement en location, surtout pas la mensualité : une partie de celle-ci est du capital, donc de l'épargne. Les charges de propriétaire regroupent taxe foncière, charges de copropriété non récupérables et provision travaux. Les deux servent à dater le point où l'achat devient plus rentable que la location.</p>
+                    <p className="text-xs text-zinc-400 font-semibold pl-2 leading-snug">Le tableau d'amortissement est recalculé depuis ces paramètres. Les échéances sont comptées à partir de cette date, une par mois, le même jour. L'actif net déduit l'indemnité de remboursement anticipé (un semestre d'intérêts, plafonné à 3 % du restant dû) et les frais de mainlevée : c'est le net en poche si tu vendais aujourd'hui. Le loyer de marché est ce que coûterait le même logement en location, surtout pas la mensualité : une partie de celle-ci est du capital, donc de l'épargne. Les charges de propriétaire regroupent taxe foncière, charges de copropriété non récupérables et provision travaux. Les deux servent à dater le point où l'achat devient plus rentable que la location.</p>
                   </div>
                 )}
 
@@ -2284,7 +2287,7 @@ export default function NexusUltimateCloud() {
                         <span className="text-sm font-black italic text-orange-500 whitespace-nowrap w-20 text-right">{cryptoPrices[cryptoDraft.sym]?.price ? Math.round((parseFloat(String(cryptoDraft.qty).replace(',', '.')) || 0) * cryptoPrices[cryptoDraft.sym].price).toLocaleString() + '€' : '—'}</span>
                       </div>
                     </div>
-                    <p className="text-[9px] text-zinc-600 font-bold pl-2 leading-tight">Valeur = volume × cours Coinbase (EUR), arrondie à l'euro.</p>
+                    <p className="text-xs text-zinc-400 font-semibold pl-2 leading-snug">Valeur = volume × cours Coinbase (EUR), arrondie à l'euro.</p>
                   </div>
                 )}
 
@@ -2320,7 +2323,7 @@ export default function NexusUltimateCloud() {
                 ) : modal.type === 'due_date' ? (
                   <div className="flex flex-col gap-3">
                     <button type="button" onClick={handleDueSave} className="w-full py-6 rounded-[2rem] bg-amber-600 font-black text-xl uppercase shadow-xl">Enregistrer</button>
-                    <p className="text-[9px] text-zinc-600 font-bold px-4 leading-tight text-center">Chaque échéance devient une dépense automatiquement le jour venu, puis disparaît de la liste. D'ici là, seul le graphe anticipe le creux.</p>
+                    <p className="text-xs text-zinc-400 font-semibold px-4 leading-snug text-center">Chaque échéance devient une dépense automatiquement le jour venu, puis disparaît de la liste. D'ici là, seul le graphe anticipe le creux.</p>
                     {dueList(modal.data || {}).length > 0 && (
                       <button type="button" onClick={() => clearDueDate(modal.data.id)} className="w-full py-4 rounded-[2rem] font-black text-sm uppercase tracking-widest text-zinc-500 border border-white/10 hover:bg-white/5">Tout retirer</button>
                     )}
@@ -2352,15 +2355,15 @@ export default function NexusUltimateCloud() {
         </div>
         {/* NAV BAR (Avec icones couleurs corrigées) */}
         <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-sm bg-zinc-900/80 backdrop-blur-3xl border border-white/10 px-6 py-5 rounded-[2.5rem] flex justify-between items-center z-50 shadow-2xl">
-          <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-pink-300 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Users size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-rose-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-600 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('crypto')} className={activeTab === 'crypto' ? 'text-orange-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Bitcoin size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('realestate')} className={activeTab === 'realestate' ? 'text-violet-400 scale-125 transition-all' : 'text-zinc-600 transition-all'}><Building2 size={24} strokeWidth={3} /></button>
-          <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-slate-200 scale-125 transition-all' : 'text-zinc-600 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'text-emerald-400 scale-125 transition-all' : 'text-zinc-500 transition-all'}><TrendingUp size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('expenses')} className={activeTab === 'expenses' ? 'text-pink-300 scale-125 transition-all' : 'text-zinc-500 transition-all'}><Users size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('personal')} className={activeTab === 'personal' ? 'text-rose-500 scale-125 transition-all' : 'text-zinc-500 transition-all'}><CheckSquare size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('savings')} className={activeTab === 'savings' ? 'text-cyan-500 scale-125 transition-all' : 'text-zinc-500 transition-all'}><PiggyBank size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('crypto')} className={activeTab === 'crypto' ? 'text-orange-400 scale-125 transition-all' : 'text-zinc-500 transition-all'}><Bitcoin size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('realestate')} className={activeTab === 'realestate' ? 'text-violet-400 scale-125 transition-all' : 'text-zinc-500 transition-all'}><Building2 size={24} strokeWidth={3} /></button>
+          <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? 'text-slate-200 scale-125 transition-all' : 'text-zinc-500 transition-all'}><HistoryIcon size={24} strokeWidth={3} /></button>
           <div className="w-px h-8 bg-white/10 mx-1" />
-          <button onClick={handleLogout} className="text-zinc-600 hover:text-red-500 transition-colors"><LogOut size={22} /></button>
+          <button onClick={handleLogout} className="text-zinc-500 hover:text-red-500 transition-colors"><LogOut size={22} /></button>
         </nav>
       </div>
     </div>
