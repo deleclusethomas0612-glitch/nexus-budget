@@ -90,6 +90,34 @@ button:focus:not(:focus-visible) {
   border-radius: 12px;
 }
 
+/* Lignes qui font quelque chose au tap (ouvrir une page, rembourser) : appui discret.
+   Les autres lignes ne bougent plus quand on les touche. */
+.press {
+  transition: transform var(--m-out) var(--ease);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.press:active {
+  transform: scale(0.985);
+  transition-duration: var(--m-press);
+}
+
+/* Coche « payé » : néon vert fixe (pas de rotation, il y en a souvent plusieurs à l'écran). */
+.paid-check {
+  border-color: #3f3f46;
+  color: transparent;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+.paid-check.is-paid {
+  border-color: #34d399;
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.25), 0 0 14px rgba(52, 211, 153, 0.45);
+}
+@media (hover: hover) and (pointer: fine) {
+  button:hover > .paid-check:not(.is-paid) { border-color: #34d399; }
+}
+
 /* Changement d'onglet : la page arrive du côté où l'on va (--dx = ±16px, posé par goTab),
    simple fondu au premier affichage (--dx = 0). */
 .page-transition {
@@ -187,7 +215,8 @@ button:focus:not(:focus-visible) {
   /* Moins de mouvement, pas zéro : plus de déplacements ni d'agrandissements,
      mais les fondus restent (ils aident à comprendre ce qui change). */
   button:active,
-  [role="button"]:active {
+  [role="button"]:active,
+  .press:active {
     transform: none;
   }
   .page-transition {

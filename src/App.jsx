@@ -22,7 +22,10 @@ const DraggableItem = ({ children, value }) => {
         value={value}
         dragControls={dragControls}
         dragListener={false}
-        whileDrag={{ scale: 1.05, zIndex: 100 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, transition: { duration: 0.18, ease: 'easeOut' } }}
+        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.16, ease: 'easeOut' } }}
+        whileDrag={{ scale: 1.02, zIndex: 100, filter: 'drop-shadow(0 18px 22px rgba(0,0,0,0.6))' }}
         className="relative"
       >
         {children}
@@ -1404,11 +1407,11 @@ export default function NexusUltimateCloud() {
               <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] px-4 italic flex justify-between">
                 Flux
               </h3>
-              <Reorder.Group axis="y" values={pending} onReorder={(newList) => setPending(newList)} className="space-y-4">
-                {pending.length === 0 ? <p className="text-center text-zinc-500 italic text-[10px] py-4">Aucune avance active.</p> :
+              <Reorder.Group axis="y" values={pending} onReorder={(newList) => setPending(newList)} className="space-y-4"><AnimatePresence initial={false}>
+                {pending.length === 0 ? <p key="empty" className="text-center text-zinc-500 italic text-[10px] py-4">Aucune avance active.</p> :
                   pending.map(p => (
                     <DraggableItem key={p.id} value={p}>
-                      <button onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center transition-all group relative overflow-hidden active:scale-95">
+                      <button onClick={() => setModal({ open: true, type: 'repay_partial', data: p })} className="w-full bg-zinc-900/30 border border-white/5 p-6 rounded-[2.8rem] flex justify-between items-center group relative overflow-hidden">
                         <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-amber-500" />
                         <div className="flex items-center gap-5">
                           <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500"><Coins size={22} /></div>
@@ -1421,7 +1424,7 @@ export default function NexusUltimateCloud() {
                       </button>
                     </DraggableItem>
                   ))}
-              </Reorder.Group>
+              </AnimatePresence></Reorder.Group>
             </section>
           </div>
         )}
@@ -1448,11 +1451,11 @@ export default function NexusUltimateCloud() {
             </div>
 
             {/* LISTE COMPTES */}
-            <Reorder.Group axis="y" values={savingsDisplay} onReorder={reorderSavings} className="space-y-4">
+            <Reorder.Group axis="y" values={savingsDisplay} onReorder={reorderSavings} className="space-y-4"><AnimatePresence initial={false}>
               {savingsDisplay.map(acc => acc === CRYPTO_ROW ? (
                 /* Ligne Crypto : même thème que les comptes, réordonnable, mais lecture seule */
                 <DraggableItem key="crypto-row" value={CRYPTO_ROW}>
-                  <div onClick={() => goTab('crypto')} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden cursor-pointer">
+                  <div onClick={() => goTab('crypto')} className="press bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group relative overflow-hidden cursor-pointer">
                     <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-cyan-500" />
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
@@ -1471,7 +1474,7 @@ export default function NexusUltimateCloud() {
                 </DraggableItem>
               ) : (
                 <DraggableItem key={acc.id} value={acc}>
-                  <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group active:scale-95 relative overflow-hidden">
+                  <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] group relative overflow-hidden">
                     <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-cyan-500" />
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-4">
@@ -1520,14 +1523,14 @@ export default function NexusUltimateCloud() {
                   </div>
                 </DraggableItem>
               ))}
-            </Reorder.Group>
+            </AnimatePresence></Reorder.Group>
 
             {/* ACTIF NET IMMOBILIER — volontairement hors liste et tout en bas : l'Épargne
                 Totale ci-dessus reste la « vraie » épargne disponible sur les comptes. */}
             {realEstate && reStats && (
               <section className="space-y-4 pt-4 border-t border-white/5">
                 <h3 className="text-[10px] font-black text-violet-700 uppercase tracking-widest px-2">Patrimoine immobilier</h3>
-                <div onClick={() => goTab('realestate')} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center cursor-pointer transition-all active:scale-95 relative overflow-hidden">
+                <div onClick={() => goTab('realestate')} className="press bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center cursor-pointer relative overflow-hidden">
                   <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-violet-500" />
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400"><Building2 size={20} /></div>
@@ -1559,7 +1562,7 @@ export default function NexusUltimateCloud() {
                 {savingsPending.map(p => {
                   const targetName = savingsAccounts.find(a => a.id === p.targetAccountId)?.name || 'Compte supprimé';
                   return (
-                    <div key={p.id} onClick={() => { setForm({ amount: '' }); setModal({ open: true, type: 'repay_savings_advance', data: p }) }} className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center cursor-pointer transition-all active:scale-95 relative overflow-hidden">
+                    <div key={p.id} onClick={() => { setForm({ amount: '' }); setModal({ open: true, type: 'repay_savings_advance', data: p }) }} className="press bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center cursor-pointer relative overflow-hidden">
                       <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-amber-500" />
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500"><Coins size={20} /></div>
@@ -1598,11 +1601,11 @@ export default function NexusUltimateCloud() {
             </div>
 
             {/* LISTE */}
-            <Reorder.Group axis="y" values={cryptoAssets} onReorder={reorderCryptos} className="space-y-4">
-              {cryptoAssets.length === 0 ? <p className="text-center text-zinc-500 italic text-[10px] py-4">Aucune crypto suivie. Ajoute-en une.</p> :
+            <Reorder.Group axis="y" values={cryptoAssets} onReorder={reorderCryptos} className="space-y-4"><AnimatePresence initial={false}>
+              {cryptoAssets.length === 0 ? <p key="empty" className="text-center text-zinc-500 italic text-[10px] py-4">Aucune crypto suivie. Ajoute-en une.</p> :
                 cryptoAssets.map(a => (
                   <DraggableItem key={a.id} value={a}>
-                    <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
+                    <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group relative overflow-hidden">
                       <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-orange-500" />
                       <div className="flex items-center gap-4">
                         <div className="w-11 h-11 bg-orange-500/10 rounded-xl flex items-center justify-center text-orange-400 text-[10px] font-black">{a.sym}</div>
@@ -1624,7 +1627,7 @@ export default function NexusUltimateCloud() {
                     </div>
                   </DraggableItem>
                 ))}
-            </Reorder.Group>
+            </AnimatePresence></Reorder.Group>
           </div>
         )}
 
@@ -1642,7 +1645,7 @@ export default function NexusUltimateCloud() {
               <>
                 {/* HÉRO ACTIF NET — l'engrenage ouvre les réglages du bien (modal `realestate`) */}
                 <div className="bg-gradient-to-br from-violet-900/40 to-purple-600/10 border border-violet-500/20 rounded-[3rem] p-9 relative overflow-hidden neon-pulse neon-pulse-amethyst">
-                  <button onClick={openRealEstate} aria-label="Réglages du bien" className="absolute top-3 right-3 z-20 w-11 h-11 rounded-full flex items-center justify-center text-violet-300/60 hover:text-violet-200 hover:bg-violet-500/10 transition-all active:scale-90"><Settings size={16} strokeWidth={2.5} /></button>
+                  <button onClick={openRealEstate} aria-label="Réglages du bien" className="absolute top-3 right-3 z-20 w-11 h-11 rounded-full flex items-center justify-center text-violet-300/60 hover:text-violet-200 hover:bg-violet-500/10 transition-all"><Settings size={16} strokeWidth={2.5} /></button>
                   <div className="flex justify-between items-center relative z-10">
                     <div>
                       <p className="text-violet-300 text-[10px] font-black uppercase tracking-widest italic mb-1">Actif net immobilier</p>
@@ -1933,16 +1936,20 @@ export default function NexusUltimateCloud() {
               <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-rose-600 rounded-3xl flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
             </div>
 
-            <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => setPersonalExpenses(newList)} className="space-y-3 pb-4">
+            <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => setPersonalExpenses(newList)} className="space-y-3 pb-4"><AnimatePresence initial={false}>
               {personalExpenses.map(item => (
                 <DraggableItem key={item.id} value={item}>
-                  <div className={`p-4 rounded-[2.8rem] border transition-all active:scale-95 flex justify-between items-center group relative overflow-hidden bg-zinc-900/30 border-white/5`}>
+                  <div className={`p-4 rounded-[2.8rem] border flex justify-between items-center group relative overflow-hidden bg-zinc-900/30 border-white/5`}>
                     <div className="flex items-center gap-4">
                       <button
                         onClick={() => togglePersonalPaid(item.id)}
-                        className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all ${item.isPaid ? 'neon-pulse neon-pulse-green border-emerald-500 text-emerald-500' : 'border-zinc-700 text-transparent hover:border-emerald-500'}`}
+                        aria-pressed={!!item.isPaid}
+                        aria-label={`${item.label} payé ce mois-ci`}
+                        className="ib-solo -m-1 rounded-full"
                       >
-                        <Check size={18} strokeWidth={4} className="relative z-10" />
+                        <span className={`paid-check w-9 h-9 rounded-full flex items-center justify-center border ${item.isPaid ? 'is-paid' : ''}`}>
+                          <Check size={18} strokeWidth={4} />
+                        </span>
                       </button>
                       <div className="flex flex-col">
                         <p className={`text-sm font-black uppercase text-left text-zinc-200`}>{item.label}</p>
@@ -1975,7 +1982,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 </DraggableItem>
               ))}
-            </Reorder.Group>
+            </AnimatePresence></Reorder.Group>
           </div>
         )}
 
@@ -2006,10 +2013,10 @@ export default function NexusUltimateCloud() {
                   <p className="text-[10px] font-black text-pink-300 uppercase tracking-[0.4em] italic leading-none">Mensuel Fixe</p>
                   <p className="text-xl font-black italic text-pink-300 leading-none">{totals.totalFixed.toLocaleString()}€</p>
                 </div>
-                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-pink-400/10 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={fixedExpenses} onReorder={(newList) => setFixedExpenses(newList)} className="bg-zinc-900/20 border border-pink-400/10 rounded-[3rem] p-2 space-y-2"><AnimatePresence initial={false}>
                   {fixedExpenses.map(e => (
                     <DraggableItem key={e.id} value={e}>
-                      <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
+                      <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group relative overflow-hidden">
                         <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-pink-300/70" />
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-pink-400/10 rounded-xl flex items-center justify-center text-pink-300">{getIcon(e.name)}</div>
@@ -2031,7 +2038,7 @@ export default function NexusUltimateCloud() {
                       </div>
                     </DraggableItem>
                   ))}
-                </Reorder.Group>
+                </AnimatePresence></Reorder.Group>
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between px-4 items-end">
@@ -2043,10 +2050,10 @@ export default function NexusUltimateCloud() {
                 </div>
                 {/* Les dépenses programmées (`noProvision`) partagent ce tableau mais
                     s'affichent sur le dashboard : on les garde hors de cette liste. */}
-                <Reorder.Group axis="y" values={provisionItems} onReorder={(newList) => setAnnualExpenses([...newList, ...annualExpenses.filter(e => e.noProvision)])} className="bg-zinc-900/20 border border-amber-500/20 rounded-[3rem] p-2 space-y-2">
+                <Reorder.Group axis="y" values={provisionItems} onReorder={(newList) => setAnnualExpenses([...newList, ...annualExpenses.filter(e => e.noProvision)])} className="bg-zinc-900/20 border border-amber-500/20 rounded-[3rem] p-2 space-y-2"><AnimatePresence initial={false}>
                   {provisionItems.map(e => (
                     <DraggableItem key={e.id} value={e}>
-                      <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group active:scale-95 relative overflow-hidden">
+                      <div className="bg-zinc-900/30 border border-white/5 p-4 rounded-[2.8rem] flex justify-between items-center group relative overflow-hidden">
                         <div className="absolute left-2 top-5 bottom-5 w-1 rounded-full bg-amber-400" />
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-400"><Calendar size={18} /></div>
@@ -2075,7 +2082,7 @@ export default function NexusUltimateCloud() {
                       </div>
                     </DraggableItem>
                   ))}
-                </Reorder.Group>
+                </AnimatePresence></Reorder.Group>
               </div>
             </section>
           </div>
@@ -2092,10 +2099,10 @@ export default function NexusUltimateCloud() {
                 <span className="text-[10px] font-bold uppercase">{showArchives ? "Actifs" : "Archives"}</span>
               </button>
             </div>
-            <Reorder.Group axis="y" values={history} onReorder={(newList) => setHistory(newList)} className="space-y-4">
+            <Reorder.Group axis="y" values={history} onReorder={(newList) => setHistory(newList)} className="space-y-4"><AnimatePresence initial={false}>
               {history.filter(h => showArchives ? h.isArchived : !h.isArchived).map(h => (
                 <DraggableItem key={h.id} value={h}>
-                  <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex flex-wrap gap-y-3 justify-between items-center relative group transition-all active:scale-95 ${h.isArchived ? 'opacity-50' : ''}`}>
+                  <div className={`bg-zinc-900/30 border border-white/5 p-6 rounded-[2.5rem] flex flex-wrap gap-y-3 justify-between items-center relative group ${h.isArchived ? 'opacity-50' : ''}`}>
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className={`min-w-12 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${h.type === 'payment' ? 'bg-red-500/10 text-red-500' : h.type === 'reimb' ? 'bg-emerald-500/10 text-emerald-500' : h.type === 'advance' ? 'bg-amber-500/10 text-amber-500' : 'bg-teal-500/10 text-teal-400'}`}>
                         {h.type === 'payment' ? <ArrowUpRight size={20} /> : h.type === 'reimb' ? <ArrowDownLeft size={20} /> : h.type === 'advance' ? <Coins size={20} /> : <HistoryIcon size={20} />}
@@ -2124,7 +2131,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 </DraggableItem>
               ))}
-            </Reorder.Group>
+            </AnimatePresence></Reorder.Group>
 
             {/* Déconnexion : rarement utile, donc en bas du Journal (plus dans la barre
                 d'onglets, où un tap raté déconnectait), avec confirmation. */}
