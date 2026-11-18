@@ -1521,7 +1521,6 @@ export default function NexusUltimateCloud() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-zinc-400 font-semibold px-4 leading-snug">Rien n'est débité avant la date : le Cash Dispo ne bouge qu'au jour J. Le graphe, lui, anticipe déjà le creux.</p>
               </section>
             )}
 
