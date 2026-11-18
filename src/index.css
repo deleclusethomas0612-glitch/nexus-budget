@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Arrondis : 3 tailles seulement. chip = petits éléments (champs, puces, icônes), tile = lignes et boutons, card = grandes cartes et tiroir. */
+@theme {
+  --radius-chip: 14px;
+  --radius-tile: 22px;
+  --radius-card: 30px;
+}
+
 .recharts-wrapper *:focus {
   outline: none !important;
 }
@@ -80,7 +87,7 @@ button:focus:not(:focus-visible) {
   width: 44px;
   height: 44px;
   margin: -12px;
-  border-radius: 12px;
+  border-radius: var(--radius-chip);
 }
 .ib-solo {
   display: inline-flex;
@@ -89,7 +96,7 @@ button:focus:not(:focus-visible) {
   flex: none;
   min-width: 44px;
   min-height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-chip);
 }
 
 /* Lignes qui font quelque chose au tap (ouvrir une page, rembourser) : appui discret.
