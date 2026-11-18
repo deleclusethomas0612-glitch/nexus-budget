@@ -4,7 +4,7 @@ import {
   TrendingUp, Users, Wallet, Plus, Check, X, Trash2, Pencil,
   History as HistoryIcon, Zap, HeartPulse,
   Receipt, ArrowDownLeft, ArrowUpRight, Home, Calendar, Coins, LogOut, Flame,
-  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw, Bitcoin, CalendarClock, Building2, Settings
+  PiggyBank, CheckSquare, MessageSquare, Archive, GripVertical, LineChart, RefreshCw, Bitcoin, CalendarClock, Building2, Settings, UserRound, Eye, EyeOff, KeyRound, Mail
 } from 'lucide-react';
 import { supabase } from './supabase';
 import { REALESTATE_DEFAULTS, isRealEstate, isMoneyAccount, realEstateStats } from './realestate';
@@ -138,7 +138,7 @@ const TABS = [
 const MODAL_TITLES = {
   exceptional: 'Dépense', reimbursement: 'Recette', pending: 'Avance',
   repay_partial: 'Remboursement', repay_savings_advance: 'Remboursement épargne',
-  expense: 'Charge commune', edit_history: "Modifier l'écriture",
+  expense: 'Charge commune', edit_history: "Modifier l'écriture", profile: 'Mon profil',
 };
 const MODAL_CTA = {
   exceptional: ['Enregistrer la dépense', 'bg-red-500'],
@@ -241,6 +241,10 @@ export default function NexusUltimateCloud() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState(null);
+  const [authInfo, setAuthInfo] = useState(null);     // message neutre (lien envoyé…) sur l'écran de connexion
+  const [profileMsg, setProfileMsg] = useState(null); // { where: 'pw' | 'email', ok, text } dans le tiroir Profil
+  const [profileBusy, setProfileBusy] = useState(null);
+  const [showPw, setShowPw] = useState(false);
 
   // --- DATA STATE (MAIN) ---
   const [fixedExpenses, setFixedExpenses] = useState([]);
@@ -450,7 +454,13 @@ export default function NexusUltimateCloud() {
 
     // On ne recharge que si le compte change : un simple rafraîchissement du jeton
     // (TOKEN_REFRESHED) rechargeait tout et écrasait une saisie pas encore sauvegardée.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Retour par le lien « Mot de passe oublié » : on ouvre directement le choix du nouveau mot de passe.
+      if (event === 'PASSWORD_RECOVERY') {
+        setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '', pw1: '', pw2: '', newEmail: '' });
+        setProfileMsg(null);
+        setModal({ open: true, type: 'profile', data: { recovery: true } });
+      }
       setSession(session);
       if (session) { if (session.user.id !== loadedRef.current) fetchData(session.user.id); }
       else { loadedRef.current = null; setLoadedFor(null); setLoading(false); }
@@ -564,11 +574,62 @@ export default function NexusUltimateCloud() {
     setLoading(false);
   };
 
+  // --- PROFIL ---
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const authMessage = (err) => {
+    const m = err?.message || '';
+    if (err?.status === 429) return 'Trop de tentatives. Réessaie dans quelques minutes.';
+    if (/different from the old/i.test(m)) return "C'est déjà ton mot de passe actuel.";
+    if (/weak|at least|characters/i.test(m)) return 'Mot de passe trop faible : 8 caractères minimum, avec des lettres et des chiffres.';
+    if (/reauth|recent/i.test(m)) return 'Par sécurité, déconnecte-toi, reconnecte-toi, puis réessaie.';
+    if (/already.*registered|already been registered|exists/i.test(m)) return 'Cette adresse est déjà utilisée par un autre compte.';
+    return m || 'Une erreur est survenue. Réessaie.';
+  };
+  const openProfile = () => {
+    setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '', pw1: '', pw2: '', newEmail: '' });
+    setProfileMsg(null);
+    setShowPw(false);
+    setModal({ open: true, type: 'profile', data: null });
+  };
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    const pw1 = form.pw1 || '', pw2 = form.pw2 || '';
+    if (pw1.length < 8) { setProfileMsg({ where: 'pw', ok: false, text: '8 caractères minimum.' }); return; }
+    if (pw1 !== pw2) { setProfileMsg({ where: 'pw', ok: false, text: 'Les deux mots de passe ne sont pas identiques.' }); return; }
+    setProfileBusy('pw');
+    const { error } = await supabase.auth.updateUser({ password: pw1 });
+    setProfileBusy(null);
+    if (error) { setProfileMsg({ where: 'pw', ok: false, text: authMessage(error) }); return; }
+    setForm(f => ({ ...f, pw1: '', pw2: '' }));
+    setShowPw(false);
+    setProfileMsg({ where: 'pw', ok: true, text: 'Mot de passe changé. Utilise-le à ta prochaine connexion.' });
+  };
+  const handleEmailChange = async (e) => {
+    e.preventDefault();
+    const next = (form.newEmail || '').trim();
+    if (!EMAIL_RE.test(next)) { setProfileMsg({ where: 'email', ok: false, text: 'Adresse e-mail invalide.' }); return; }
+    if (next.toLowerCase() === (session?.user?.email || '').toLowerCase()) { setProfileMsg({ where: 'email', ok: false, text: "C'est déjà ton adresse actuelle." }); return; }
+    setProfileBusy('email');
+    const { error } = await supabase.auth.updateUser({ email: next }, { emailRedirectTo: window.location.origin });
+    setProfileBusy(null);
+    if (error) { setProfileMsg({ where: 'email', ok: false, text: authMessage(error) }); return; }
+    setForm(f => ({ ...f, newEmail: '' }));
+    setProfileMsg({ where: 'email', ok: true, text: `Lien de confirmation envoyé à ${next}. L'adresse change quand tu cliques dessus ; d'ici là, connecte-toi avec l'ancienne.` });
+  };
+  const handleForgot = async () => {
+    setAuthError(null); setAuthInfo(null);
+    if (!EMAIL_RE.test(email.trim())) { setAuthError('Saisis ton e-mail ci-dessus, puis touche « Mot de passe oublié ? ».'); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
+    if (error) setAuthError(authMessage(error));
+    else setAuthInfo("Si un compte existe pour cette adresse, un lien pour choisir un nouveau mot de passe vient d'être envoyé.");
+  };
+
   const handleLogout = async () => {
     // La dernière saisie part avant la déconnexion. Si la sauvegarde échoue, on reste
     // connecté : le bandeau rouge propose de réessayer, rien n'est perdu.
     if (dirtyRef.current && !(await saveData())) return;
     if (!window.confirm('Se déconnecter ?')) return;
+    setModal({ open: false, type: '', data: null });
     clearTimeout(undoTimer.current);
     setUndo(null);
     loadedRef.current = null;
@@ -1282,14 +1343,18 @@ export default function NexusUltimateCloud() {
             <button onClick={() => setAuthMode('login')} className={`flex-1 py-3 rounded-chip text-xs font-black uppercase transition-all ${authMode === 'login' ? 'bg-emerald-600 text-white' : 'text-zinc-500'}`}>Connexion</button>
             <button onClick={() => setAuthMode('signup')} className={`flex-1 py-3 rounded-chip text-xs font-black uppercase transition-all ${authMode === 'signup' ? 'bg-emerald-600 text-white' : 'text-zinc-500'}`}>Créer</button>
           </div>
-          {authError && <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-chip text-red-400 text-xs font-bold text-center">{authError}</div>}
+          {authError && <div role="alert" className="bg-red-500/10 border border-red-500/20 p-4 rounded-chip text-red-400 text-xs font-bold text-center">{authError}</div>}
+          {authInfo && <div role="status" className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-chip text-emerald-300 text-xs font-semibold text-center leading-relaxed">{authInfo}</div>}
           <form onSubmit={handleAuth} className="space-y-4">
-            <input type="email" required placeholder="Email" className="w-full bg-black/50 border border-white/10 rounded-chip p-5 outline-none focus:border-emerald-500 font-bold transition-all text-white" value={email} onChange={e => setEmail(e.target.value)} />
-            <input type="password" required placeholder="Mot de passe" className="w-full bg-black/50 border border-white/10 rounded-chip p-5 outline-none focus:border-emerald-500 font-bold transition-all text-white" value={password} onChange={e => setPassword(e.target.value)} />
+            <input type="email" required autoComplete="email" placeholder="Email" className="w-full bg-black/50 border border-white/10 rounded-chip p-5 outline-none focus:border-emerald-500 font-bold transition-all text-white" value={email} onChange={e => setEmail(e.target.value)} />
+            <input type="password" required autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} placeholder="Mot de passe" className="w-full bg-black/50 border border-white/10 rounded-chip p-5 outline-none focus:border-emerald-500 font-bold transition-all text-white" value={password} onChange={e => setPassword(e.target.value)} />
             <button type="submit" className="w-full bg-white text-black py-5 rounded-tile font-black text-lg uppercase hover:scale-[1.02] transition-all">
               {authMode === 'login' ? 'Entrer' : 'S\'inscrire'}
             </button>
           </form>
+          {authMode === 'login' && (
+            <button type="button" onClick={handleForgot} className="w-full min-h-[44px] text-sm font-semibold text-zinc-400 hover:text-white">Mot de passe oublié ?</button>
+          )}
         </div>
       </div>
     </div>
@@ -1313,15 +1378,18 @@ export default function NexusUltimateCloud() {
           )}
         </div>
         {/* Confirmation discrète après chaque sauvegarde réussie */}
-        <div aria-live="polite" className={`fixed right-4 z-[140] text-[11px] font-bold text-emerald-400 bg-zinc-900/90 border border-emerald-500/20 rounded-full px-3 py-1.5 pointer-events-none transition-opacity duration-200 ${saveStatus === 'saved' && !saveError ? 'opacity-100' : 'opacity-0'}`} style={{ top: 'max(12px, env(safe-area-inset-top))' }}>
+        <div aria-live="polite" className={`fixed left-1/2 -translate-x-1/2 z-[140] text-[11px] font-bold text-emerald-400 bg-zinc-900/90 border border-emerald-500/20 rounded-full px-3 py-1.5 pointer-events-none transition-opacity duration-200 ${saveStatus === 'saved' && !saveError ? 'opacity-100' : 'opacity-0'}`} style={{ top: 'max(12px, env(safe-area-inset-top))' }}>
           {saveStatus === 'saved' && !saveError ? '✓ Enregistré' : ''}
         </div>
 
         {/* Nom de la page avec la pastille de sa couleur, sur les 7 onglets. */}
-        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
-          <span aria-hidden="true" className="w-2 h-2 rounded-full" style={{ background: TABS[tabIndex].color }} />
-          {TABS[tabIndex].label}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
+            <span aria-hidden="true" className="w-2 h-2 rounded-full" style={{ background: TABS[tabIndex].color }} />
+            {TABS[tabIndex].label}
+          </p>
+          <button onClick={openProfile} aria-label="Mon profil" className="ib-solo -mr-3 rounded-full text-zinc-400"><UserRound size={20} /></button>
+        </div>
 
 
         {activeTab === 'dashboard' && (
@@ -2163,11 +2231,6 @@ export default function NexusUltimateCloud() {
               ))}
             </AnimatePresence></Reorder.Group>{history.filter(h => showArchives ? h.isArchived : !h.isArchived).length === 0 && <p className="text-center text-sm text-zinc-500 font-medium leading-relaxed py-6 px-6">{showArchives ? 'Aucune écriture archivée.' : 'Aucun flux pour l\'instant. Dépenses, recettes et avances s\'inscrivent ici.'}</p>}
 
-            {/* Déconnexion : rarement utile, donc en bas du Journal (plus dans la barre
-                d'onglets, où un tap raté déconnectait), avec confirmation. */}
-            <button onClick={handleLogout} className="w-full min-h-[52px] rounded-tile border border-white/10 text-zinc-400 hover:text-red-400 font-bold text-sm flex items-center justify-center gap-2">
-              <LogOut size={18} /> Se déconnecter
-            </button>
           </div>
         )}
         {/* --- TIROIR DE SAISIE : monte du bas (320 ms), redescend (200 ms). AnimatePresence garde
@@ -2215,6 +2278,47 @@ export default function NexusUltimateCloud() {
                 <button type="button" onClick={requestClose} aria-label="Fermer" className="ib-solo -mr-3 text-zinc-500"><X size={28} /></button>
               </div>
 
+              {modal.type === 'profile' ? (
+                <div className="space-y-8">
+                  {/* Compte */}
+                  <div className="flex items-center gap-4 bg-black/40 border border-white/10 rounded-tile p-4">
+                    <div aria-hidden="true" className="w-12 h-12 shrink-0 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-lg font-black uppercase">{(session?.user?.email || '?')[0]}</div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Connecté avec</p>
+                      <p className="text-white font-bold truncate">{session?.user?.email}</p>
+                    </div>
+                  </div>
+
+                  {/* Mot de passe */}
+                  <form onSubmit={handlePasswordChange} className="space-y-3">
+                    <h3 className="flex items-center gap-2 text-sm font-bold text-white"><KeyRound size={16} className="text-emerald-400" /> {modal.data?.recovery ? 'Choisis ton nouveau mot de passe' : 'Changer le mot de passe'}</h3>
+                    <div className="relative">
+                      <input type={showPw ? 'text' : 'password'} autoComplete="new-password" placeholder="Nouveau mot de passe" aria-label="Nouveau mot de passe" className="w-full bg-black/50 border border-white/10 rounded-chip p-4 outline-none focus:border-emerald-500 font-semibold text-white pr-14" value={form.pw1 || ''} onChange={e => setForm({ ...form, pw1: e.target.value })} />
+                      <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} className="ib-solo absolute right-1 top-1/2 -translate-y-1/2 text-zinc-400">{showPw ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                    </div>
+                    <input type={showPw ? 'text' : 'password'} autoComplete="new-password" placeholder="Confirmer" aria-label="Confirmer le nouveau mot de passe" className="w-full bg-black/50 border border-white/10 rounded-chip p-4 outline-none focus:border-emerald-500 font-semibold text-white" value={form.pw2 || ''} onChange={e => setForm({ ...form, pw2: e.target.value })} />
+                    <p className="text-xs text-zinc-500 font-medium">8 caractères minimum. Tes données ne changent pas.</p>
+                    {profileMsg?.where === 'pw' && <p role={profileMsg.ok ? 'status' : 'alert'} className={`text-sm font-semibold leading-snug ${profileMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{profileMsg.text}</p>}
+                    <button type="submit" disabled={profileBusy === 'pw'} className="w-full min-h-[52px] rounded-tile bg-emerald-600 text-white font-black uppercase tracking-tight disabled:opacity-60">{profileBusy === 'pw' ? 'Enregistrement…' : 'Changer le mot de passe'}</button>
+                  </form>
+
+                  {/* Adresse e-mail */}
+                  {!modal.data?.recovery && (
+                  <form onSubmit={handleEmailChange} className="space-y-3">
+                    <h3 className="flex items-center gap-2 text-sm font-bold text-white"><Mail size={16} className="text-emerald-400" /> Changer d'adresse e-mail</h3>
+                    <input type="email" autoComplete="email" placeholder="Nouvelle adresse" aria-label="Nouvelle adresse e-mail" className="w-full bg-black/50 border border-white/10 rounded-chip p-4 outline-none focus:border-emerald-500 font-semibold text-white" value={form.newEmail || ''} onChange={e => setForm({ ...form, newEmail: e.target.value })} />
+                    <p className="text-xs text-zinc-500 font-medium">Un lien de confirmation part sur la nouvelle adresse.</p>
+                    {profileMsg?.where === 'email' && <p role={profileMsg.ok ? 'status' : 'alert'} className={`text-sm font-semibold leading-snug ${profileMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{profileMsg.text}</p>}
+                    <button type="submit" disabled={profileBusy === 'email'} className="w-full min-h-[52px] rounded-tile border border-white/15 text-white font-black uppercase tracking-tight disabled:opacity-60">{profileBusy === 'email' ? 'Envoi…' : "Changer l'adresse"}</button>
+                  </form>
+                  )}
+
+                  {/* Déconnexion */}
+                  <button type="button" onClick={handleLogout} className="w-full min-h-[52px] rounded-tile border border-red-500/30 text-red-400 font-bold text-sm flex items-center justify-center gap-2">
+                    <LogOut size={18} /> Se déconnecter
+                  </button>
+                </div>
+              ) : (
               <form onSubmit={handleForm} className="space-y-8">
                 {(modal.type === 'due_date' || (modal.type === 'exceptional' && dueDraft.length > 0)) && (
                   <div className="space-y-4">
@@ -2493,6 +2597,7 @@ export default function NexusUltimateCloud() {
                   </div>
                 )}
               </form>
+              )}
             </MotionDiv>
           </div>
         )}

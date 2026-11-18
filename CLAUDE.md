@@ -39,7 +39,7 @@ Les `id` sont des `Date.now()`.
 - **Auto-save anti-rebond 800 ms** ([`useEffect`](src/App.jsx) → `saveData`) : toute modif de state déclenche un `upsert` de **toutes** les colonnes, 800 ms après la dernière modif (regroupe les frappes clavier).
 - En cas d'échec → `saveError` affiche une **bannière rouge** avec « Réessayer ». Ne pas réintroduire d'écritures par-colonne (`saveToCloud` a été supprimé au profit d'un chemin unique). Succès → pastille « ✓ Enregistré » 1,5 s.
 - **Aucune sauvegarde avant un chargement réussi** (protection contre l'écrasement des données) : `fetchData` pose `loadedFor` / `loadedRef` seulement après un `select` réussi ; l'auto-save et le balayage des échéances sont gardés par `loadedFor === session.user.id`. Chargement en erreur → écran « Impossible de charger tes données » (Réessayer / Se déconnecter), jamais d'écriture. `fetchingRef` évite deux chargements simultanés ; `onAuthStateChange` ne recharge **que si l'utilisateur change** (un `TOKEN_REFRESHED` ne doit pas recharger par-dessus une saisie).
-- `dirtyRef` + `visibilitychange` : une modification en attente est envoyée dès que l'app passe en arrière-plan ; la déconnexion (bas du Journal, avec confirmation) envoie d'abord ce qui reste et s'arrête si l'envoi échoue.
+- `dirtyRef` + `visibilitychange` : une modification en attente est envoyée dès que l'app passe en arrière-plan ; la déconnexion (tiroir « Mon profil », avec confirmation) envoie d'abord ce qui reste et s'arrête si l'envoi échoue.
 - **Suppressions annulables** : toute suppression (et l'absorption d'une avance) passe par `commitWithUndo(label, { cléDeState: nouveauTableau })` → bandeau « Annuler » 5 s. `restoreList` remet chaque élément à sa place d'origine (par `id`), donc les totaux reviennent à l'identique. Nouvelle suppression = passer par `commitWithUndo`, pas de `window.confirm`.
 - Montants saisis : toujours `toNum(v)` (accepte virgule, espaces, €), jamais `parseFloat` direct.
 
@@ -165,6 +165,7 @@ npm run lint     # eslint . (le dossier api/ est ignoré)
 - **Arrondis** : 3 jetons seulement (`@theme` dans `index.css`) → `rounded-chip` (14 px : champs, puces, icônes), `rounded-tile` (22 px : lignes, boutons), `rounded-card` (30 px : cartes héro, tiroir), plus `rounded-full`. Ne pas réintroduire de `rounded-[…]`.
 - **Libellés** : 11 px minimum, droits, `font-semibold` ; l'italique reste réservé aux montants et aux titres. Une liste vide affiche une phrase qui dit quoi faire.
 - **Chargement** : squelette de page (pas de roue), `role="status"`.
+- **Profil** : icône en haut à droite de chaque page → tiroir `modal.type === 'profile'` (contenu à part du formulaire de saisie) : e-mail du compte, changement de mot de passe (`supabase.auth.updateUser({ password })`, champs `form.pw1/pw2`), changement d'adresse (`updateUser({ email })`, lien de confirmation), déconnexion. « Mot de passe oublié ? » sur l'écran de connexion → `resetPasswordForEmail` ; au retour par le lien, l'événement `PASSWORD_RECOVERY` ouvre le profil sur « Choisis ton nouveau mot de passe ». Le site Vercel doit être déclaré dans Supabase (Authentication → URL Configuration). Ne touche jamais aux données budget.
 
 ## Pièges connus
 
