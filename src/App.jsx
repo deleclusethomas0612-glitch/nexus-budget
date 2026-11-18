@@ -2054,10 +2054,13 @@ export default function NexusUltimateCloud() {
               </div>
             </div>
 
-            <div className="flex justify-between items-center px-4 pt-4">
-              <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Mes Charges</h2>
-              <button onClick={() => setModal({ open: true, type: 'create_personal_expense' })} className="w-12 h-12 bg-rose-600 rounded-tile flex items-center justify-center shadow-lg transition-all"><Plus size={24} /></button>
-            </div>
+            {/* Ajouter : sous le total, pleine largeur (même place que sur Charges communes) */}
+            <button
+              onClick={() => { setForm({ label: '', amount: '', cat: 'fixed', targetAccount: '', startDate: '' }); setModal({ open: true, type: 'create_personal_expense' }); }}
+              className="w-full min-h-[52px] -mt-2 rounded-tile bg-rose-500/15 border border-rose-400/30 text-rose-300 font-bold text-sm flex items-center justify-center gap-2"
+            >
+              <Plus size={18} /> Ajouter une charge perso
+            </button>
 
             <Reorder.Group axis="y" values={personalExpenses} onReorder={(newList) => setPersonalExpenses(newList)} className="space-y-3 pb-4"><AnimatePresence initial={false}>
               {personalExpenses.map(item => (
